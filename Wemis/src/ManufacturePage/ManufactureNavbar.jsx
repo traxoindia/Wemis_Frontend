@@ -1,4 +1,5 @@
 // ManufactureNavbar.jsx
+import logo from '../Images/logo.png'
 import React, { useState, useRef, useEffect, useContext } from "react";
 import {
   Search,
@@ -39,8 +40,8 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
 
   // ✅ Logout handler
 
-   const { logout } = useContext(UserAppContext);
- 
+  const { logout } = useContext(UserAppContext);
+
 
   // ✅ Menu definition with routes
   const menuItems = [
@@ -92,12 +93,12 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
       dropdown: [
         { name: "Distributors", route: "/members/distributors" },
         { name: "OEM", route: "/members/oem" },
-         { name: "Technician", route: "/members/technician" },
-        { name: "Dealer", customModal: "dealer" }, 
-         // ✅ opens Dealer Modal
+        { name: "Technician", route: "/members/technician" },
+        { name: "Dealer", customModal: "dealer" },
+        // ✅ opens Dealer Modal
       ],
     },
-    
+
     {
       name: "Manage Device",
       icon: <Cpu />,
@@ -110,17 +111,26 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
   };
 
   return (
-    <header className="bg-black border-b border-yellow-500/40">
+    <header className="bg-gradient-to-r from-yellow-400 via-black to-black border-b border-yellow-500/40
+">
       {/* Top Header */}
       <div className="px-6 py-4 flex flex-col lg:flex-row items-center justify-between">
         {/* Left */}
         <div className="flex items-center space-x-6">
-          <div className="text-2xl font-bold text-yellow-400">MEMUS</div>
+          <div className="flex items-center space-x-2">
+            <img
+              src={logo} // 
+              alt="MEMUS Logo"
+              className="w-44 h-20 object-contain"
+            />
+           
+          </div>
+
           <div className="hidden md:flex items-center space-x-4 text-gray-400">
-            <Search className="w-4 h-4" />
-            <span className="text-sm">Search...</span>
+           
           </div>
         </div>
+
 
         {/* Right */}
         <div className="flex items-center space-x-6 mt-4 lg:mt-0">
@@ -169,11 +179,10 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
                     setActiveRoute(item.route);
                   }
                 }}
-                className={`flex flex-col items-center cursor-pointer transition ${
-                  activeRoute === item.route
+                className={`flex flex-col items-center cursor-pointer transition ${activeRoute === item.route
                     ? "text-yellow-400"
-                    : "text-gray-500 hover:text-yellow-300"
-                }`}
+                    : "text-gray-100 hover:text-yellow-300"
+                  }`}
               >
                 <div className="w-8 h-8 mb-1">{item.icon}</div>
                 <span className="text-sm font-medium flex items-center gap-1">
@@ -181,11 +190,10 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
                     <>
                       {item.name}
                       <ChevronDown
-                        className={`w-4 h-4 transition-transform duration-200 ${
-                          openDropdown === item.name
+                        className={`w-4 h-4 transition-transform duration-200 ${openDropdown === item.name
                             ? "rotate-180 text-yellow-400"
                             : "text-gray-400"
-                        }`}
+                          }`}
                       />
                     </>
                   ) : (
@@ -217,11 +225,10 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
                           setActiveRoute(sub.route);
                           setOpenDropdown(null);
                         }}
-                        className={`flex items-center gap-2 px-4 py-2 text-sm rounded transition ${
-                          activeRoute === sub.route
+                        className={`flex items-center gap-2 px-4 py-2 text-sm rounded transition ${activeRoute === sub.route
                             ? "bg-yellow-500 text-black"
                             : "text-gray-300 hover:bg-yellow-500 hover:text-black"
-                        }`}
+                          }`}
                       >
                         {sub.icon}
                         {sub.name}

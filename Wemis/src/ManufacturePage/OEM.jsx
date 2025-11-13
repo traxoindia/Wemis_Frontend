@@ -492,7 +492,7 @@ function OEM() {
                             <div>
                                 <label className="block mb-1">PAN Number *</label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     name="pAN_Number"
                                     value={createData.pAN_Number}
                                     onChange={handleChange}
@@ -516,7 +516,7 @@ function OEM() {
                             <div>
                                 <label className="block mb-1">GST No</label>
                                 <input
-                                    type="number"
+                                    type="text"
                                     name="gst_no"
                                     value={createData.gst_no}
                                     onChange={handleChange}
