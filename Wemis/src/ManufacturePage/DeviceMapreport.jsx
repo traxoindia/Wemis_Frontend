@@ -671,7 +671,7 @@ function DeviceMapreport() {
                     },
                 }
             );
-console.log(response.data)
+            console.log(response.data)
             if (response.data?.mapDevice && typeof response.data.mapDevice === 'object' && !Array.isArray(response.data.mapDevice)) {
                 if (setDetailsState) setDetailsState(response.data.mapDevice);
                 return response.data.mapDevice;
@@ -997,7 +997,7 @@ console.log(response.data)
                                         {`${device.Customerstate || 'N/A'} / ${device.Customerdistrict || 'N/A'}`}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">{device.VehicleType || 'N/A'}</td>
-<td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">{device.vechileNo || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">{device.vechileNo || 'N/A'}</td>
                                     {/* RTO Data Cell - Highlighted */}
                                     <td className="px-6 py-4 whitespace-nowrap text-yellow-400 font-semibold text-sm">
                                         {device.Rto || 'N/A'}
