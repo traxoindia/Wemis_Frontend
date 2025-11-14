@@ -123,11 +123,11 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
               alt="MEMUS Logo"
               className="w-44 h-20 object-contain"
             />
-           
+
           </div>
 
           <div className="hidden md:flex items-center space-x-4 text-gray-400">
-           
+
           </div>
         </div>
 
@@ -180,8 +180,8 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
                   }
                 }}
                 className={`flex flex-col items-center cursor-pointer transition ${activeRoute === item.route
-                    ? "text-yellow-400"
-                    : "text-gray-100 hover:text-yellow-300"
+                  ? "text-yellow-400"
+                  : "text-gray-100 hover:text-yellow-300"
                   }`}
               >
                 <div className="w-8 h-8 mb-1">{item.icon}</div>
@@ -191,8 +191,8 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
                       {item.name}
                       <ChevronDown
                         className={`w-4 h-4 transition-transform duration-200 ${openDropdown === item.name
-                            ? "rotate-180 text-yellow-400"
-                            : "text-gray-400"
+                          ? "rotate-180 text-yellow-400"
+                          : "text-gray-400"
                           }`}
                       />
                     </>
@@ -226,8 +226,8 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
                           setOpenDropdown(null);
                         }}
                         className={`flex items-center gap-2 px-4 py-2 text-sm rounded transition ${activeRoute === sub.route
-                            ? "bg-yellow-500 text-black"
-                            : "text-gray-300 hover:bg-yellow-500 hover:text-black"
+                          ? "bg-yellow-500 text-black"
+                          : "text-gray-300 hover:bg-yellow-500 hover:text-black"
                           }`}
                       >
                         {sub.icon}

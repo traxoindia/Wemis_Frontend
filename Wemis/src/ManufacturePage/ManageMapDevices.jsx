@@ -1,22 +1,20 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, Menu, MapPin, Package, FileText, User, Smartphone, Loader2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
-import ManufactureDashboard from './ManufactureDashboard';
 import DeviceMapreport from './DeviceMapreport';
 import ManufactureNavbar from './ManufactureNavbar';
-
 // =========================================================
 // 1. PLACEHOLDER COMPONENTS (Required for single-file mandate)
 // =========================================================
 
 // Placeholder for ManufactureNavbar
-const ManufactureNavbarr = () => (
+const ManufactureNavbarr= () => (
   <nav className="bg-gray-800 border-b border-gray-700 p-4 text-center text-white">
     <span className="font-bold">WEMIS Manufacturer Portal</span>
   </nav>
 );
 
 // Placeholder for DeviceMapreport (Report Section)
-const DeviceMapreportt = () => (
+const DeviceMapreporttt = () => (
   <div className="mt-12 p-8 bg-gray-800/50 rounded-2xl shadow-inner border border-yellow-500/30">
     <h2 className="text-3xl font-bold text-yellow-400 mb-6">Device Mapping History</h2>
     <div className="text-gray-400 text-center py-10 border-2 border-dashed border-gray-600 rounded-lg">
@@ -27,11 +25,6 @@ const DeviceMapreportt = () => (
 );
 
 
-// =========================================================
-// 2. CONFIGURATION & HELPERS
-// =========================================================
-
-// --- Custom Toast Component ---
 const ToastNotification = ({ message, type, onClose }) => {
   if (!type || !message) return null;
 
@@ -75,7 +68,7 @@ const ToastNotification = ({ message, type, onClose }) => {
   );
 };
 
-// --- API Configuration (kept the same) ---
+// --- API Configuration ---
 const DISTRIBUTOR_API = 'https://api.websave.in/api/manufactur/fetchDistributorOnBasisOfState';
 const DEALER_API = 'https://api.websave.in/api/manufactur/fetchdelerOnBasisOfDistributor';
 const DEVICE_NO_API = 'https://api.websave.in/api/manufactur/fetchDeviceNoOnBasisOfDeler';
@@ -113,6 +106,8 @@ const initialFormData = {
   state: '',
   distributorName: '', // ID
   delerName: '', // Name/Business Name
+  vechileNo:'',
+
   deviceType: '',
   deviceNo: '', // Serial Number
   voltage: '',
@@ -171,7 +166,6 @@ function App() {
   const [selectedPackageDetails, setSelectedPackageDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [packagesLoading, setPackagesLoading] = useState(false);
-  // Renamed from submitStatus to toast for the notification system
   const [toast, setToast] = useState({ message: '', type: null });
 
   // Helper to reset SIM and device related fields
@@ -183,7 +177,7 @@ function App() {
     };
   }
 
-  // --- API Fetchers (Functionality unchanged) ---
+  // --- API Fetchers ---
   const fetchPackages = useCallback(async () => {
     setPackagesLoading(true);
     try {
@@ -269,7 +263,6 @@ function App() {
         body: JSON.stringify({ delerName: selectedDelerName })
       });
       const data = await response.json();
-      console.log(data)
       setDeviceNumbers(data.devices || []);
     } catch (error) {
       console.error('Error fetching device numbers:', error.message);
@@ -302,7 +295,7 @@ function App() {
     }
   }, [formData.delerName, fetchDeviceNumbers]);
 
-  // --- Change Handler (Functionality unchanged) ---
+  // --- Change Handler ---
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
     let newFormData = { ...formData };
@@ -353,7 +346,7 @@ function App() {
     setFormData(newFormData);
   };
 
-  // --- Submission Handler (UPDATED for Toast and Modal Close) ---
+  // --- Submission Handler ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -370,9 +363,10 @@ function App() {
         payload[key] = value ? String(value).trim() : "";
       }
 
-      // Add actual SIM details array and delete the display summary string
+      // Add actual SIM details array
       payload.simDetails = mappedSims || [];
-      // delete payload.simDetails;
+      // If simDetails was a summary string, we delete it from payload
+      // But since we built the payload from scratch, we only need the array now.
 
 
       const token = localStorage.getItem("token") || 'mock-token';
@@ -391,6 +385,9 @@ function App() {
         signal: controller.signal
       });
 
+      console.log(payload)
+      console.log(formData)
+
       clearTimeout(timeout);
 
       let result;
@@ -400,8 +397,6 @@ function App() {
         result = { success: false, message: "Invalid JSON response from server." };
       }
 
-      console.log("✅ API Response:", result);
-
       if (!response.ok || result.success === false) {
         const errorMsg = result.message || "Submission failed. Please check the required fields and network.";
         setToast({ message: errorMsg, type: "error" });
@@ -410,8 +405,6 @@ function App() {
 
       // Success logic: Show toast and close modal
       setToast({ message: "Device mapped successfully!", type: "success" });
-      console.log("mappedSims:",mappedSims)
-      console.log("payload.simDetails:",payload.simDetails)
       setIsModalOpen(false); 
 
       // Reset form
@@ -428,32 +421,22 @@ function App() {
     }
   };
 
-  // --- Utility Functions (unchanged, just moved closer) ---
+  // --- Utility Functions ---
   const getLabel = (key) => {
     const labels = {
-      deviceType: 'Device Type', voltage: 'Voltage', elementType: 'Element Type', batchNo: 'Batch No',
+     vechileNo:'Vehicle No', deviceType: 'Device Type', voltage: 'Voltage', elementType: 'Element Type', batchNo: 'Batch No',
       VechileBirth: 'Vehicle Birth (Year/Date)', RegistrationNo: 'Registration No', date: 'Installation Date',
       ChassisNumber: 'Chassis Number', EngineNumber: 'Engine Number', VehicleType: 'Vehicle Type', MakeModel: 'Make & Model', ModelYear: 'Model Year',
       InsuranceRenewDate: 'Insurance Renew Date', PollutionRenewdate: 'Pollution Renew Date', VehicleKMReading: 'Vehicle KM Reading', DriverLicenseNo: 'Driver License No',
       MappedDate: 'Mapped Date', NoOfPanicButtons: 'No. Of Panic Buttons',
       fullName: 'Customer Full Name', email: 'Customer Email', mobileNo: 'Customer Mobile No', GstinNo: 'GSTIN No',
       Customerdistrict: 'Customer District', Rto: 'RTO', PinCode: 'Pin Code', CompliteAddress: 'Complete Address',
-      AdharNo: 'Adhar No', PanNo: 'Pan No', InvoiceNo: 'Invoice No',
+      AdharNo: 'Aadhar No', PanNo: 'PAN No', InvoiceNo: 'Invoice No',
     };
     return labels[key] || key;
   };
 
-  const textNumberInputs = [
-    'deviceType', 'voltage', 'elementType', 'batchNo',
-    'VechileBirth', 'RegistrationNo', 'date', 'ChassisNumber', 'EngineNumber', 'VehicleType', 'MakeModel', 'ModelYear', 'InsuranceRenewDate',
-    'PollutionRenewdate', 'VehicleKMReading', 'DriverLicenseNo',
-    'MappedDate', 'NoOfPanicButtons',
-    'fullName', 'email', 'mobileNo', 'GstinNo', 'Customerdistrict', 'Rto', 'PinCode',
-    'CompliteAddress', 'AdharNo', 'PanNo', 'InvoiceNo',
-  ];
-
-  // --- Render Helpers (Updated UI) ---
-
+  // --- Render Helpers ---
   const renderSimInputs = () => {
     if (!formData.deviceNo) {
       return (
@@ -463,7 +446,7 @@ function App() {
         </div>
       );
     }
-    if (mappedSims.length === 0) {
+    if (mappedSims.length === 0 || mappedSims.every(sim => !sim.simNo && !sim.iccidNo)) {
       return (
         <div className="md:col-span-3 text-center py-6 text-yellow-400 border-2 border-dashed border-yellow-500/30 rounded-xl bg-black/20">
           <AlertTriangle size={24} className="mx-auto mb-2" />
@@ -512,7 +495,7 @@ function App() {
 
   const renderFormInput = (key, span = 1) => {
     const type = key.toLowerCase().includes('date') ? 'date' : (['mobileNo', 'PinCode', 'AdharNo', 'PanNo', 'VehicleKMReading', 'NoOfPanicButtons', 'voltage'].includes(key)) ? 'text' : 'text';
-    const isRequired = ['deviceType', 'voltage', 'RegistrationNo', 'date', 'ChassisNumber', 'EngineNumber', 'VehicleType', 'MakeModel', 'fullName', 'mobileNo', 'AdharNo', 'PanNo', 'CompliteAddress', 'Customerstate'].includes(key);
+    const isRequired = ['vechileNo', 'deviceType', 'voltage', 'RegistrationNo', 'date', 'ChassisNumber', 'EngineNumber', 'VehicleType', 'MakeModel', 'fullName', 'mobileNo', 'AdharNo', 'PanNo', 'CompliteAddress', 'Customerstate'].includes(key);
 
     return (
       <div key={key} className={`col-span-${span}`}>
@@ -529,6 +512,20 @@ function App() {
       </div>
     );
   };
+  
+  const renderFileInput = (key) => {
+    // NOTE: This input is disabled due to the API using JSON format
+    return (
+      <div key={key} className="col-span-1">
+        <label className="block mb-2 font-medium text-gray-500 text-sm">{getLabel(key.replace('_Doc', '').replace('_Card', '').replace('_Sticker', ''))} (Disabled)</label>
+        <div className="w-full px-4 py-2.5 border border-gray-700 rounded-lg bg-black/60 text-gray-500 flex items-center justify-between opacity-50 cursor-not-allowed">
+            <span className="truncate">{formData[key]?.name || "File upload disabled"}</span>
+            <FileText size={18} />
+        </div>
+      </div>
+    );
+  };
+
 
   return (
     <div className="font-sans">
@@ -537,9 +534,8 @@ function App() {
 
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
         
-        {/* Navbar - UI unchanged */}
+        {/* Navbar */}
         <nav className="bg-black/90 backdrop-blur-md border-b-2 border-yellow-500 sticky top-0 z-40 shadow-2xl">
-          {/* ... Navbar content (omitted for brevity) ... */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-20">
               <div className="flex items-center">
@@ -592,6 +588,13 @@ function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <DeviceMapreport/>
         </div>
+
+        {/* Toast Notification Renderer */}
+        <ToastNotification 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={() => setToast({ message: '', type: null })} 
+        />
 
         {/* Modal (Improved UI) */}
         {isModalOpen && (
@@ -715,61 +718,113 @@ function App() {
                     </div>
                   </div>
 
-
                   {/* ========================================= */}
-                  {/* SECTION 3: DEVICE & VEHICLE INFO */}
+                  {/* SECTION 3: DEVICE & VEHICLE DETAILS */}
                   {/* ========================================= */}
                   <div className="p-6 bg-gray-800/30 rounded-xl border border-yellow-500/10 shadow-lg">
                     <h3 className="text-xl font-semibold text-yellow-400 mb-5 pb-2 border-b border-yellow-500/20 flex items-center gap-2">
-                      <FileText size={22} />
+                      <Package size={22} />
                       Device & Vehicle Information
                     </h3>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {/* Device Details (4 fields) */}
-                      {textNumberInputs.slice(0, 4).map(key => renderFormInput(key))}
-
-                      {/* Vehicle Details (12 fields) */}
-                      {textNumberInputs.slice(4, 16).map(key => renderFormInput(key))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {renderFormInput('vechileNo')}
+                      {renderFormInput('deviceType')}
+                      {renderFormInput('voltage')}
+                      {renderFormInput('elementType')}
+                      {renderFormInput('batchNo')}
+                      {renderFormInput('VechileBirth')}
+                      {renderFormInput('RegistrationNo')}
+                      {renderFormInput('date')} {/* Installation Date */}
+                      {renderFormInput('ChassisNumber')}
+                      {renderFormInput('EngineNumber')}
+                      {renderFormInput('VehicleType')}
+                      {renderFormInput('MakeModel')}
+                      {renderFormInput('ModelYear')}
+                      {renderFormInput('InsuranceRenewDate')}
+                      {renderFormInput('PollutionRenewdate')}
+                      {renderFormInput('VehicleKMReading')}
+                      {renderFormInput('DriverLicenseNo')}
+                      {renderFormInput('MappedDate')}
+                      {renderFormInput('NoOfPanicButtons')}
                     </div>
                   </div>
 
                   {/* ========================================= */}
-                  {/* SECTION 4: CUSTOMER INFO */}
+                  {/* SECTION 4: CUSTOMER DETAILS */}
                   {/* ========================================= */}
                   <div className="p-6 bg-gray-800/30 rounded-xl border border-yellow-500/10 shadow-lg">
                     <h3 className="text-xl font-semibold text-yellow-400 mb-5 pb-2 border-b border-yellow-500/20 flex items-center gap-2">
                       <User size={22} />
-                      Customer & Billing Details
+                      Customer Details
                     </h3>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {/* Full Name, Email, Mobile, GSTIN */}
-                      {textNumberInputs.slice(18, 22).map(key => renderFormInput(key))}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {renderFormInput('fullName')}
+                      {renderFormInput('email')}
+                      {renderFormInput('mobileNo')}
+                      {renderFormInput('GstinNo')}
                       
-                      {/* Address & RTO */}
-                      {renderFormInput('CompliteAddress', 2)}
-                      {renderFormInput('Rto')}
+                      {/* Customer Location */}
+                      <div>
+                        <label className="block mb-2 font-medium text-yellow-300 text-sm">Customer Country *</label>
+                        <select name="Customercountry" value={formData.Customercountry} onChange={handleChange} required className="w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
+                          <option value="">Select Country</option>
+                          {COUNTRIES.map(c => (<option key={c.code} value={c.name}>{c.name}</option>))}
+                        </select>
+                      </div>
+                      
+                      <div>
+                        <label className="block mb-2 font-medium text-yellow-300 text-sm">Customer State *</label>
+                        {formData.Customercountry === 'India' ? (
+                          <select name="Customerstate" value={formData.Customerstate} onChange={handleChange} required className="w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
+                            <option value="">Select State</option>
+                            {INDIA_STATES.map(state => (<option key={state} value={state}>{state}</option>))}
+                          </select>
+                        ) : (
+                          <input type="text" name="Customerstate" value={formData.Customerstate} onChange={handleChange} required className="w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 placeholder:text-gray-500" placeholder="Enter State/Province" />
+                        )}
+                      </div>
 
-                      {/* State, District, Pincode */}
-                      {renderFormInput('Customerstate')}
                       {renderFormInput('Customerdistrict')}
+                      {renderFormInput('Rto')}
                       {renderFormInput('PinCode')}
-
-                      {/* Adhar, Pan, Invoice No */}
                       {renderFormInput('AdharNo')}
                       {renderFormInput('PanNo')}
                       {renderFormInput('InvoiceNo')}
+                      {renderFormInput('CompliteAddress', 3)}
                     </div>
                   </div>
 
+                  {/* ========================================= */}
+                  {/* SECTION 5: DOCUMENT UPLOADS (Disabled) */}
+                  {/* ========================================= */}
+                  <div className="p-6 bg-gray-800/30 rounded-xl border border-red-500/30 shadow-lg opacity-60 pointer-events-none">
+                    <h3 className="text-xl font-semibold text-red-400 mb-5 pb-2 border-b border-red-500/20 flex items-center gap-2">
+                      <FileText size={22} />
+                      Document Uploads (Disabled)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {/* File Inputs (Disabled) */}
+                      {renderFileInput('Vechile_Doc')}
+                      {renderFileInput('Rc_Doc')}
+                      {renderFileInput('Pan_Card')}
+                      {renderFileInput('Device_Doc')}
+                      {renderFileInput('Adhar_Card')}
+                      {renderFileInput('Invious_Doc')}
+                      {renderFileInput('Signature_Doc')}
+                      {renderFileInput('Panic_Sticker')}
+                    </div>
+                    <p className="mt-4 text-sm text-red-300/80">These fields are disabled because the submission uses JSON format, which cannot handle file uploads directly.</p>
+                  </div>
 
-                  {/* Submit Button */}
-                  <div className="pt-6 border-t border-yellow-500/20 flex justify-end">
+
+                  {/* ========================================= */}
+                  {/* SUBMIT BUTTON */}
+                  {/* ========================================= */}
+                  <div className="pt-4 border-t border-yellow-500/20">
                     <button
                       type="submit"
-                      disabled={loading || packagesLoading}
-                      className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-8 py-3 rounded-xl font-bold text-lg hover:from-yellow-400 hover:to-yellow-500 transition-all duration-300 shadow-xl hover:shadow-yellow-500/60 disabled:opacity-50 flex items-center gap-2 transform active:scale-95"
+                      disabled={loading}
+                      className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-black px-6 py-3 rounded-xl font-bold text-lg hover:from-yellow-400 hover:to-orange-400 transition-all duration-300 shadow-xl hover:shadow-yellow-500/50 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loading ? (
                         <>
@@ -778,25 +833,18 @@ function App() {
                         </>
                       ) : (
                         <>
-                          <MapPin size={24} />
-                          Finalize Mapping
+                          <CheckCircle size={24} />
+                          Map Device Now
                         </>
                       )}
                     </button>
                   </div>
-                </form>
 
+                </form>
               </div>
             </div>
           </div>
         )}
-
-        {/* Global Toast Notification Area */}
-        <ToastNotification 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={() => setToast({ message: '', type: null })} 
-        />
       </div>
     </div>
   );

@@ -671,7 +671,7 @@ function DeviceMapreport() {
                     },
                 }
             );
-
+console.log(response.data)
             if (response.data?.mapDevice && typeof response.data.mapDevice === 'object' && !Array.isArray(response.data.mapDevice)) {
                 if (setDetailsState) setDetailsState(response.data.mapDevice);
                 return response.data.mapDevice;
@@ -927,6 +927,7 @@ function DeviceMapreport() {
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[160px]">Sim Details</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[120px]">State/District</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[120px]">Vehicle Type</th>
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[120px]">Vehicle No</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[100px]">RTO</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[150px]">Dealer</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[150px]">Customer Name</th>
@@ -996,7 +997,7 @@ function DeviceMapreport() {
                                         {`${device.Customerstate || 'N/A'} / ${device.Customerdistrict || 'N/A'}`}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">{device.VehicleType || 'N/A'}</td>
-
+<td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">{device.vechileNo || 'N/A'}</td>
                                     {/* RTO Data Cell - Highlighted */}
                                     <td className="px-6 py-4 whitespace-nowrap text-yellow-400 font-semibold text-sm">
                                         {device.Rto || 'N/A'}
