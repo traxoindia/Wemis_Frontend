@@ -58,6 +58,7 @@ import TechnicianPage from "./ManufacturePage/TechnicianPage";
 import Livetracking from "./ManufacturePage/Livetracking";
 import DealerDashboard from "./Dealer_Distributor/DealerDashboard";
 import DealerDashboardOem from "./Dealer_OEM/DealerDashboardOem";
+import TicketListPage from "./Dealer_Distributor/TicketListPage";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -214,7 +215,7 @@ function App() {
             {/* dealer under distributor & OEM */}
             <Route path="/distributor/dealer/dashboard" element={<DealerDashboard />} />
             <Route path="oem/dealer/dashboard" element={<DealerDashboardOem />} />
-
+            <Route path="/dealer/tickets" element={<TicketListPage />} />
 
           </>
         )}
