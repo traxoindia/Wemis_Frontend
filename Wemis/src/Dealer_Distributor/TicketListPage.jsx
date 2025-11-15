@@ -1,103 +1,134 @@
-import React, { useState } from 'react';
-import { FaTicketAlt, FaClock, FaCheckCircle, FaExclamationCircle, FaFolderOpen, FaEye } from 'react-icons/fa';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import {
+  FaTicketAlt,
+  FaClock,
+  FaCheckCircle,
+  FaExclamationCircle,
+  FaFolderOpen,
+  FaEye,
+} from "react-icons/fa";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify";
 
-
-// Mock Data for Tickets
-const mockTickets = [
-  { id: 'TKT-001', subject: 'Device Mapped, but location not updating', category: 'DeviceMapping', status: 'Open', priority: 'High', date: '2025-11-14' },
-  { id: 'TKT-002', subject: 'Recharge amount deducted but not credited', category: 'WalletIssue', status: 'Pending', priority: 'High', date: '2025-11-13' },
-  { id: 'TKT-003', subject: 'Technician access login issue', category: 'Technical', status: 'Closed', priority: 'Medium', date: '2025-11-10' },
-  { id: 'TKT-004', subject: 'Renewal due date inquiry for VIN 12345', category: 'Renewal', status: 'Open', priority: 'Low', date: '2025-11-08' },
-  { id: 'TKT-005', subject: 'Inaccurate stock count reported', category: 'Other', status: 'Closed', priority: 'Medium', date: '2025-11-05' },
-  { id: 'TKT-006', subject: 'Cannot assign device to technician', category: 'DeviceMapping', status: 'Pending', priority: 'High', date: '2025-11-01' },
-];
-
-
-// Helper function to get status badge styling
+// STATUS BADGE UI
 const getStatusBadge = (status) => {
-  let colorClass = '';
+  let color = "";
   let icon = null;
+
   switch (status) {
-    case 'Open':
-      colorClass = 'bg-red-600 text-white';
+    case "Open":
+      color = "bg-red-600 text-white";
       icon = <FaFolderOpen className="mr-1" />;
       break;
-    case 'Pending':
-      colorClass = 'bg-yellow-500 text-gray-900';
+    case "Pending":
+      color = "bg-yellow-400 text-gray-900";
       icon = <FaClock className="mr-1" />;
       break;
-    case 'Closed':
-      colorClass = 'bg-green-600 text-white';
+    case "Closed":
+      color = "bg-green-600 text-white";
       icon = <FaCheckCircle className="mr-1" />;
       break;
     default:
-      colorClass = 'bg-gray-500 text-white';
+      color = "bg-gray-500 text-white";
   }
-  return <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-full ${colorClass}`}>{icon}{status}</span>;
-};
 
-// Helper function to get priority badge styling
-const getPriorityBadge = (priority) => {
-    let colorClass = '';
-    switch (priority) {
-        case 'High':
-            colorClass = 'text-red-400 font-bold';
-            break;
-        case 'Medium':
-            colorClass = 'text-yellow-400 font-semibold';
-            break;
-        case 'Low':
-            colorClass = 'text-green-400 font-normal';
-            break;
-        default:
-            colorClass = 'text-gray-400';
-    }
-    return <span className={`text-xs ${colorClass}`}>{priority}</span>;
+  return (
+    <span className={`inline-flex items-center text-xs font-semibold px-2.5 py-0.5 rounded-full ${color}`}>
+      {icon}
+      {status}
+    </span>
+  );
 };
-
 
 const TicketListPage = () => {
-  const [tickets, setTickets] = useState(mockTickets);
-  const [filter, setFilter] = useState('All');
+  const [tickets, setTickets] = useState([]);
+  const [filter, setFilter] = useState("All");
+  const [loading, setLoading] = useState(false);
 
-  const filteredTickets = tickets.filter(ticket => 
-    filter === 'All' || ticket.status === filter
+  const navigate = useNavigate();
+
+  // Fetch Tickets (Axios GET)
+  const fetchTickets = async () => {
+    setLoading(true);
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      toast.error("No token found. Please login again.");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        "https://api.websave.in/api/manufactur/fetchAllDelerTicketIssue",
+        {
+          headers: {
+            Authorization: token,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log("API DATA:", response.data);
+
+      const data = response.data;
+
+      if (!data || !data.tickets) {
+        toast.error("Unexpected API response format");
+        setLoading(false);
+        return;
+      }
+
+      setTickets(data.tickets.reverse());
+      toast.success("Tickets loaded successfully!");
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || "Network error! Unable to fetch tickets."
+      );
+    }
+
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, []);
+
+  const filteredTickets = tickets.filter(
+    (ticket) => filter === "All" || ticket.issueStatus === filter
   );
 
-
-   const navigate = useNavigate();
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-gray-950 text-white p-6">
       <div className="max-w-7xl mx-auto">
-        
-        {/* Header */}
+        {/* HEADER */}
         <header className="mb-8 pb-3 border-b border-gray-800 flex justify-between items-center">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-white flex items-center gap-2">
-            <FaTicketAlt className="text-yellow-500" /> My Support <span className="text-yellow-500">Tickets</span>
+          <h1 className="text-3xl font-extrabold flex items-center gap-2">
+            <FaTicketAlt className="text-yellow-500" /> My Support{" "}
+            <span className="text-yellow-500">Tickets</span>
           </h1>
-          {/* Note: This button assumes you have a way to open the RaiseTicketModal 
-             from this page, likely passed as a prop from the main App component 
-             or via global state. For simplicity, this example just logs a message. */}
-           <button
-      onClick={() => navigate("/distributor/dealer/dashboard")}
-      className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-green-500 transition-colors shadow-md"
-    >
-      <FaTicketAlt /> Raise New Ticket
-    </button>
+
+          <button
+            onClick={() => navigate("/distributor/dealer/dashboard")}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-green-500 shadow-md flex items-center gap-1"
+          >
+            <FaTicketAlt /> Raise New Ticket
+          </button>
         </header>
 
-        {/* Filters */}
-        <div className="mb-6 flex flex-wrap gap-3 items-center">
-          <span className="text-sm font-medium text-gray-400 mr-2">Filter by Status:</span>
-          {['All', 'Open', 'Pending', 'Closed'].map(status => (
+        {/* FILTERS */}
+        <div className="mb-6 flex gap-3 items-center">
+          <span className="text-gray-400 text-sm">Filter by Status:</span>
+          {["All", "Open", "Pending", "Closed"].map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
-              className={`text-xs font-semibold px-3 py-1 rounded-full transition-colors duration-200 ${
-                filter === status 
-                ? 'bg-yellow-500 text-gray-900 shadow-lg' 
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+              className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                filter === status
+                  ? "bg-yellow-500 text-gray-900 shadow-lg"
+                  : "bg-gray-700 text-gray-300 hover:bg-gray-600"
               }`}
             >
               {status}
@@ -105,65 +136,77 @@ const TicketListPage = () => {
           ))}
         </div>
 
-        {/* Ticket Table */}
-        <div className="bg-gray-800 rounded-xl shadow-2xl overflow-x-auto">
+        {/* TABLE */}
+        <div className="bg-gray-800 rounded-xl shadow-xl overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-700">
             <thead className="bg-gray-700">
               <tr>
-                {['Ticket ID', 'Date Raised', 'Subject', 'Category', 'Priority', 'Status', 'Actions'].map(header => (
+                {[
+                  "Ticket No",
+                  "Created At",
+                  "Vehicle No",
+                  "Issue Type",
+                  "Address",
+                  "Status",
+                 
+                ].map((title) => (
                   <th
-                    key={header}
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider"
+                    key={title}
+                    className="px-6 py-3 text-left text-xs text-gray-300 uppercase"
                   >
-                    {header}
+                    {title}
                   </th>
                 ))}
               </tr>
             </thead>
+
             <tbody className="divide-y divide-gray-700">
-              {filteredTickets.length > 0 ? (
-                filteredTickets.map((ticket, index) => (
-                  <tr key={ticket.id} className="bg-gray-800 hover:bg-gray-700/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-yellow-400">
-                      {ticket.id}
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="text-center py-6 text-gray-400">
+                    Loading tickets...
+                  </td>
+                </tr>
+              ) : filteredTickets.length > 0 ? (
+                filteredTickets.map((ticket) => (
+                  <tr key={ticket._id} className="hover:bg-gray-700/40 transition">
+                    <td className="px-6 py-4 text-yellow-400 font-semibold">
+                      {ticket.ticketIssueNo}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                      {ticket.date}
+
+                    <td className="px-6 py-4 text-gray-300">
+                      {new Date(ticket.createdAt).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4 max-w-xs truncate text-sm text-white">
-                      {ticket.subject}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                      {ticket.category}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getPriorityBadge(ticket.priority)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(ticket.status)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      {/* Placeholder for viewing details - change 'view-ticket' path as needed */}
-                      <Link 
-                        to={`/dealer/tickets/${ticket.id}`} 
-                        className="text-indigo-400 hover:text-indigo-300 text-xs flex items-center gap-1"
-                      >
-                        <FaEye /> Details
-                      </Link>
-                    </td>
+
+                    <td className="px-6 py-4 text-white">{ticket.vechileNo}</td>
+
+                    <td className="px-6 py-4 text-gray-300">{ticket.issueType}</td>
+
+                    <td className="px-6 py-4 text-gray-400">{ticket.address}</td>
+
+                    <td className="px-6 py-4">{getStatusBadge(ticket.issueStatus)}</td>
+
+                   
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-6 text-center text-base text-gray-400">
-                    <FaExclamationCircle className="inline-block mr-2 text-2xl text-red-500" />
-                    No **{filter === 'All' ? '' : filter}** tickets found.
+                  <td
+                    colSpan="7"
+                    className="py-6 text-center text-gray-400 text-lg"
+                  >
+                    <FaExclamationCircle className="text-red-500 text-3xl inline-block mb-1" />{" "}
+                    No {filter === "All" ? "" : filter} tickets found.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* TOTAL COUNT */}
+        <div className="mt-6 text-gray-400 text-sm">
+          Total Tickets: <span className="text-yellow-400 font-bold">{tickets.length}</span>
         </div>
       </div>
     </div>

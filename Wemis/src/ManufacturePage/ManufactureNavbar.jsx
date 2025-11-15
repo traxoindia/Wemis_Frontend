@@ -134,9 +134,12 @@ const ManufactureNavbar = ({ activeRoute, setActiveRoute }) => {
 
         {/* Right */}
         <div className="flex items-center space-x-6 mt-4 lg:mt-0">
-          <button className="bg-yellow-500 text-black px-4 py-2 rounded-lg text-sm font-medium">
-            Product
-          </button>
+          <Link
+            to="/tickets/all" // Set the destination path
+            className="bg-yellow-500 text-black px-4 py-2 rounded-lg text-sm font-medium"
+          >
+            Tickets
+          </Link>
           <div className="flex items-center space-x-2 cursor-pointer">
             <div className="w-5 h-5 bg-yellow-500 rounded"></div>
             <span className="text-yellow-400 font-medium">Wallet</span>

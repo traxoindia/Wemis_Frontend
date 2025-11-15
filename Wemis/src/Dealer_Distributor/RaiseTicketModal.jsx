@@ -1,131 +1,247 @@
-import React, { useState } from 'react';
-import { FaTimes, FaTicketAlt } from 'react-icons/fa';
+import React, { useState, useEffect } from "react";
+import { FaTimes, FaTicketAlt } from "react-icons/fa";
+import { toast } from "react-toastify";
+
+const VEHICLE_API_URL =
+  "https://api.websave.in/api/manufactur/fetchAllVechileNoByDeler";
+const SUBMIT_API_URL =
+  "https://api.websave.in/api/manufactur/ticketIssueByDeler";
 
 const RaiseTicketModal = ({ isOpen, onClose, onSubmit }) => {
-  const [subject, setSubject] = useState('');
-  const [category, setCategory] = useState('');
-  const [description, setDescription] = useState('');
-  const [priority, setPriority] = useState('Medium'); // Default to Medium
+  const [vechileNo, setVechileNo] = useState("");
+  const [issueType, setIssueType] = useState("");
+  const [issueDescription, setIssueDescription] = useState("");
+  const [address, setAddress] = useState("");
+
+  const [vehicleOptions, setVehicleOptions] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
+  const [submitError, setSubmitError] = useState(null);
+
+  const handleModalClose = () => {
+    setSubmitError(null);
+    onClose();
+  };
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchVehicles = async () => {
+      setIsLoading(true);
+      setFetchError(null);
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setFetchError("Authentication token not found.");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const response = await fetch(VEHICLE_API_URL, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) throw new Error(data.message);
+
+        if (Array.isArray(data.vechileNos)) {
+          const valid = data.vechileNos.filter(Boolean);
+          setVehicleOptions(valid);
+
+          if (valid.length > 0) setVechileNo(valid[0]);
+        }
+      } catch (error) {
+        setFetchError(error.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    setVechileNo("");
+    setIssueType("");
+    setIssueDescription("");
+    setAddress("");
+
+    fetchVehicles();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!subject || !category || !description) {
-      alert("Please fill out all required fields.");
+    setSubmitError(null);
+
+    if (!vechileNo || !issueType || !issueDescription || !address) {
+      toast.error("Please fill all required fields.");
       return;
     }
-    onSubmit({ subject, category, description, priority, date: new Date().toISOString() });
+
+    setIsSubmitting(true);
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      toast.error("Token not found. Please login again.");
+      setIsSubmitting(false);
+      return;
+    }
+
+    const payload = {
+      vechileNo,
+      issueType,
+      issueDescription,
+      address,
+    };
+
+    try {
+      const response = await fetch(SUBMIT_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.success === false) {
+        throw new Error(data.message || "Submission failed.");
+      }
+
+      toast.success("Ticket submitted successfully!");
+
+      // notify parent
+      onSubmit?.({
+        ...payload,
+        status: "Open",
+        date: new Date().toISOString(),
+      });
+
+      setTimeout(() => {
+        handleModalClose();
+      }, 1500);
+    } catch (error) {
+      setSubmitError(error.message);
+      toast.error(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 p-4 transition-opacity duration-300">
-      <div className="bg-gray-800 rounded-xl w-full max-w-lg shadow-2xl border border-yellow-500/50 transform transition-transform duration-300 scale-100">
-        
-        {/* Modal Header */}
-        <div className="p-5 border-b border-gray-700 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-yellow-500 flex items-center gap-2">
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+      <div className="bg-gray-800 rounded-xl w-full max-w-lg p-5 shadow-xl border border-yellow-500/40">
+
+        {/* Header */}
+        <div className="flex justify-between items-center border-b border-gray-700 pb-4">
+          <h2 className="text-xl text-yellow-500 font-bold flex items-center gap-2">
             <FaTicketAlt /> Raise New Support Ticket
           </h2>
-          <button 
-            onClick={onClose} 
-            className="text-gray-400 hover:text-red-500 transition-colors"
-            aria-label="Close"
-          >
-            <FaTimes className="w-5 h-5" />
+          <button onClick={handleModalClose} className="text-gray-300 hover:text-red-500">
+            <FaTimes />
           </button>
         </div>
 
-        {/* Modal Body/Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          
-          {/* Subject Field */}
+        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+
+          {submitError && (
+            <div className="text-red-400 bg-red-900/40 p-3 rounded-lg">
+              {submitError}
+            </div>
+          )}
+
+          {/* Vehicle No */}
           <div>
-            <label htmlFor="subject" className="block text-sm font-medium text-gray-300 mb-1">
-              Subject <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              id="subject"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-yellow-500 focus:border-yellow-500 text-sm"
-              placeholder="e.g., Device Mapping Failed"
-              required
-            />
+            <label className="text-gray-300 text-sm mb-1 block">Vehicle No *</label>
+
+            {isLoading ? (
+              <div className="p-2 bg-gray-700 text-gray-100 rounded">Loading...</div>
+            ) : fetchError ? (
+              <div className="p-2 text-red-400 bg-red-900/40 rounded">{fetchError}</div>
+            ) : (
+              <select
+                value={vechileNo}
+                onChange={(e) => setVechileNo(e.target.value)}
+                className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600"
+              >
+                <option value="">Select Vehicle Number</option>
+                {vehicleOptions.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            )}
           </div>
 
-          {/* Category Dropdown */}
+          {/* Issue Type + Address */}
           <div className="flex gap-4">
             <div className="flex-1">
-              <label htmlFor="category" className="block text-sm font-medium text-gray-300 mb-1">
-                Category <span className="text-red-500">*</span>
-              </label>
+              <label className="text-gray-300 text-sm mb-1 block">Issue Type *</label>
               <select
-                id="category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-yellow-500 focus:border-yellow-500 text-sm appearance-none"
-                required
+                value={issueType}
+                onChange={(e) => setIssueType(e.target.value)}
+                className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600"
               >
-                <option value="">Select Category</option>
+                <option value="">Select Issue Type</option>
                 <option value="DeviceMapping">Device Mapping</option>
-                <option value="WalletIssue">Wallet/Recharge Issue</option>
-                <option value="Renewal">Renewal Issue</option>
-                <option value="Technical">Technical/Bug Report</option>
+                <option value="WalletIssue">Wallet/Recharge</option>
+                <option value="Renewal">Renewal</option>
+                <option value="Technical">Technical Issue</option>
                 <option value="Other">Other</option>
               </select>
             </div>
-            {/* Priority Dropdown */}
-            <div className="w-1/3">
-              <label htmlFor="priority" className="block text-sm font-medium text-gray-300 mb-1">
-                Priority
-              </label>
-              <select
-                id="priority"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-yellow-500 focus:border-yellow-500 text-sm appearance-none"
-              >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-              </select>
+
+            <div className="flex-1">
+              <label className="text-gray-300 text-sm mb-1 block">Address *</label>
+              <input
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600"
+                placeholder="Installation Address"
+              />
             </div>
           </div>
 
-          {/* Description Textarea */}
+          {/* Description */}
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
-              Description <span className="text-red-500">*</span>
-            </label>
+            <label className="text-gray-300 text-sm mb-1 block">Issue Description *</label>
             <textarea
-              id="description"
               rows="4"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-yellow-500 focus:border-yellow-500 text-sm"
-              placeholder="Describe your issue in detail, including any relevant device IDs or error messages."
-              required
+              value={issueDescription}
+              onChange={(e) => setIssueDescription(e.target.value)}
+              className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600"
+              placeholder="Describe your issue"
             ></textarea>
           </div>
 
-          {/* Modal Footer/Actions */}
-          <div className="flex justify-end pt-2 gap-3">
+          {/* Footer */}
+          <div className="flex justify-end gap-3">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg text-sm font-medium hover:bg-gray-500 transition-colors"
+              onClick={handleModalClose}
+              className="px-4 py-2 bg-gray-600 text-white rounded"
             >
               Cancel
             </button>
+
             <button
               type="submit"
-              className="px-4 py-2 bg-yellow-500 text-gray-900 rounded-lg text-sm font-bold hover:bg-yellow-400 transition-colors shadow-md"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-yellow-500 text-black rounded font-bold"
             >
-              Submit Ticket
+              {isSubmitting ? "Submitting..." : "Submit Ticket"}
             </button>
           </div>
+
         </form>
       </div>
     </div>
