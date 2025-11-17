@@ -3,19 +3,11 @@ import axios from "axios";
 import { RefreshCw, Loader, ArrowLeft, MessageCircle, Send, CheckCircle, XCircle, Clock, Truck, FileText, MapPin, User, Tag, ListFilter } from "lucide-react";
 
 // --- API Endpoints ---
-// The endpoint for sending the chat message (Dealer/Manufacturer)
 const CHAT_DEALER_SEND_API_URL = "https://api.websave.in/api/manufactur/chatBetweenManufacturAndDeler";
-// The endpoint for sending the chat message (Customer/Manufacturer)
 const CHAT_CUSTOMER_SEND_API_URL = "https://api.websave.in/api/manufactur/chatBetweenCoustmerAndManuFactur";
-
-// The endpoint for fetching Dealer-Manufacturer chat messages
 const CHAT_DEALER_FETCH_API_URL = "https://api.websave.in/api/manufactur/getAllMessagesBetweenUsers";
-// The endpoint for fetching Customer-Manufacturer chat messages
 const CHAT_CUSTOMER_FETCH_API_URL = "https://api.websave.in/api/manufactur/getAllMessagesBetweenCoustmerAndManufactur";
-// The base endpoint for fetching tickets
 const TICKETS_LIST_API_URL = "https://api.websave.in/api/manufactur/getTicketIssuesListManufactur";
-
-// 🚀 NEW API Endpoint for Closing a Ticket
 const CLOSE_TICKET_API_URL = "https://api.websave.in/api/manufactur/manufacturCloseTicketApi";
 
 // Helper to replace window.alert
@@ -39,11 +31,12 @@ const Notification = ({ message, type, onClose }) => {
     );
 };
 
+// --- Main App Component ---
+
 const App = () => {
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(false);
     
-    // Separated filters for better control and UI
     const [statusFilter, setStatusFilter] = useState("All"); 
     const [typeFilter, setTypeFilter] = useState("All");     
 
@@ -125,7 +118,7 @@ const App = () => {
     }, [tickets, statusFilter, typeFilter]);
 
 
-    // --- Chat/Modal Handlers (fetchMessages, sendMessage remain unchanged) ---
+    // --- Chat/Modal Handlers ---
 
     const fetchMessages = useCallback(async (ticket) => {
         setChatLoading(true);
@@ -201,7 +194,7 @@ const App = () => {
         e.preventDefault(); 
         if (!newMessage.trim() || !selectedTicket) return;
 
-        // Check if the ticket is open before sending
+        // Allow sending messages if ticket is Open or Resolved
         if (selectedTicket.issueStatus !== "Open" && selectedTicket.issueStatus !== "Resolved") {
              return setNotification({ message: "Cannot send message: Ticket is closed.", type: "error" });
         }
@@ -304,7 +297,7 @@ const App = () => {
                 }
             } else {
                 // *** MOCK API CALL for other STATUS UPDATES (e.g., Resolved) ***
-                // Replace this with your actual API call for other status changes if available
+                // In a real app, replace this with your actual API call for other status changes
                 await new Promise(resolve => setTimeout(resolve, 800));
             }
             
@@ -349,7 +342,7 @@ const App = () => {
         setNewMessage("");
     };
 
-    // --- Components (TicketModal and TicketCard remain the same) ---
+    // --- Components ---
 
     const TicketModal = () => {
         if (!isModalOpen || !selectedTicket) return null;
@@ -358,17 +351,15 @@ const App = () => {
         const isClosed = selectedTicket.issueStatus === "Closed"; 
         const isOpen = selectedTicket.issueStatus === "Open";
         
-        // Only allow interaction if the ticket is Open
-        const allowInteraction = isOpen; 
+        // Allow interaction if the ticket is Open or Resolved
+        const allowInteraction = isOpen || isResolved; 
         
-        const messagesEndRef = useRef(null);
+        const messagesContainerRef = useRef(null); // Ref for the scrollable message area
 
+        // FIX: Scroll to bottom effect, only running when messages change (not on input typing)
         useEffect(() => {
-            if (messagesEndRef.current && messages.length > 0 && !chatLoading) {
-                messagesEndRef.current.scrollTo({
-                    top: messagesEndRef.current.scrollHeight,
-                    behavior: 'smooth'
-                });
+            if (messagesContainerRef.current && messages.length > 0 && !chatLoading) {
+                messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
             }
         }, [messages.length, chatLoading]);
 
@@ -421,8 +412,8 @@ const App = () => {
                         <div className="flex flex-col h-[50vh] bg-gray-900/50 rounded-lg p-4 border border-gray-700">
                             <h3 className="text-lg font-semibold mb-3 text-indigo-300">Conversation</h3>
                             
-                            {/* Chat Messages Area */}
-                            <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-2" ref={messagesEndRef}>
+                            {/* Chat Messages Area - SCROLLABLE CONTAINER */}
+                            <div className="flex-1 overflow-y-auto space-y-4 pr-2 pb-2" ref={messagesContainerRef}>
                                 {chatLoading ? (
                                     <div className="flex justify-center items-center h-full">
                                         <Loader className="w-6 h-6 text-indigo-400 animate-spin" />
@@ -454,7 +445,7 @@ const App = () => {
                                 )}
                             </div>
 
-                            {/* Message Input Form (Stable position) */}
+                            {/* Message Input Form (Fixed position relative to chat container) */}
                             <form onSubmit={sendMessage} className="pt-4 flex space-x-3 border-t border-gray-700 mt-4 flex-shrink-0">
                                 <input
                                     type="text"
@@ -479,7 +470,7 @@ const App = () => {
                             </form>
                             {!allowInteraction && (
                                 <p className="text-center text-sm text-red-400 mt-2">
-                                    This ticket is not open. You cannot send new messages or update the status.
+                                    This ticket is not open/resolved. You cannot send new messages or update the status.
                                 </p>
                             )}
                         </div>
@@ -648,14 +639,14 @@ const App = () => {
                                 <button
                                     key={type}
                                     onClick={() => setTypeFilter(type)}
-                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                                    className={`px-3 py-1 text-xs font-medium rounded-lg transition duration-200 flex items-center justify-center ${
                                         typeFilter === type
                                             ? "bg-indigo-600 text-white shadow-md"
-                                            : "text-gray-300 hover:bg-gray-700"
+                                            : "text-gray-300 hover:bg-gray-600"
                                     }`}
                                 >
-                                    {type} <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
-                                        typeFilter === type ? "bg-indigo-700/50" : "bg-gray-600"
+                                    {type} <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                         typeFilter === type ? "bg-indigo-800" : "bg-gray-600"
                                     }`}>{count}</span>
                                 </button>
                             );
@@ -663,20 +654,25 @@ const App = () => {
                     </div>
                 </div>
             </div>
-            
-            {/* Ticket Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredData.length > 0 ? (
-                    filteredData.map((ticket) => (
+
+            {/* Ticket List Area */}
+            {loading && tickets.length === 0 ? (
+                <div className="flex justify-center items-center h-64 text-gray-400">
+                    <Loader className="w-8 h-8 animate-spin mr-3" /> Fetching tickets...
+                </div>
+            ) : filteredData.length === 0 ? (
+                <div className="text-center py-10 bg-gray-800 rounded-xl border border-gray-700">
+                    <FileText className="w-10 h-10 mx-auto text-indigo-400 mb-4" />
+                    <p className="text-xl font-medium text-gray-300">No tickets found matching the current filters.</p>
+                    <p className="text-gray-500 mt-2">Try adjusting the status or type filters.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {filteredData.map((ticket) => (
                         <TicketCard key={ticket._id} ticket={ticket} openModal={openModal} />
-                    ))
-                ) : (
-                    <div className="md:col-span-4 text-center p-12 bg-gray-800 rounded-xl text-gray-400">
-                        <p className="text-lg">No tickets found matching the current filters.</p>
-                        <p className="text-sm mt-2">Try adjusting the **Status** or **Origin** filters.</p>
-                    </div>
-                )}
-            </div>
+                    ))}
+                </div>
+            )}
 
             {/* Ticket Chat Modal */}
             <TicketModal />
