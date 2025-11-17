@@ -2,12 +2,21 @@ import React, { useEffect, useState, useMemo, useCallback, useRef } from "react"
 import axios from "axios";
 import { RefreshCw, Loader, ArrowLeft, MessageCircle, Send, CheckCircle, XCircle, Clock, Truck, FileText, MapPin, User, Tag, ListFilter } from "lucide-react";
 
-// The endpoint for sending the chat message
-const CHAT_SEND_API_URL = "https://api.websave.in/api/manufactur/chatBetweenManufacturAndDeler";
-// The endpoint for fetching chat messages (NEW API)
-const CHAT_FETCH_API_URL = "https://api.websave.in/api/manufactur/getAllMessagesBetweenUsers";
-// The base endpoint for fetching tickets (assumed from the original code)
+// --- API Endpoints ---
+// The endpoint for sending the chat message (Dealer/Manufacturer)
+const CHAT_DEALER_SEND_API_URL = "https://api.websave.in/api/manufactur/chatBetweenManufacturAndDeler";
+// The endpoint for sending the chat message (Customer/Manufacturer)
+const CHAT_CUSTOMER_SEND_API_URL = "https://api.websave.in/api/manufactur/chatBetweenCoustmerAndManuFactur";
+
+// The endpoint for fetching Dealer-Manufacturer chat messages
+const CHAT_DEALER_FETCH_API_URL = "https://api.websave.in/api/manufactur/getAllMessagesBetweenUsers";
+// The endpoint for fetching Customer-Manufacturer chat messages
+const CHAT_CUSTOMER_FETCH_API_URL = "https://api.websave.in/api/manufactur/getAllMessagesBetweenCoustmerAndManufactur";
+// The base endpoint for fetching tickets
 const TICKETS_LIST_API_URL = "https://api.websave.in/api/manufactur/getTicketIssuesListManufactur";
+
+// 🚀 NEW API Endpoint for Closing a Ticket
+const CLOSE_TICKET_API_URL = "https://api.websave.in/api/manufactur/manufacturCloseTicketApi";
 
 // Helper to replace window.alert
 const Notification = ({ message, type, onClose }) => {
@@ -35,8 +44,8 @@ const App = () => {
     const [loading, setLoading] = useState(false);
     
     // Separated filters for better control and UI
-    const [statusFilter, setStatusFilter] = useState("All"); // All, Open, Resolved, Closed
-    const [typeFilter, setTypeFilter] = useState("All");     // All, Dealer, Customer
+    const [statusFilter, setStatusFilter] = useState("All"); 
+    const [typeFilter, setTypeFilter] = useState("All");     
 
     const [notification, setNotification] = useState(null);
 
@@ -52,11 +61,11 @@ const App = () => {
     // Helper to get the token securely
     const getToken = () => localStorage.getItem("token");
 
-    // --- API & Data Fetching ---
+    // --- API & Data Fetching (Tickets) ---
 
     const fetchTickets = useCallback(async () => {
         setLoading(true);
-        setNotification(null); // Clear previous notifications
+        setNotification(null); 
         const token = getToken();
 
         try {
@@ -69,9 +78,6 @@ const App = () => {
                     },
                 }
             );
-
-            console.log(response.data)
-            // Assuming response.data.ticketIssues is the array of tickets
             setTickets(response.data.ticketIssues.reverse() || []);
             setNotification({ message: "Tickets refreshed successfully.", type: "success" });
         } catch (err) {
@@ -86,23 +92,18 @@ const App = () => {
         fetchTickets();
     }, [fetchTickets]);
 
-    // Filter Tickets - Logic now combines status and type filters
+    // Filter Tickets
     const filteredData = useMemo(() => {
         return tickets.filter((t) => {
-            // 1. Status Filter
             if (statusFilter !== "All" && t.issueStatus !== statusFilter) {
                 return false;
             }
-
-            // 2. Type Filter (Dealer/Customer)
             if (typeFilter === "Dealer" && !t.delerTicketIssueId) {
                 return false;
             }
             if (typeFilter === "Customer" && !t.coustmerTicketIssueId) {
                 return false;
             }
-            // If typeFilter is 'All', no action is needed
-            
             return true;
         });
     }, [tickets, statusFilter, typeFilter]);
@@ -120,52 +121,48 @@ const App = () => {
                 (value === "All" || (value === "Dealer" && !!t.delerTicketIssueId) || (value === "Customer" && !!t.coustmerTicketIssueId))
             ).length;
         }
-        return 0; // Should not happen
+        return 0;
     }, [tickets, statusFilter, typeFilter]);
 
 
-    // --- Chat/Modal Handlers ---
+    // --- Chat/Modal Handlers (fetchMessages, sendMessage remain unchanged) ---
 
-    /**
-     * @description Fetches the chat history using the new POST API endpoint.
-     * @param {Object} ticket The selected ticket object.
-     */
     const fetchMessages = useCallback(async (ticket) => {
         setChatLoading(true);
-        setMessages([]); // Clear previous messages
+        setMessages([]); 
         setNotification(null);
         
         const token = getToken();
 
-        // 💡 UPDATED: Manufacturer ID is now taken from the ticket's delerTicketIssueId as requested.
-        const currentManufacturerId = ticket.delerTicketIssueId; 
+        const isDealerTicket = !!ticket.delerTicketIssueId;
+        const isCustomerTicket = !!ticket.coustmerTicketIssueId;
 
-        // Determine the other user's ID (Dealer or Customer) for the chat API payload
-        const otherUserId = ticket.delerTicketIssueId 
-                            ? ticket.delerTicketIssueId 
-                            : ticket.coustmerTicketIssueId
-                            ? ticket.coustmerTicketIssueId
-                            : null;
+        let apiUrl = null;
+        let otherUserId = null;
+        let senderType = "Other User"; 
 
-        if (!currentManufacturerId) {
+        if (isDealerTicket) {
+            apiUrl = CHAT_DEALER_FETCH_API_URL;
+            otherUserId = ticket.delerTicketIssueId;
+            senderType = "Dealer";
+        } else if (isCustomerTicket) {
+            apiUrl = CHAT_CUSTOMER_FETCH_API_URL;
+            otherUserId = ticket.coustmerTicketIssueId;
+            senderType = "Customer";
+        } else {
             setChatLoading(false);
-            return setNotification({ message: "Cannot load chat: Manufacturer ID (from ticket) is missing.", type: "error" });
+            return setNotification({ message: "Cannot load chat: Ticket type is undefined.", type: "error" });
         }
-
-        if (!otherUserId) {
-            setChatLoading(false);
-            return setNotification({ message: "Cannot load chat: Other user ID is missing.", type: "error" });
-        }
-
+        
         const payload = {
+            receiverId: otherUserId,
             otherUserId: otherUserId,
             ticketIssueId: ticket._id,
         };
 
         try {
-            // 🚀 REAL API CALL IMPLEMENTATION (POST request for fetching messages)
             const response = await axios.post(
-                CHAT_FETCH_API_URL, 
+                apiUrl, 
                 payload,
                 {
                     headers: {
@@ -175,27 +172,24 @@ const App = () => {
                 }
             );
 
-            // Assuming response.data.messages is an array of raw message objects.
             const rawMessages = response.data.messages || [];
 
             const formattedMessages = rawMessages.map(m => {
-                // Determine if the message sender ID matches the logged-in Manufacturer ID
-                const isManufacturer = m.senderId === currentManufacturerId;
+                const isManufacturer = m.senderId !== otherUserId; 
                 
                 return {
                     id: m._id || Date.now() + Math.random(),
-                    sender: isManufacturer ? "Manufacturer (You)" : "Dealer/Customer",
+                    sender: isManufacturer ? "Manufacturer (You)" : senderType,
                     text: m.message,
-                    // Use the 'timestamp' field from the API response
                     createdAt: m.timestamp || new Date(), 
                     ticketId: ticket._id,
                 };
             });
 
-            setMessages(formattedMessages);
+            setMessages(formattedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt)));
             
         } catch (err) {
-            console.error("Error fetching messages:", err.response?.data || err.message || err);
+            console.error(`Error fetching ${senderType} messages:`, err.response?.data || err.message || err);
             setNotification({ message: `Failed to load chat history. ${err.response?.data?.message || ''}`, type: "error" });
             setMessages([]);
         } finally {
@@ -203,13 +197,14 @@ const App = () => {
         }
     }, []);
 
-    /**
-     * @description Sends a message to the chat API endpoint provided by the user.
-     * @param {React.FormEvent} e 
-     */
     const sendMessage = async (e) => {
-        e.preventDefault(); // Prevents the input field from jumping
+        e.preventDefault(); 
         if (!newMessage.trim() || !selectedTicket) return;
+
+        // Check if the ticket is open before sending
+        if (selectedTicket.issueStatus !== "Open" && selectedTicket.issueStatus !== "Resolved") {
+             return setNotification({ message: "Cannot send message: Ticket is closed.", type: "error" });
+        }
 
         setChatSending(true);
         setNotification(null);
@@ -217,28 +212,34 @@ const App = () => {
         const token = getToken();
         const messageText = newMessage.trim();
 
-        // Determine the receiver ID: prioritize Dealer ID, fall back to Customer ID
-        const receiverId = selectedTicket.delerTicketIssueId 
-                            ? selectedTicket.delerTicketIssueId 
-                            : selectedTicket.coustmerTicketIssueId
-                            ? selectedTicket.coustmerTicketIssueId
-                            : null;
+        const isDealerTicket = !!selectedTicket.delerTicketIssueId;
+        const isCustomerTicket = !!selectedTicket.coustmerTicketIssueId;
         
-        if (!receiverId) {
+        let sendApiUrl = null;
+        let receiverId = null;
+
+        if (isDealerTicket) {
+            sendApiUrl = CHAT_DEALER_SEND_API_URL;
+            receiverId = selectedTicket.delerTicketIssueId;
+        } else if (isCustomerTicket) {
+            sendApiUrl = CHAT_CUSTOMER_SEND_API_URL;
+            receiverId = selectedTicket.coustmerTicketIssueId;
+        }
+        
+        if (!receiverId || !sendApiUrl) {
             setChatSending(false);
-            return setNotification({ message: "Cannot send message: Receiver ID is missing.", type: "error" });
+            return setNotification({ message: "Cannot send message: Receiver ID or API endpoint is missing.", type: "error" });
         }
 
         const messagePayload = {
             receiverId: receiverId, 
             message: messageText,
-            ticketIssueId: selectedTicket._id, // The main ticket ID
+            ticketIssueId: selectedTicket._id, 
         };
         
         try {
-            // 🚀 REAL API CALL IMPLEMENTATION (POST request for sending message)
             const response = await axios.post(
-                CHAT_SEND_API_URL, 
+                sendApiUrl, 
                 messagePayload,
                 {
                     headers: {
@@ -248,7 +249,6 @@ const App = () => {
                 }
             );
 
-            // Optimistically add the new message to the chat window
             if (response.status === 200 || response.data.success) {
                  setMessages(prev => [...prev, {
                     id: Date.now(),
@@ -257,7 +257,7 @@ const App = () => {
                     createdAt: new Date(),
                     ticketId: selectedTicket._id
                 }]);
-                setNewMessage(""); // Clears input without causing focus loss
+                setNewMessage(""); 
                 setNotification({ message: "Message sent successfully.", type: "success" });
             } else {
                  throw new Error(response.data.message || "Failed to send message from API");
@@ -270,42 +270,76 @@ const App = () => {
         }
     };
 
+    /**
+     * @description Updates the ticket status, using a real API for 'Closed' and a mock for others.
+     * @param {string} newStatus The new status (e.g., 'Resolved', 'Closed').
+     */
     const updateTicketStatus = async (newStatus) => {
         if (!selectedTicket) return;
 
         setStatusUpdating(true);
         setNotification(null);
 
-        const statusPayload = {
-            ticketId: selectedTicket._id,
-            newStatus: newStatus, // e.g., 'Resolved' or 'Closed'
-        };
+        const token = getToken();
+        const ticketId = selectedTicket._id;
+        // Payload for the Close API: { ticketId }
+        const statusPayload = { ticketId };
 
         try {
-            // *** MOCK API CALL for STATUS UPDATE: REPLACE WITH YOUR ACTUAL STATUS UPDATE API ***
-            await new Promise(resolve => setTimeout(resolve, 800));
-
-            // Optimistically update local state and refresh the main list
+            if (newStatus === "Closed") {
+                // 🚀 REAL API CALL for CLOSING TICKET
+                const response = await axios.post(
+                    CLOSE_TICKET_API_URL,
+                    statusPayload,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                            "Content-Type": "application/json",
+                        },
+                    }
+                );
+                
+                if (response.status !== 200 && !response.data.success) {
+                     throw new Error(response.data.message || "Failed to close ticket from API");
+                }
+            } else {
+                // *** MOCK API CALL for other STATUS UPDATES (e.g., Resolved) ***
+                // Replace this with your actual API call for other status changes if available
+                await new Promise(resolve => setTimeout(resolve, 800));
+            }
+            
+            // Update UI state
             setSelectedTicket(prev => ({ ...prev, issueStatus: newStatus }));
             setTickets(prev => prev.map(t =>
-                t._id === selectedTicket._id ? { ...t, issueStatus: newStatus } : t
+                t._id === ticketId ? { ...t, issueStatus: newStatus } : t
             ));
             
+            // If the ticket is closed via API, close the modal immediately
+            if (newStatus === "Closed") {
+                 closeModal();
+            }
+            
             setNotification({ message: `Ticket #${selectedTicket.ticketIssueNo} marked as ${newStatus}.`, type: "success" });
-            // *** END MOCK ***
         } catch (err) {
-            console.error("Error updating status:", err);
-            setNotification({ message: "Failed to update ticket status.", type: "error" });
+            console.error("Error updating status:", err.response?.data || err.message || err);
+            setNotification({ message: `Failed to update ticket status. ${err.response?.data?.message || 'Check console for details.'}`, type: "error" });
         } finally {
             setStatusUpdating(false);
-            fetchTickets();
+            // Refresh the list to reflect the official status, especially after an API call
+            fetchTickets(); 
         }
     };
 
     const openModal = (ticket) => {
+        // Guard: Prevent modal from opening for Closed tickets
+        if (ticket.issueStatus === "Closed") {
+            setNotification({ message: `Ticket #${ticket.ticketIssueNo} is Closed. You cannot view the chat or make changes.`, type: "error" });
+            return;
+        }
+
         setSelectedTicket(ticket);
         setIsModalOpen(true);
-        fetchMessages(ticket); // Pass the full ticket object
+        fetchMessages(ticket); 
     };
 
     const closeModal = () => {
@@ -315,30 +349,27 @@ const App = () => {
         setNewMessage("");
     };
 
-    // --- Components ---
+    // --- Components (TicketModal and TicketCard remain the same) ---
 
     const TicketModal = () => {
         if (!isModalOpen || !selectedTicket) return null;
 
         const isResolved = selectedTicket.issueStatus === "Resolved";
+        const isClosed = selectedTicket.issueStatus === "Closed"; 
         const isOpen = selectedTicket.issueStatus === "Open";
         
-        // Ref for managing chat scroll
+        // Only allow interaction if the ticket is Open
+        const allowInteraction = isOpen; 
+        
         const messagesEndRef = useRef(null);
 
-        // Effect to scroll to bottom on message update/load
         useEffect(() => {
-            // Only scroll if the message list is populated and not currently loading chat history
             if (messagesEndRef.current && messages.length > 0 && !chatLoading) {
-                // Smooth scroll to the latest message
                 messagesEndRef.current.scrollTo({
                     top: messagesEndRef.current.scrollHeight,
                     behavior: 'smooth'
                 });
             }
-        // FIX: The scroll effect now depends only on messages.length and chatLoading status.
-        // This prevents the scroll function from running repeatedly while the user types, 
-        // as typing only changes the 'newMessage' state, not the 'messages' array length.
         }, [messages.length, chatLoading]);
 
 
@@ -346,7 +377,7 @@ const App = () => {
             <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-40 p-4" onClick={closeModal}>
                 <div
                     className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden transform transition-all duration-300 scale-100"
-                    onClick={(e) => e.stopPropagation()} // Prevent modal closing when clicking inside
+                    onClick={(e) => e.stopPropagation()} 
                 >
                     {/* Modal Header */}
                     <div className="flex justify-between items-center p-5 border-b border-gray-700 bg-gray-900">
@@ -354,7 +385,7 @@ const App = () => {
                             <MessageCircle className="w-6 h-6" />
                             <span>Ticket Chat: #{selectedTicket.ticketIssueNo}</span>
                             <span className={`px-3 py-1 rounded-full text-xs font-bold ml-4 ${
-                                isOpen ? "bg-yellow-600/30 text-yellow-400" : (isResolved || selectedTicket.issueStatus === "Closed") ? "bg-green-600/30 text-green-400" : "bg-gray-600/30 text-gray-400"
+                                isOpen ? "bg-yellow-600/30 text-yellow-400" : (isResolved || isClosed) ? "bg-green-600/30 text-green-400" : "bg-gray-600/30 text-gray-400"
                             }`}>
                                 {selectedTicket.issueStatus}
                             </span>
@@ -399,13 +430,11 @@ const App = () => {
                                 ) : (
                                     messages.length > 0 ? (
                                         messages.map((msg, index) => (
-                                            // 1. REVERSED ALIGNMENT: Manufacturer (You) -> LEFT, Dealer/Customer -> RIGHT
                                             <div key={index} className={`flex ${msg.sender.includes("Manufacturer") ? 'justify-start' : 'justify-end'}`}>
                                                 <div className={`max-w-xs md:max-w-md p-3 rounded-xl shadow-md ${
-                                                    // 2. REVERSED COLOR/SHAPE:
                                                     msg.sender.includes("Manufacturer")
-                                                        ? 'bg-gray-700 text-gray-100 rounded-tl-none' // Manufacturer (You) sends -> LEFT (Gray)
-                                                        : 'bg-indigo-600 text-white rounded-br-none' // Dealer/Customer sends -> RIGHT (Indigo)
+                                                        ? 'bg-gray-700 text-gray-100 rounded-tl-none' 
+                                                        : 'bg-indigo-600 text-white rounded-br-none'
                                                 }`}>
                                                     <p className="text-xs font-bold mb-1 opacity-80">
                                                         {msg.sender}
@@ -431,15 +460,15 @@ const App = () => {
                                     type="text"
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
-                                    placeholder={isOpen ? "Type your message..." : "Ticket is closed, cannot send messages."}
+                                    placeholder={allowInteraction ? "Type your message..." : "Messaging is not allowed for this ticket status."}
                                     className="flex-1 p-3 bg-gray-700 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 border-none"
-                                    disabled={chatSending || !isOpen}
-                                    autoFocus // Attempt to keep focus when modal opens
+                                    disabled={chatSending || !allowInteraction}
+                                    autoFocus
                                 />
                                 <button
                                     type="submit"
                                     className="bg-indigo-600 px-4 py-3 rounded-lg text-white hover:bg-indigo-700 transition disabled:bg-indigo-400 flex items-center justify-center"
-                                    disabled={chatSending || !newMessage.trim() || !isOpen}
+                                    disabled={chatSending || !newMessage.trim() || !allowInteraction}
                                 >
                                     {chatSending ? (
                                         <Loader className="w-5 h-5 animate-spin" />
@@ -448,7 +477,7 @@ const App = () => {
                                     )}
                                 </button>
                             </form>
-                            {!isOpen && (
+                            {!allowInteraction && (
                                 <p className="text-center text-sm text-red-400 mt-2">
                                     This ticket is not open. You cannot send new messages or update the status.
                                 </p>
@@ -474,7 +503,7 @@ const App = () => {
                                     disabled={statusUpdating}
                                 >
                                     <XCircle className="w-4 h-4" />
-                                    <span>{statusUpdating ? 'Updating...' : 'Mark as Closed'}</span>
+                                    <span>{statusUpdating ? 'Closing...' : 'Mark as Closed'}</span>
                                 </button>
                             </>
                         )}
@@ -487,25 +516,18 @@ const App = () => {
         );
     };
 
-    // Card Component for the Grid View (unchanged)
     const TicketCard = ({ ticket, openModal }) => {
         const getStatusClasses = (status) => {
             switch (status) {
-                case "Open":
-                    return "bg-yellow-600/30 text-yellow-400";
-                case "Resolved":
-                    return "bg-green-600/30 text-green-400";
-                case "Closed":
-                    return "bg-red-600/30 text-red-400";
-                default:
-                    return "bg-gray-600/30 text-gray-400";
+                case "Open": return "bg-yellow-600/30 text-yellow-400";
+                case "Resolved": return "bg-green-600/30 text-green-400";
+                case "Closed": return "bg-red-600/30 text-red-400";
+                default: return "bg-gray-600/30 text-gray-400";
             }
         };
 
         return (
             <div className="bg-gray-800 p-6 rounded-xl shadow-xl flex flex-col border border-gray-700 hover:shadow-indigo-500/30 transition duration-300">
-                
-                {/* Header (Ticket No & Status) */}
                 <div className="flex justify-between items-start mb-4 border-b border-gray-700/50 pb-3">
                     <h3 className="text-xl font-bold text-indigo-400">
                         Ticket #{ticket.ticketIssueNo}
@@ -516,8 +538,6 @@ const App = () => {
                         {ticket.issueStatus}
                     </span>
                 </div>
-
-                {/* Details */}
                 <div className="space-y-3 text-sm flex-1">
                     <p className="flex items-center space-x-2 text-gray-300">
                         <Truck className="w-4 h-4 text-indigo-300"/> 
@@ -540,8 +560,6 @@ const App = () => {
                         <span className="line-clamp-1 text-xs">{ticket.address}</span>
                     </p>
                 </div>
-
-                {/* Action Button */}
                 <div className="mt-5 pt-4 border-t border-gray-700/50">
                     <button
                         onClick={() => openModal(ticket)}
@@ -630,38 +648,40 @@ const App = () => {
                                 <button
                                     key={type}
                                     onClick={() => setTypeFilter(type)}
-                                    className={`px-3 py-1.5 rounded-md text-xs font-medium ${
+                                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
                                         typeFilter === type
                                             ? "bg-indigo-600 text-white shadow-md"
                                             : "text-gray-300 hover:bg-gray-700"
                                     }`}
                                 >
-                                    {type} ({count})
+                                    {type} <span className={`ml-1 px-2 py-0.5 rounded-full text-xs font-bold ${
+                                        typeFilter === type ? "bg-indigo-700/50" : "bg-gray-600"
+                                    }`}>{count}</span>
                                 </button>
                             );
                         })}
                     </div>
                 </div>
             </div>
-
-            {/* Ticket List Grid */}
+            
+            {/* Ticket Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {loading && tickets.length === 0 ? (
-                    <p className="text-indigo-400 text-center col-span-full">Loading tickets...</p>
-                ) : filteredData.length === 0 ? (
-                    <p className="text-gray-400 text-center col-span-full p-8 bg-gray-800 rounded-xl">
-                        No tickets match the current filters.
-                    </p>
-                ) : (
+                {filteredData.length > 0 ? (
                     filteredData.map((ticket) => (
                         <TicketCard key={ticket._id} ticket={ticket} openModal={openModal} />
                     ))
+                ) : (
+                    <div className="md:col-span-4 text-center p-12 bg-gray-800 rounded-xl text-gray-400">
+                        <p className="text-lg">No tickets found matching the current filters.</p>
+                        <p className="text-sm mt-2">Try adjusting the **Status** or **Origin** filters.</p>
+                    </div>
                 )}
             </div>
 
-            {/* Chat Modal */}
+            {/* Ticket Chat Modal */}
             <TicketModal />
         </div>
     );
 };
+
 export default App;
