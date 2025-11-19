@@ -732,14 +732,21 @@ function AllocateBarcode() {
           <SelectField id="oem" label="OEM" options={apiOptions.oems} required isPartner disabled={!formData.country || !formData.state} />
         )}
 
-        <SelectField
-          id="dealer"
-          label={`Dealer (Under ${formData.selectionType})`}
-          options={apiOptions.dealers}
-          required
-          isDealer
-          disabled={!formData.country || !formData.state || (formData.selectionType === "Distributor" && !formData.distributor) || (formData.selectionType === "OEM" && !formData.oem)}
-        />
+       <SelectField
+  id="dealer"
+  label={`Dealer (Under ${formData.selectionType})`}
+  options={[{ label: "N/A", value: "N/A" }, ...apiOptions.dealers]}
+  required
+  isDealer
+  disabled={
+    !formData.country ||
+    !formData.state ||
+    (formData.selectionType === "Distributor" && !formData.distributor) ||
+    (formData.selectionType === "OEM" && !formData.oem)
+  }
+/>
+
+
       </div>
 
       {/* Specs */}
@@ -939,13 +946,13 @@ function AllocateBarcode() {
                 </thead>
                 <tbody className="divide-y divide-yellow-700">
                   {currentTableData.map((item, index) => {
-                  const barcodeCount = item.allocatedBarCode?.length || 0;
-const primaryBarcode = item.allocatedBarCode?.[0]?.barCodeNo || "N/A";
-const partnerName = item.allocatedDistributorId?.contact_Person_Name
-  ? `${item.allocatedDistributorId.contact_Person_Name} (Distributor)`
-  : item.allocatedOemId?.contact_Person_Name
-  ? `${item.allocatedOemId.contact_Person_Name} (OEM)`
-  : "NA";
+                    const barcodeCount = item.allocatedBarCode?.length || 0;
+                    const primaryBarcode = item.allocatedBarCode?.[0]?.barCodeNo || "N/A";
+                    const partnerName = item.allocatedDistributorId?.contact_Person_Name
+                      ? `${item.allocatedDistributorId.contact_Person_Name} (Distributor)`
+                      : item.allocatedOemId?.contact_Person_Name
+                        ? `${item.allocatedOemId.contact_Person_Name} (OEM)`
+                        : "NA";
 
 
 
@@ -964,9 +971,10 @@ const partnerName = item.allocatedDistributorId?.contact_Person_Name
                             {partnerType}
                           </span>
                         </td>
-                        <td className="py-4 px-4 whitespace-nowrap text-sm text-yellow-100">
-                          {primaryBarcode} {barcodeCount > 1 ? `(+${barcodeCount - 1} more)` : ''}
-                        </td>
+                       <td className="py-4 px-4 whitespace-nowrap text-sm text-yellow-100">
+  {item.allocatedBarCode?.map(b => b.barCodeNo).join(", ") || "N/A"}
+</td>
+
                         <td className="py-4 px-4 whitespace-nowrap text-sm text-yellow-200">
                           {formatDate(item.createdAt)}
                         </td>
