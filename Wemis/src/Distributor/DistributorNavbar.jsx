@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useContext } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import logo from '../Images/logo.png'
 import {
   LayoutDashboard,
   Barcode,
@@ -48,10 +49,21 @@ const DistributorNavbar = () => {
   return (
     <div className="bg-black text-white">
       {/* Top Navbar */}
-      <header className="flex flex-col md:flex-row justify-between items-center bg-neutral-900 px-4 py-3 border-b border-yellow-400/40 gap-3">
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-2xl text-yellow-400 tracking-wide">WEMIS</span>
-        </div>
+      <header className="flex flex-col md:flex-row justify-between items-center bg-gradient-to-r from-yellow-400 via-black to-black border-b border-yellow-500/40 gap-3">
+        <div className="flex items-center space-x-6 ml-10">
+                  <div className="flex items-center space-x-2">
+                    <img
+                      src={logo} // 
+                      alt="MEMUS Logo"
+                      className="w-44 h-20 object-contain"
+                    />
+        
+                  </div>
+        
+                  <div className="hidden md:flex items-center space-x-4 text-gray-400">
+        
+                  </div>
+                </div>
         <div className="flex flex-wrap gap-3 items-center justify-center">
           <button className="px-4 py-1.5 bg-yellow-400 text-black font-semibold rounded-md hover:bg-yellow-300 transition w-full md:w-auto">
             Product
@@ -88,7 +100,7 @@ const DistributorNavbar = () => {
       >
         {/* Dashboard */}
         <Link
-          to="/distributor/dashboard"
+          to="/distibutor/dashboard"
           className="flex items-center gap-2 text-yellow-400 hover:text-white font-semibold uppercase tracking-wide"
         >
           <LayoutDashboard size={18} /> Dashboard

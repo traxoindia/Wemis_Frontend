@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, Menu, MapPin, Package, FileText, User, Smartphone, Loader2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import DeviceMapreport from './DeviceMapreport';
 import ManufactureNavbar from './ManufactureNavbar';
+
 // =========================================================
 // 1. PLACEHOLDER COMPONENTS (Required for single-file mandate)
 // =========================================================
@@ -531,6 +532,7 @@ function App() {
     <div className="font-sans">
       
      <ManufactureNavbar/>
+    
 
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
         
