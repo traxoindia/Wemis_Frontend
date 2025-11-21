@@ -60,6 +60,9 @@ import DealerDashboard from "./Dealer_Distributor/DealerDashboard";
 import DealerDashboardOem from "./Dealer_OEM/DealerDashboardOem";
 import TicketListPage from "./Dealer_Distributor/TicketListPage";
 import TicketsApp from "./ManufacturePage/TicketsApp";
+import Barcodelist from "./Dealer_Distributor/Barcodelist";
+import TechnicianDealer from "./Dealer_Distributor/TechnicianDealer";
+import MapManageDevice from "./Dealer_Distributor/MapManageDevice";
 
 
 function App() {
@@ -219,6 +222,9 @@ function App() {
             <Route path="oem/dealer/dashboard" element={<DealerDashboardOem />} />
             <Route path="/dealer/tickets" element={<TicketListPage />} />
              <Route path="/tickets/all" element={<TicketsApp/>} />
+             <Route path="/distributor/dealer/Barcode" element={<Barcodelist/>}/>
+              <Route path="/distributor/dealer/technicians" element={<TechnicianDealer/>}/>
+               <Route path="/distributor/dealer/map-device" element={<MapManageDevice/>}/>
 
           </>
         )}

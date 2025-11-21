@@ -127,13 +127,7 @@ const DealerDashboard = () => {
       color: "text-blue-400",
       footerText: "View all team members",
     },
-    {
-      label: "Stock Devices",
-      value: stats.deviceStock,
-      icon: <FaBoxOpen />,
-      color: "text-purple-400",
-      footerText: "Ready for mapping",
-    },
+    
     {
       label: "Total Mapped Devices",
       value: stats.totalMapDevices,
@@ -236,10 +230,8 @@ const DealerDashboard = () => {
                 openMenu={openMenu}
                 toggleMenu={toggleMenu}
               >
-                <DropdownLink to="/dealer/scan-barcode">
-                  Scan Barcode
-                </DropdownLink>
-                <DropdownLink to="/dealer/barcode-list">
+                
+                <DropdownLink to="/distributor/dealer/Barcode">
                   Barcode List
                 </DropdownLink>
               </NavDropdown>
@@ -251,10 +243,10 @@ const DealerDashboard = () => {
                 openMenu={openMenu}
                 toggleMenu={toggleMenu}
               >
-                <DropdownLink to="/dealer/technicians">
+                <DropdownLink to="/distributor/dealer/technicians">
                   Technicians
                 </DropdownLink>
-                <DropdownLink to="/dealer/dealers">Dealers</DropdownLink>
+                
               </NavDropdown>
 
               <NavDropdown
@@ -264,10 +256,8 @@ const DealerDashboard = () => {
                 openMenu={openMenu}
                 toggleMenu={toggleMenu}
               >
-                <DropdownLink to="/dealer/map-device">Map Device</DropdownLink>
-                <DropdownLink to="/dealer/device-stock">
-                  Device Stock
-                </DropdownLink>
+                <DropdownLink to="/distributor/dealer/map-device">Map Device</DropdownLink>
+               
               </NavDropdown>
 
               {/* UPDATED: Ticket Dropdown - Removed Raise Ticket Link */}
