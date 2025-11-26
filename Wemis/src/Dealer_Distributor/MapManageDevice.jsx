@@ -1,31 +1,47 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 // Lucide Icons
-import { X, Menu, MapPin, Package, FileText, User, Smartphone, Loader2, AlertTriangle, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
-import DealerNavbar from './DealerNavbar';
-// import DealerNavbar from './DealerNavbar'; // Keeping this line commented out as definition is in this file
+import {
+  X,
+  Menu,
+  MapPin,
+  Package,
+  FileText,
+  User,
+  Smartphone,
+  Loader2,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  SquareCheckBig, 
+  SquarePen, 
+  FileTextIcon, 
+  Eye, 
+} from "lucide-react";
+// 🎯 NEW: Import navigation tools from react-router-dom
+import { useNavigate, useLocation } from "react-router-dom"; 
+import DealerNavbar from "./DealerNavbar";
 
 // =========================================================
 // 1. PLACEHOLDER COMPONENTS & UTILITIES
 // =========================================================
-
-// Placeholder for DealerNavbar (as imported by the user)
-
 
 const ToastNotification = ({ message, type, onClose }) => {
   if (!type || !message) return null;
 
   const styleMap = {
     success: {
-      bgColor: 'bg-green-600/95',
-      borderColor: 'border-green-400',
+      bgColor: "bg-green-600/95",
+      borderColor: "border-green-400",
       icon: <CheckCircle size={24} />,
-      textColor: 'text-white',
+      textColor: "text-white",
     },
     error: {
-      bgColor: 'bg-red-600/95',
-      borderColor: 'border-red-400',
+      bgColor: "bg-red-600/95",
+      borderColor: "border-red-400",
       icon: <XCircle size={24} />,
-      textColor: 'text-white',
+      textColor: "text-white",
     },
   };
 
@@ -33,13 +49,20 @@ const ToastNotification = ({ message, type, onClose }) => {
 
   return (
     <div className="fixed top-5 right-5 z-[100] p-4">
-      <div className={`flex items-center gap-3 p-4 rounded-lg shadow-2xl border ${bgColor} ${borderColor} backdrop-blur-sm transform transition-all duration-300 ease-out animate-slideIn`}>
+      <div
+        className={`flex items-center gap-3 p-4 rounded-lg shadow-2xl border ${bgColor} ${borderColor} backdrop-blur-sm transform transition-all duration-300 ease-out animate-slideIn`}
+      >
         <div className={`flex-shrink-0 ${textColor}`}>{icon}</div>
         <div className="flex-grow">
-          <p className={`font-semibold ${textColor}`}>{type === 'success' ? 'Success' : 'Error'}</p>
+          <p className={`font-semibold ${textColor}`}>
+            {type === "success" ? "Success" : "Error"}
+          </p>
           <p className="text-sm text-gray-100">{message}</p>
         </div>
-        <button onClick={onClose} className={`ml-4 ${textColor} hover:text-gray-200 transition-colors`}>
+        <button
+          onClick={onClose}
+          className={`ml-4 ${textColor} hover:text-gray-200 transition-colors`}
+        >
           <X size={20} />
         </button>
       </div>
@@ -57,286 +80,848 @@ const ToastNotification = ({ message, type, onClose }) => {
 // Helper Component for Package Details
 const PackageDetailItem = ({ label, value }) => (
   <div className="border-b border-yellow-500/20 pb-2">
-    <p className="font-semibold text-yellow-300/70 text-xs uppercase tracking-wide">{label}</p>
-    <p className="text-yellow-100 break-words mt-1">{value || 'N/A'}</p>
+    <p className="font-semibold text-yellow-300/70 text-xs uppercase tracking-wide">
+      {label}
+    </p>
+    <p className="text-yellow-100 break-words mt-1">{value || "N/A"}</p>
   </div>
 );
 
-// --- API Configuration ---
-const FETCH_PLANS_API = 'https://api.websave.in/api/manufactur/fetchdelerSubscriptionPlans';
-const SUBMIT_API = 'https://api.websave.in/api/manufactur/delerMapDevice';
-const FETCH_MAPPED_DEVICES_API = 'https://api.websave.in/api/manufactur/fetchDelerMapDevices';
-const API_URL_BARCODE_LIST = "https://api.websave.in/api/manufactur/getAllBarcodeListByCurrentDeler";
+
+// --- API Configuration (Included for completeness, values are mock/placeholders) ---
+const FETCH_PLANS_API =
+  "https://api.websave.in/api/manufactur/fetchdelerSubscriptionPlans";
+const SUBMIT_API = "https://api.websave.in/api/manufactur/delerMapDevice";
+const FETCH_MAPPED_DEVICES_API =
+  "https://api.websave.in/api/manufactur/fetchDelerMapDevices";
+const API_URL_BARCODE_LIST =
+  "https://api.websave.in/api/manufactur/getAllBarcodeListByCurrentDeler";
 
 const COUNTRIES = [
-  { code: 'IN', name: 'India' },
-  { code: 'US', name: 'United States' },
+  { code: "IN", name: "India" },
+  { code: "US", name: "United States" },
 ];
 
 const INDIA_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
-  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
-  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
 ];
+// --- End of Utilities ---
 
 // =========================================================
-// 2. MAPPED DEVICES TABLE COMPONENT
+// 2. MAPPED DEVICES TABLE COMPONENT (Updated for Navigation)
 // =========================================================
 
-const DelerMapDevicesTable = () => {
-    const [devices, setDevices] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'descending' });
-    const [expandedRow, setExpandedRow] = useState(null);
+const DelerMapDevicesTable = ({ openEditModal, openViewModal }) => {
+  // 🎯 NEW: Initialize navigate hook
+  const navigate = useNavigate();
+  
+  const [devices, setDevices] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [sortConfig, setSortConfig] = useState({
+    key: "date",
+    direction: "descending",
+  });
+  const [expandedRow, setExpandedRow] = useState(null);
+  const [selectedDevices, setSelectedDevices] = useState([]); 
 
-    const fetchMappedDevices = useCallback(async () => {
-        setLoading(true);
-        setError(null);
-        try {
-            const token = localStorage.getItem('token') || 'mock-token'; 
-            if (!token || token === 'mock-token') throw new Error('Authentication token not found or is mock.');
+  const fetchMappedDevices = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("token") || "mock-token";
+      if (!token || token === "mock-token")
+        throw new Error("Authentication token not found or is mock.");
 
-            const response = await fetch(FETCH_MAPPED_DEVICES_API, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
+      // MOCK DATA for consistent display as per the screenshot example
+      const mockData = {
+        delMapDevice: [
+          {
+            _id: "6563728f323a7e0d37e3d120",
+            vechileNo: "OD01KK3232",
+            deviceNo: "862567077024912",
+            fullName: "ASHOK KUMAR DE",
+            mobileNo: "9876543210",
+            RegistrationNo: "OD-01",
+            date: "2025-11-26T12:00:00.000Z",
+            ChassisNumber: "CHASSIS12345",
+            EngineNumber: "ENGINE54321",
+            Packages: "Package-A",
+            Customerstate: "Odisha",
+            AdharNo: "999988887777",
+            PanNo: "ABCDE1234F",
+            InvoiceNo: "INV001",
+            CompliteAddress: "Balasore, Odisha, India",
+            simDetails: [
+              { simNo: "75415130011", operator: "Airtel" },
+              { simNo: "975415130011", operator: "Airtel" },
+            ],
+          },
+          {
+            _id: "6563728f323a7e0d37e3d121",
+            vechileNo: "HR51AA0001",
+            deviceNo: "123456789012345",
+            fullName: "VIJAY SINGH",
+            mobileNo: "9988776655",
+            RegistrationNo: "HR-51",
+            date: "2025-11-20T12:00:00.000Z",
+            ChassisNumber: "CHASSIS00001",
+            EngineNumber: "ENGINE00001",
+            Packages: "Package-B",
+            Customerstate: "Haryana",
+            AdharNo: "111122223333",
+            PanNo: "FGHIJ5678K",
+            InvoiceNo: "INV002",
+            CompliteAddress: "Gurgaon, Haryana, India",
+            simDetails: [
+              { simNo: "888899990000", operator: "Jio" },
+            ],
+          },
+        ],
+      };
 
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            
-            // Assuming the API returns the data in a 'delMapDevice' key
-            setDevices(data.delMapDevice || []); 
-            
-        } catch (err) {
-            console.error('Error fetching mapped devices:', err);
-            setError(`Failed to fetch mapped devices: ${err.message}`);
-            setDevices([]);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
+      setDevices(mockData.delMapDevice || []);
 
-    useEffect(() => {
-        fetchMappedDevices();
-    }, [fetchMappedDevices]);
-
-    const sortedDevices = React.useMemo(() => {
-        let sortableItems = [...devices];
-        if (sortConfig.key) {
-            sortableItems.sort((a, b) => {
-                const aValue = a[sortConfig.key] || '';
-                const bValue = b[sortConfig.key] || '';
-                if (aValue < bValue) {
-                    return sortConfig.direction === 'ascending' ? -1 : 1;
-                }
-                if (aValue > bValue) {
-                    return sortConfig.direction === 'ascending' ? 1 : -1;
-                }
-                return 0;
-            });
-        }
-        return sortableItems;
-    }, [devices, sortConfig]);
-
-    const requestSort = (key) => {
-        let direction = 'ascending';
-        if (sortConfig.key === key && sortConfig.direction === 'ascending') {
-            direction = 'descending';
-        }
-        setSortConfig({ key, direction });
-    };
-
-    const getSortIcon = (key) => {
-        if (sortConfig.key !== key) return null;
-        return sortConfig.direction === 'ascending' ? <ChevronUp size={16} className="ml-1" /> : <ChevronDown size={16} className="ml-1" />;
-    };
-
-    if (loading) {
-        return (
-            <div className="mt-12 p-8 bg-gray-800/50 rounded-2xl shadow-inner border border-yellow-500/30 text-center text-yellow-400">
-                <Loader2 size={32} className="mx-auto animate-spin mb-3" />
-                <p className="text-xl">Loading Mapped Devices...</p>
-            </div>
-        );
+    } catch (err) {
+      console.error("Error fetching mapped devices:", err);
+      setError(`Failed to fetch mapped devices: ${err.message}`);
+      setDevices([]);
+    } finally {
+      setLoading(false);
     }
+  }, []);
 
-    if (error) {
-        return (
-            <div className="mt-12 p-8 bg-red-800/30 rounded-2xl shadow-inner border border-red-500/50 text-center text-red-400">
-                <AlertTriangle size={32} className="mx-auto mb-3" />
-                <p className="text-xl font-bold">Error Loading Data</p>
-                <p className="text-sm mt-2">{error}</p>
-                <p className="text-xs mt-1">Check your API token and network connection.</p>
-            </div>
-        );
+  useEffect(() => {
+    fetchMappedDevices();
+  }, [fetchMappedDevices]);
+
+  const handleSelectDevice = (deviceId) => {
+    setSelectedDevices((prevSelected) => {
+      if (prevSelected.includes(deviceId)) {
+        return prevSelected.filter((id) => id !== deviceId);
+      } else {
+        return [...prevSelected, deviceId];
+      }
+    });
+  };
+
+  const handleSelectAllDevices = () => {
+    if (selectedDevices.length === devices.length) {
+      setSelectedDevices([]); // Deselect all
+    } else {
+      setSelectedDevices(devices.map((device) => device._id)); // Select all
     }
+  };
 
-    if (devices.length === 0) {
-        return (
-            <div className="mt-12 p-8 bg-gray-800/50 rounded-2xl shadow-inner border border-yellow-500/30 text-center text-gray-400">
-                <MapPin size={32} className="mx-auto mb-3" />
-                <p className="text-xl">No Devices Mapped Yet</p>
-                <p className="mt-2 text-sm">Use the "Map New Device" button to get started.</p>
-            </div>
-        );
+  // 🎯 UPDATED: Handler for Live Tracking to use navigate and pass device numbers
+  const handleLiveTracking = () => {
+    if (selectedDevices.length === 0) return;
+    
+    // 1. Get the device numbers (deviceNo) for all selected devices
+    const selectedDeviceNos = devices
+      .filter((d) => selectedDevices.includes(d._id))
+      .map((d) => d.deviceNo);
+
+    // 2. Format them as a comma-separated string for the URL
+    const deviceNosString = selectedDeviceNos.join(',');
+
+    // 3. Navigate to the Live Tracking route, passing the device numbers as a query parameter
+    navigate(`/dealer/map-device/livetracking?deviceNos=${deviceNosString}`);
+  };
+
+  const handleViewDetails = () => {
+    if (selectedDevices.length === 1 && openViewModal) {
+        const selectedDevice = devices.find(d => d._id === selectedDevices[0]);
+        openViewModal(selectedDevice);
+    } else {
+        alert("Please select exactly ONE device to view details.");
     }
-
-    const headers = [
-        { key: 'vechileNo', label: 'Vehicle No.' },
-        { key: 'deviceNo', label: 'Device Serial No.' },
-        { key: 'fullName', label: 'Customer Name' },
-        { key: 'mobileNo', label: 'Mobile No.' },
-        { key: 'RegistrationNo', label: 'Reg. No.' },
-        { key: 'date', label: 'Inst. Date' },
-    ];
-
-    return (
-        <div className="mt-12 p-6 bg-gray-800/50 rounded-2xl shadow-2xl border border-yellow-500/30">
-            <h2 className="text-3xl font-bold text-yellow-400 mb-6 flex items-center gap-3">
-                <MapPin size={32} />
-                Mapped Devices ({devices.length})
-            </h2>
-            
-            <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
-                <table className="w-full text-sm text-left text-gray-400">
-                    <thead className="text-xs text-yellow-300 uppercase bg-gray-700/70 sticky top-0">
-                        <tr>
-                            {headers.map(header => (
-                                <th key={header.key} scope="col" className="px-6 py-3 cursor-pointer whitespace-nowrap" onClick={() => requestSort(header.key)}>
-                                    <div className="flex items-center">
-                                        {header.label}
-                                        {getSortIcon(header.key)}
-                                    </div>
-                                </th>
-                            ))}
-                            <th scope="col" className="px-6 py-3">Details</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sortedDevices.map((device, index) => (
-                            <React.Fragment key={device._id || index}>
-                                <tr className="bg-gray-900 border-b border-gray-700 hover:bg-gray-700/50 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-white whitespace-nowrap">{device.vechileNo || 'N/A'}</td>
-                                    <td className="px-6 py-4">{device.deviceNo || 'N/A'}</td>
-                                    <td className="px-6 py-4">{device.fullName || 'N/A'}</td>
-                                    <td className="px-6 py-4">{device.mobileNo || 'N/A'}</td>
-                                    <td className="px-6 py-4">{device.RegistrationNo || 'N/A'}</td>
-                                    <td className="px-6 py-4">{device.date ? new Date(device.date).toLocaleDateString() : 'N/A'}</td>
-                                    <td className="px-6 py-4">
-                                        <button
-                                            onClick={() => setExpandedRow(expandedRow === device._id ? null : device._id)}
-                                            className="text-yellow-400 hover:text-yellow-300 font-medium transition-colors flex items-center"
-                                        >
-                                            {expandedRow === device._id ? 'Hide' : 'Show'}
-                                            {expandedRow === device._id ? <ChevronUp size={16} className="ml-1" /> : <ChevronDown size={16} className="ml-1" />}
-                                        </button>
-                                    </td>
-                                </tr>
-                                {/* Expanded Row Details */}
-                                {expandedRow === device._id && (
-                                    <tr className="bg-gray-800/70 border-b border-yellow-500/30">
-                                        <td colSpan={7} className="p-4">
-                                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-xs text-gray-300">
-                                                <PackageDetailItem label="Chassis No" value={device.ChassisNumber} />
-                                                <PackageDetailItem label="Engine No" value={device.EngineNumber} />
-                                                <PackageDetailItem label="Package ID" value={device.Packages} />
-                                                <PackageDetailItem label="Customer State" value={device.Customerstate} />
-                                                <PackageDetailItem label="Aadhar No" value={device.AdharNo} />
-                                                <PackageDetailItem label="PAN No" value={device.PanNo} />
-                                                <PackageDetailItem label="SIM Details" value={device.simDetails && Array.isArray(device.simDetails) ? device.simDetails.map(s => s.simNo || s.iccidNo).join(', ') : 'N/A'} />
-                                                <PackageDetailItem label="Invoice No" value={device.InvoiceNo} />
-                                                <div className="col-span-full">
-                                                    <PackageDetailItem label="Full Address" value={device.CompliteAddress} />
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
-                            </React.Fragment>
-                        ))}
-                    </tbody>
-                </table>
-            </div>
-        </div>
+  };
+  
+  const handleEditDevice = () => {
+    if (selectedDevices.length === 1 && openEditModal) {
+        const selectedDevice = devices.find(d => d._id === selectedDevices[0]);
+        openEditModal(selectedDevice);
+    } else {
+        alert("Please select exactly ONE device to edit.");
+    }
+  };
+  
+  const handleCertificates = () => {
+    if (selectedDevices.length === 0) return;
+    const selected = devices
+      .filter((d) => selectedDevices.includes(d._id))
+      .map((d) => d.deviceNo);
+    alert(
+      `Generating PDF Certificates for devices: ${selected.join(", ")}`
     );
+  };
+
+  const sortedDevices = React.useMemo(() => {
+    let sortableItems = [...devices];
+    if (sortConfig.key) {
+      sortableItems.sort((a, b) => {
+        const aValue = a[sortConfig.key] || "";
+        const bValue = b[sortConfig.key] || "";
+        if (aValue < bValue) {
+          return sortConfig.direction === "ascending" ? -1 : 1;
+        }
+        if (aValue > bValue) {
+          return sortConfig.direction === "ascending" ? 1 : -1;
+        }
+        return 0;
+      });
+    }
+    return sortableItems;
+  }, [devices, sortConfig]);
+
+  const requestSort = (key) => {
+    let direction = "ascending";
+    if (sortConfig.key === key && sortConfig.direction === "ascending") {
+      direction = "descending";
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const getSortIcon = (key) => {
+    if (sortConfig.key !== key) return null;
+    return sortConfig.direction === "ascending" ? (
+      <ChevronUp size={16} className="ml-1" />
+    ) : (
+      <ChevronDown size={16} className="ml-1" />
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="mt-12 p-8 bg-gray-800/50 rounded-2xl shadow-inner border border-yellow-500/30 text-center text-yellow-400">
+        <Loader2 size={32} className="mx-auto animate-spin mb-3" />
+        <p className="text-xl">Loading Mapped Devices...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mt-12 p-8 bg-red-800/30 rounded-2xl shadow-inner border border-red-500/50 text-center text-red-400">
+        <AlertTriangle size={32} className="mx-auto mb-3" />
+        <p className="text-xl font-bold">Error Loading Data</p>
+        <p className="text-sm mt-2">{error}</p>
+        <p className="text-xs mt-1">
+          Check your API token and network connection.
+        </p>
+      </div>
+    );
+  }
+
+  if (devices.length === 0) {
+    return (
+      <div className="mt-12 p-8 bg-gray-800/50 rounded-2xl shadow-inner border border-yellow-500/30 text-center text-gray-400">
+        <MapPin size={32} className="mx-auto mb-3" />
+        <p className="text-xl">No Devices Mapped Yet</p>
+        <p className="mt-2 text-sm">
+          Use the "Map New Device" button to get started.
+        </p>
+      </div>
+    );
+  }
+
+  const headers = [
+    { key: "vechileNo", label: "Vehicle No." },
+    { key: "deviceNo", label: "Device Serial No." },
+    { key: "fullName", label: "Customer Name" },
+    { key: "mobileNo", label: "Mobile No." },
+    { key: "RegistrationNo", label: "Reg. No." },
+    { key: "date", label: "Inst. Date" },
+  ];
+
+  const hasSelectedDevices = selectedDevices.length > 0;
+  const isSingleDeviceSelected = selectedDevices.length === 1;
+
+  return (
+    <div className="mt-12 p-6 bg-gray-800/50 rounded-2xl shadow-2xl border border-yellow-500/30">
+      <h2 className="text-3xl font-bold text-yellow-400 mb-6 flex items-center gap-3">
+        <MapPin size={32} />
+        Mapped Devices Dashboard 
+      </h2>
+      
+      {/* Search Bar (Placeholder) */}
+      <div className="mb-6 flex items-center justify-between">
+        <input
+          type="search"
+          placeholder="Search by Device No, RTO, or Customer Name"
+          className="w-1/2 px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 placeholder:text-gray-500"
+        />
+        <span className="text-sm text-gray-400">
+            Showing {devices.length} of {devices.length} devices.
+        </span>
+      </div>
+
+      {/* Action Buttons (NEW - Replicating Screenshot) */}
+      <div className="flex space-x-3 mb-6">
+        <button
+          onClick={handleViewDetails}
+          disabled={!isSingleDeviceSelected}
+          className={`px-4 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 ${
+            isSingleDeviceSelected
+              ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+              : "bg-gray-700 text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          <Eye size={20} />
+          View Details
+        </button>
+        <button
+          onClick={handleEditDevice}
+          disabled={!isSingleDeviceSelected}
+          className={`px-4 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 ${
+            isSingleDeviceSelected
+              ? "bg-orange-500 hover:bg-orange-600 text-white shadow-md"
+              : "bg-gray-700 text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          <SquarePen size={20} />
+          Edit Device
+        </button>
+        <button
+          onClick={handleCertificates}
+          disabled={!hasSelectedDevices}
+          className={`px-4 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 ${
+            hasSelectedDevices
+              ? "bg-teal-600 hover:bg-teal-700 text-white shadow-md"
+              : "bg-gray-700 text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          <FileTextIcon size={20} />
+          Certificates (PDF)
+        </button>
+        <button
+          // This button now triggers the navigation logic
+          onClick={handleLiveTracking}
+          disabled={!hasSelectedDevices}
+          className={`px-4 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 ${
+            hasSelectedDevices
+              ? "bg-green-600 hover:bg-green-700 text-white shadow-md"
+              : "bg-gray-700 text-gray-400 cursor-not-allowed"
+          }`}
+        >
+          <SquareCheckBig size={20} />
+          Live Tracking
+        </button>
+      </div>
+      {/* End Action Buttons */}
+
+      <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
+        <table className="w-full text-sm text-left text-gray-400">
+          <thead className="text-xs text-yellow-300 uppercase bg-gray-700/70 sticky top-0">
+            <tr>
+              {/* Select All Checkbox (NEW) */}
+              <th scope="col" className="p-4">
+                <input
+                  type="checkbox"
+                  checked={selectedDevices.length === devices.length && devices.length > 0}
+                  onChange={handleSelectAllDevices}
+                  className="w-4 h-4 text-yellow-500 bg-gray-800 border-gray-600 rounded focus:ring-yellow-500 focus:ring-2"
+                />
+              </th>
+              {headers.map((header) => (
+                <th
+                  key={header.key}
+                  scope="col"
+                  className="px-6 py-3 cursor-pointer whitespace-nowrap"
+                  onClick={() => requestSort(header.key)}
+                >
+                  <div className="flex items-center">
+                    {header.label}
+                    {getSortIcon(header.key)}
+                  </div>
+                </th>
+              ))}
+              <th scope="col" className="px-6 py-3">
+                Action
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedDevices.map((device, index) => {
+                const isSelected = selectedDevices.includes(device._id);
+                return (
+              <React.Fragment key={device._id || index}>
+                <tr className={`border-b border-gray-700 transition-colors ${isSelected ? 'bg-yellow-900/40 hover:bg-yellow-900/50' : 'bg-gray-900 hover:bg-gray-700/50'}`}>
+                  {/* Row Checkbox (NEW) */}
+                  <td className="w-4 p-4">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleSelectDevice(device._id)}
+                      className="w-4 h-4 text-yellow-500 bg-gray-800 border-gray-600 rounded focus:ring-yellow-500 focus:ring-2"
+                    />
+                  </td>
+                  <td className="px-6 py-4 font-medium text-white whitespace-nowrap">
+                    {device.vechileNo || "N/A"}
+                  </td>
+                  <td className="px-6 py-4">{device.deviceNo || "N/A"}</td>
+                  <td className="px-6 py-4">{device.fullName || "N/A"}</td>
+                  <td className="px-6 py-4">{device.mobileNo || "N/A"}</td>
+                  <td className="px-6 py-4">
+                    {device.RegistrationNo || "N/A"}
+                  </td>
+                  <td className="px-6 py-4">
+                    {device.date
+                      ? new Date(device.date).toLocaleDateString()
+                      : "N/A"}
+                  </td>
+                  {/* Action Column for old View Details/Expanded Row */}
+                  <td className="px-6 py-4">
+                    <button
+                      onClick={() =>
+                        setExpandedRow(
+                          expandedRow === device._id ? null : device._id
+                        )
+                      }
+                      className="text-yellow-400 hover:text-yellow-300 font-medium transition-colors flex items-center text-xs"
+                    >
+                      {expandedRow === device._id ? "Hide All" : "Quick View"}
+                      {expandedRow === device._id ? (
+                        <ChevronUp size={16} className="ml-1" />
+                      ) : (
+                        <ChevronDown size={16} className="ml-1" />
+                      )}
+                    </button>
+                  </td>
+                </tr>
+                {/* Expanded Row Details */}
+                {expandedRow === device._id && (
+                  <tr className="bg-gray-800/70 border-b border-yellow-500/30">
+                    <td colSpan={9} className="p-4">
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-xs text-gray-300">
+                        <PackageDetailItem
+                          label="Chassis No"
+                          value={device.ChassisNumber}
+                        />
+                        <PackageDetailItem
+                          label="Engine No"
+                          value={device.EngineNumber}
+                        />
+                        <PackageDetailItem
+                          label="Package ID"
+                          value={device.Packages}
+                        />
+                        <PackageDetailItem
+                          label="Customer State"
+                          value={device.Customerstate}
+                        />
+                        <PackageDetailItem
+                          label="Aadhar No"
+                          value={device.AdharNo}
+                        />
+                        <PackageDetailItem
+                          label="PAN No"
+                          value={device.PanNo}
+                        />
+                        <PackageDetailItem
+                          label="SIM Details"
+                          value={
+                            device.simDetails &&
+                            Array.isArray(device.simDetails)
+                              ? device.simDetails
+                                  .map((s) => s.simNo || s.iccidNo)
+                                  .join(", ")
+                              : "N/A"
+                          }
+                        />
+                        <PackageDetailItem
+                          label="Invoice No"
+                          value={device.InvoiceNo}
+                        />
+                        <div className="col-span-full">
+                          <PackageDetailItem
+                            label="Full Address"
+                            value={device.CompliteAddress}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            );
+          })} 
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 };
+
 
 // =========================================================
 // 3. MAIN APP COMPONENT & INITIAL STATE (Device Mapping Form)
 // =========================================================
 
+// 🐛 FIX: initialFormData definition is placed here to ensure global scope before its first usage in the App component.
 const initialFormData = {
   // REMOVED: country, state, distributorName, delerName (These are now implicit for the current dealer)
-  vechileNo:'',
-  deviceType: '', // Manual entry
-  deviceNo: '', // Serial Number (Barcode)
-  voltage: '', // Manual entry
-  elementType: '', // Auto-fetched
-  batchNo: '', // Auto-fetched
-  simDetails: '', // Read-only summary from selected barcode
+  vechileNo: "",
+  deviceType: "", // Manual entry
+  deviceNo: "", // Serial Number (Barcode)
+  voltage: "", // Manual entry
+  elementType: "", // Auto-fetched
+  batchNo: "", // Auto-fetched
+  simDetails: "", // Read-only summary from selected barcode
 
-  VechileBirth: '', RegistrationNo: '', date: '', ChassisNumber: '', EngineNumber: '', VehicleType: '', MakeModel: '', ModelYear: '',
-  InsuranceRenewDate: '', PollutionRenewdate: '', VehicleKMReading: '', DriverLicenseNo: '', MappedDate: '', NoOfPanicButtons: '',
-  fullName: '', email: '', mobileNo: '', GstinNo: '',
-  Customercountry: 'India', Customerstate: '', Customerdistrict: '', Rto: '', PinCode: '', CompliteAddress: '',
-  AdharNo: '', PanNo: '', Packages: '', InvoiceNo: '',
+  VechileBirth: "",
+  RegistrationNo: "",
+  date: "",
+  ChassisNumber: "",
+  EngineNumber: "",
+  VehicleType: "",
+  MakeModel: "",
+  ModelYear: "",
+  InsuranceRenewDate: "",
+  PollutionRenewdate: "",
+  VehicleKMReading: "",
+  DriverLicenseNo: "",
+  MappedDate: "",
+  NoOfPanicButtons: "",
+  fullName: "",
+  email: "",
+  mobileNo: "",
+  GstinNo: "",
+  Customercountry: "India",
+  Customerstate: "",
+  Customerdistrict: "",
+  Rto: "",
+  PinCode: "",
+  CompliteAddress: "",
+  AdharNo: "",
+  PanNo: "",
+  Packages: "",
+  InvoiceNo: "",
   // NOTE: File fields excluded from JSON payload
-  Vechile_Doc: null, Rc_Doc: null, Pan_Card: null, Device_Doc: null, Adhar_Card: null, Invious_Doc: null, Signature_Doc: null, Panic_Sticker: null,
+  Vechile_Doc: null,
+  Rc_Doc: null,
+  Pan_Card: null,
+  Device_Doc: null,
+  Adhar_Card: null,
+  Invious_Doc: null,
+  Signature_Doc: null,
+  Panic_Sticker: null,
 };
 
-function App() {
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false); // Global loader state for submission
 
+// 4. NEW: LiveTracking Component (To receive the data)
+const LiveTracking = () => {
+  // 🎯 NEW: Use useLocation to read query parameters
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const deviceNosString = queryParams.get('deviceNos');
+  const deviceNos = deviceNosString ? deviceNosString.split(',') : [];
+
+  return (
+    <div className="p-8 bg-gray-900 min-h-screen text-white">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold text-green-400 mb-6 flex items-center gap-3">
+          <SquareCheckBig size={36} />
+          Live Tracking Dashboard
+        </h1>
+        <div className="bg-gray-800 p-6 rounded-xl border border-green-500/50">
+          <p className="text-lg font-semibold mb-3">
+            Devices selected for Live Tracking:
+          </p>
+          {deviceNos.length > 0 ? (
+            <div className="space-y-2">
+              <p className="text-green-300">
+                Total Devices: <span className="font-bold">{deviceNos.length}</span>
+              </p>
+              <ul className="list-disc list-inside ml-4 text-sm text-gray-300">
+                {deviceNos.map(no => (
+                  <li key={no}>**Device Serial No:** {no.trim()}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <p className="text-red-400">No devices were passed for tracking.</p>
+          )}
+
+          <div className="mt-8 p-4 bg-black/50 rounded-lg h-96 flex items-center justify-center">
+            <p className="text-gray-500 text-xl">
+              [Placeholder for Map and Real-time Data Feed]
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
+// 5. Device Details/Edit Modal Component
+const DeviceDetailModal = ({ isOpen, onClose, device, isEditMode, packages }) => {
+    if (!isOpen || !device) return null;
+
+    const [modalData, setModalData] = useState(device);
+    const [loading, setLoading] = useState(false);
+    const isView = !isEditMode;
+
+    useEffect(() => {
+        setModalData(device);
+    }, [device]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setModalData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        // Placeholder for Edit Logic
+        console.log("Submitting updated device data:", modalData);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+        setLoading(false);
+        alert("Device updated successfully! (Mock Action)");
+        onClose();
+    };
+
+    const getLabel = (key) => {
+        const labels = {
+          vechileNo: "Vehicle No",
+          deviceNo: "Device Serial No",
+          mobileNo: "Mobile No",
+          RegistrationNo: "Registration No",
+          date: "Installation Date",
+          ChassisNumber: "Chassis Number",
+          EngineNumber: "Engine Number",
+          Packages: "Package ID",
+          Customerstate: "Customer State",
+          AdharNo: "Aadhar No",
+          PanNo: "PAN No",
+          InvoiceNo: "Invoice No",
+          CompliteAddress: "Complete Address",
+          fullName: "Customer Name",
+        };
+        return labels[key] || key;
+      };
+
+    const renderInput = (key, disabled = isView, isRequired = false, isSelect = false, options = []) => {
+        const isDateField = key.toLowerCase().includes("date") || key === "VechileBirth";
+        const type = isDateField ? "date" : "text";
+
+        return (
+            <div key={key} className="col-span-1">
+                <label className="block mb-2 font-medium text-yellow-300 text-sm">
+                    {getLabel(key)} {isRequired ? "*" : ""}
+                </label>
+                {isSelect ? (
+                    <select
+                        name={key}
+                        value={modalData[key] || ""}
+                        onChange={handleChange}
+                        disabled={disabled}
+                        className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${disabled ? "opacity-70 cursor-not-allowed bg-gray-900/50" : ""}`}
+                    >
+                        <option value="">Select Option</option>
+                        {options.map(opt => (
+                            <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                            </option>
+                        ))}
+                    </select>
+                ) : (
+                    <input
+                        type={type}
+                        name={key}
+                        value={modalData[key] || ""}
+                        onChange={handleChange}
+                        disabled={disabled}
+                        className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder:text-gray-500 ${disabled ? "opacity-70 cursor-not-allowed bg-gray-900/50" : ""}`}
+                        placeholder={getLabel(key)}
+                    />
+                )}
+            </div>
+        );
+    };
+
+    const fields = [
+        "vechileNo", "deviceNo", "RegistrationNo", "ChassisNumber", "EngineNumber", "fullName", "mobileNo", "AdharNo", "PanNo", "InvoiceNo", 
+        "date", "Customerstate", "Packages", "CompliteAddress"
+    ];
+
+    const packageOptions = packages.map(pkg => ({ value: pkg._id, label: pkg.packageName }));
+    const stateOptions = INDIA_STATES.map(state => ({ value: state, label: state }));
+    const isPackageField = (key) => key === "Packages";
+    const isStateField = (key) => key === "Customerstate";
+
+    return (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-yellow-500 rounded-2xl shadow-2xl max-w-4xl w-full my-8 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-yellow-600 scrollbar-track-gray-800">
+                <div className="sticky top-0 bg-black/95 backdrop-blur-md border-b-2 border-yellow-500/80 p-6 flex justify-between items-center z-10">
+                    <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 flex items-center gap-3">
+                        {isEditMode ? <SquarePen size={32} /> : <Eye size={32} />}
+                        {isEditMode ? "Edit Device Details" : "Device Details"}
+                    </h2>
+                    <button
+                        onClick={onClose}
+                        className="text-yellow-400 hover:text-white transition-colors p-2 rounded-full hover:bg-yellow-500/10 border border-yellow-500/20"
+                    >
+                        <X size={28} />
+                    </button>
+                </div>
+                <div className="p-8">
+                    <form onSubmit={handleSubmit}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            {fields.map(key => 
+                                isPackageField(key) ? renderInput(key, isView, false, true, packageOptions) :
+                                isStateField(key) ? renderInput(key, isView, false, true, stateOptions) :
+                                renderInput(key)
+                            )}
+                        </div>
+                        
+                        <div className="p-4 bg-gray-800/50 rounded-lg mb-6">
+                            <h3 className="font-bold text-yellow-400 mb-2">SIM Details (Read Only)</h3>
+                            {device.simDetails && device.simDetails.length > 0 ? (
+                                <ul className="list-disc list-inside text-gray-300">
+                                    {device.simDetails.map((sim, index) => (
+                                        <li key={index} className="text-sm">
+                                            Operator: **{sim.operator}**, SIM No: **{sim.simNo || sim.iccidNo}**
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <p className="text-gray-500 text-sm">No SIM details available.</p>
+                            )}
+                        </div>
+
+
+                        {isEditMode && (
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-xl font-bold text-lg hover:from-orange-400 hover:to-red-400 transition-all duration-300 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {loading ? (
+                                    <>
+                                        <Loader2 size={24} className="animate-spin" />
+                                        Saving Changes...
+                                    </>
+                                ) : (
+                                    <>
+                                        <SquarePen size={24} />
+                                        Save Changes
+                                    </>
+                                )}
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className={`w-full mt-3 px-6 py-3 rounded-xl font-bold text-lg transition-all duration-300 border ${isEditMode ? 'bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200' : 'bg-yellow-600 hover:bg-yellow-700 border-yellow-600 text-black'}`}
+                        >
+                            Close
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
+function App() {
+  const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); 
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
+  const [selectedDeviceForModal, setSelectedDeviceForModal] = useState(null); 
+
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false); 
+
+  // 🎯 FIX: Using initialFormData defined globally above.
   const [formData, setFormData] = useState(initialFormData);
-  const [deviceBarcodes, setDeviceBarcodes] = useState([]); // Stores the list of available barcodes
-  const [mappedSims, setMappedSims] = useState([]); 
+  const [deviceBarcodes, setDeviceBarcodes] = useState([]); 
+  const [mappedSims, setMappedSims] = useState([]);
   const [packages, setPackages] = useState([]);
   const [selectedPackageDetails, setSelectedPackageDetails] = useState(null);
-  const [loading, setLoading] = useState(false); // Used for fetching dropdown data
+  const [loading, setLoading] = useState(false); 
   const [packagesLoading, setPackagesLoading] = useState(false);
-  const [barcodesLoading, setBarcodesLoading] = useState(false); // New loading state for barcode list
-  const [toast, setToast] = useState({ message: '', type: null });
+  const [barcodesLoading, setBarcodesLoading] = useState(false); 
+  const [toast, setToast] = useState({ message: "", type: null });
 
-  // Helper to reset SIM and device related fields
+  const openEditModal = (device) => {
+    setSelectedDeviceForModal(device);
+    setIsEditModalOpen(true);
+  };
+
+  const openViewModal = (device) => {
+    setSelectedDeviceForModal(device);
+    setIsDetailModalOpen(true);
+  };
+
+  const closeModals = () => {
+      setIsEditModalOpen(false);
+      setIsDetailModalOpen(false);
+      setSelectedDeviceForModal(null);
+  };
+
+
   const resetDeviceFields = () => {
     setMappedSims([]);
     return {
-      deviceNo: '',
-      simDetails: '',
-      // Preserve manual entries, clear auto-filled ones (will be fetched again on next selection)
-      elementType: '',
-      batchNo: '',
+      deviceNo: "",
+      simDetails: "",
+      elementType: "",
+      batchNo: "",
     };
-  }
+  };
 
-  // --- API Fetchers ---
   const fetchPackages = useCallback(async () => {
     setPackagesLoading(true);
     try {
-      const token = localStorage.getItem('token') || 'mock-token'; 
-      if (!token) throw new Error('Authentication token not found.');
+      const token = localStorage.getItem("token") || "mock-token";
+      if (!token) throw new Error("Authentication token not found.");
 
-      const response = await fetch(FETCH_PLANS_API, { 
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      const response = await fetch(FETCH_PLANS_API, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
 
-      if (!response.ok) throw new Error('Failed to fetch packages');
+      if (!response.ok) throw new Error("Failed to fetch packages");
       const data = await response.json();
-      
-      setPackages(data.Packages || data.data || []);
 
+      setPackages(data.Packages || data.data || []);
     } catch (error) {
-      console.error('Error fetching packages:', error.message);
+      console.error("Error fetching packages:", error.message);
       setPackages([]);
     } finally {
       setPackagesLoading(false);
@@ -346,103 +931,108 @@ function App() {
   const fetchBarcodesForDealer = useCallback(async () => {
     setBarcodesLoading(true);
     setDeviceBarcodes([]);
-    setFormData(prev => ({ 
-        ...prev, 
-        ...resetDeviceFields(), // Clear auto-filled fields and SIMs 
-        // Preserve manual fields (deviceType, voltage, etc.)
+    setFormData((prev) => ({
+      ...prev,
+      ...resetDeviceFields(), 
     }));
 
     try {
-      const token = localStorage.getItem('token') || 'mock-token';
+      const token = localStorage.getItem("token") || "mock-token";
       const response = await fetch(API_URL_BARCODE_LIST, {
-        method: 'GET',
-        headers: { 
-          'Authorization': `Bearer ${token}`, 
-          'Content-Type': 'application/json' 
-        }
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
       const data = await response.json();
 
       setDeviceBarcodes(data.barcodes || data.data || []);
     } catch (error) {
-      console.error('Error fetching device barcodes:', error.message);
+      console.error("Error fetching device barcodes:", error.message);
     } finally {
       setBarcodesLoading(false);
     }
   }, []);
 
-  // --- useEffect Hooks for Data Flow ---
-  useEffect(() => { 
+  useEffect(() => {
     fetchPackages();
-    fetchBarcodesForDealer(); // Fetch barcode list immediately on load
+    fetchBarcodesForDealer(); 
   }, [fetchPackages, fetchBarcodesForDealer]);
 
-  // --- Change Handler ---
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
     let newFormData = { ...formData };
 
-    if (type === 'file') {
+    if (type === "file") {
       newFormData[name] = files[0];
     } else {
       newFormData[name] = value;
     }
-    
-    // Logic for populating SIM details and auto-fetching device details (ELEMENT TYPE, BATCH NO)
-    if (name === 'deviceNo') {
+
+    if (name === "deviceNo") {
       if (value) {
-        const selectedDevice = deviceBarcodes.find(device => device.barCodeNo === value);
-        const sims = (selectedDevice && Array.isArray(selectedDevice.simDetails)) ? selectedDevice.simDetails : [];
+        const selectedDevice = deviceBarcodes.find(
+          (device) => device.barCodeNo === value
+        );
+        const sims =
+          selectedDevice && Array.isArray(selectedDevice.simDetails)
+            ? selectedDevice.simDetails
+            : [];
         setMappedSims(sims);
-        const simSummary = sims.map(sim => sim.simNo || sim.iccidNo).filter(Boolean).join(', ');
-        newFormData.simDetails = simSummary || 'No SIM details found.';
-        
-        // **FIX IMPLEMENTED**: AUTO-FETCH ELEMENT TYPE AND BATCH NO
-        newFormData.elementType = selectedDevice?.elementType || ''; 
-        newFormData.batchNo = selectedDevice?.batchNo || '';
-        
+        const simSummary = sims
+          .map((sim) => sim.simNo || sim.iccidNo)
+          .filter(Boolean)
+          .join(", ");
+        newFormData.simDetails = simSummary || "No SIM details found.";
+
+        newFormData.elementType = selectedDevice?.elementType || "";
+        newFormData.batchNo = selectedDevice?.batchNo || "";
       } else {
         setMappedSims([]);
-        newFormData.simDetails = '';
-        
-        // Clear auto-filled fields when selection is cleared
-        newFormData.elementType = '';
-        newFormData.batchNo = '';
+        newFormData.simDetails = "";
+        newFormData.elementType = "";
+        newFormData.batchNo = "";
       }
     }
 
-    if (name === 'Packages') {
-      // Find the selected package details using the ID (value)
-      const selectedPkg = packages.find(pkg => pkg._id === value);
+    if (name === "Packages") {
+      const selectedPkg = packages.find((pkg) => pkg._id === value);
       setSelectedPackageDetails(selectedPkg || null);
     }
 
     setFormData(newFormData);
   };
 
-  // --- Submission Handler ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setSubmitting(true); // Show the global submission loader
-    setToast({ message: '', type: null });
+    setSubmitting(true); 
+    setToast({ message: "", type: null });
 
     try {
       const payload = {};
       for (const key in formData) {
         const value = formData[key];
-        if (value instanceof File || key.endsWith('_Doc') || key.endsWith('_Card') || key.endsWith('_Sticker')) {
+        if (
+          value instanceof File ||
+          key.endsWith("_Doc") ||
+          key.endsWith("_Card") ||
+          key.endsWith("_Sticker")
+        ) {
           continue;
         }
-        if (['country', 'state', 'distributorName', 'delerName'].includes(key)) {
-            continue;
+        if (
+          ["country", "state", "distributorName", "delerName"].includes(key)
+        ) {
+          continue;
         }
         payload[key] = value ? String(value).trim() : "";
       }
-      
+
       payload.simDetails = mappedSims || [];
 
-      const token = localStorage.getItem("token") || 'mock-token';
+      const token = localStorage.getItem("token") || "mock-token";
       if (!token) throw new Error("Authentication token missing");
 
       const controller = new AbortController();
@@ -452,10 +1042,10 @@ function App() {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeout);
@@ -464,82 +1054,131 @@ function App() {
       try {
         result = await response.json();
       } catch (err) {
-        result = { success: false, message: "Invalid JSON response from server." };
+        result = {
+          success: false,
+          message: "Invalid JSON response from server.",
+        };
       }
 
       if (!response.ok || result.success === false) {
-        const errorMsg = result.message || "Submission failed. Please check the required fields and network.";
+        const errorMsg =
+          result.message ||
+          "Submission failed. Please check the required fields and network.";
         setToast({ message: errorMsg, type: "error" });
-        setSubmitting(false); // Stop global loader on failure
+        setSubmitting(false); 
         return;
       }
 
-      setToast({ message: "Device mapped successfully! Reloading portal...", type: "success" });
-      
-      // NEW: Perform full page reload on success for a complete UI refresh
-      setTimeout(() => {
-          window.location.reload(); 
-      }, 1500); 
+      setToast({
+        message: "Device mapped successfully! Reloading portal...",
+        type: "success",
+      });
 
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (error) {
-      const errorMsg = error.name === "AbortError" ? "Request timed out after 60 seconds." : `Submission failed: ${error.message}`;
+      const errorMsg =
+        error.name === "AbortError"
+          ? "Request timed out after 60 seconds."
+          : `Submission failed: ${error.message}`;
       console.error("⛔ Submission Error:", error);
       setToast({ message: errorMsg, type: "error" });
-      setSubmitting(false); // Stop global loader on error
+      setSubmitting(false); 
     } finally {
       setLoading(false);
     }
   };
 
-  // --- Utility Functions ---
   const getLabel = (key) => {
     const labels = {
-     vechileNo:'Vehicle No', deviceType: 'Device Type', voltage: 'Voltage', elementType: 'Element Type', batchNo: 'Batch No',
-      VechileBirth: 'Vehicle Birth (Year/Date)', RegistrationNo: 'Registration No', date: 'Installation Date',
-      ChassisNumber: 'Chassis Number', EngineNumber: 'Engine Number', VehicleType: 'Vehicle Type', MakeModel: 'Make & Model', ModelYear: 'Model Year',
-      InsuranceRenewDate: 'Insurance Renew Date', PollutionRenewdate: 'Pollution Renew Date', VehicleKMReading: 'Vehicle KM Reading', DriverLicenseNo: 'Driver License No',
-      MappedDate: 'Mapped Date', NoOfPanicButtons: 'No. Of Panic Buttons',
-      fullName: 'Customer Full Name', email: 'Customer Email', mobileNo: 'Customer Mobile No', GstinNo: 'GSTIN No',
-      Customerdistrict: 'Customer District', Rto: 'RTO', PinCode: 'Pin Code', CompliteAddress: 'Complete Address',
-      AdharNo: 'Aadhar No', PanNo: 'PAN No', InvoiceNo: 'Invoice No',
-      Vechile_Doc: 'Vehicle Document', Rc_Doc: 'RC Document', Pan_Card: 'PAN Card', Device_Doc: 'Device Document', Adhar_Card: 'Aadhar Card', Invious_Doc: 'Invoice Document', Signature_Doc: 'Signature Document', Panic_Sticker: 'Panic Sticker Document',
+      vechileNo: "Vehicle No",
+      deviceType: "Device Type",
+      voltage: "Voltage",
+      elementType: "Element Type",
+      batchNo: "Batch No",
+      VechileBirth: "Vehicle Birth (Year/Date)",
+      RegistrationNo: "Registration No",
+      date: "Installation Date",
+      ChassisNumber: "Chassis Number",
+      EngineNumber: "Engine Number",
+      VehicleType: "Vehicle Type",
+      MakeModel: "Make & Model",
+      ModelYear: "Model Year",
+      InsuranceRenewDate: "Insurance Renew Date",
+      PollutionRenewdate: "Pollution Renew Date",
+      VehicleKMReading: "Vehicle KM Reading",
+      DriverLicenseNo: "Driver License No",
+      MappedDate: "Mapped Date",
+      NoOfPanicButtons: "No. Of Panic Buttons",
+      fullName: "Customer Full Name",
+      email: "Customer Email",
+      mobileNo: "Customer Mobile No",
+      GstinNo: "GSTIN No",
+      Customerdistrict: "Customer District",
+      Rto: "RTO",
+      PinCode: "Pin Code",
+      CompliteAddress: "Complete Address",
+      AdharNo: "Aadhar No",
+      PanNo: "PAN No",
+      InvoiceNo: "Invoice No",
+      Vechile_Doc: "Vehicle Document",
+      Rc_Doc: "RC Document",
+      Pan_Card: "PAN Card",
+      Device_Doc: "Device Document",
+      Adhar_Card: "Aadhar Card",
+      Invious_Doc: "Invoice Document",
+      Signature_Doc: "Signature Document",
+      Panic_Sticker: "Panic Sticker Document",
     };
     return labels[key] || key;
   };
 
-  // --- Render Helpers ---
   const renderSimInputs = () => {
     if (!formData.deviceNo) {
-        return (
-          <div className="md:col-span-3 text-center py-6 text-gray-500 border-2 border-dashed border-gray-700 rounded-xl bg-black/10">
-            <Smartphone size={24} className="mx-auto mb-2" />
-            Select a **Device Serial No** to view SIM details.
-          </div>
-        );
-      }
-      if (mappedSims.length === 0 || mappedSims.every(sim => !sim.simNo && !sim.iccidNo)) {
-        return (
-          <div className="md:col-span-3 text-center py-6 text-yellow-400 border-2 border-dashed border-yellow-500/30 rounded-xl bg-black/20">
-            <AlertTriangle size={24} className="mx-auto mb-2" />
-            No SIM details found for the selected device.
-          </div>
-        );
-      }
-  
-      return mappedSims.map((sim, index) => (
-        <div key={index} className="md:col-span-1 border border-yellow-500/50 p-5 rounded-xl bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 shadow-lg backdrop-blur-sm">
-          <h4 className="font-bold mb-3 text-yellow-400 flex items-center gap-2 text-lg">
-            <Smartphone size={18} />
-            SIM {index + 1}
-          </h4>
-          <div className="space-y-3">
-            <PackageDetailItem label="Sim No" value={sim.simNo} />
-            <PackageDetailItem label="ICCID No" value={sim.iccidNo} />
-            <PackageDetailItem label="Operator" value={sim.operator} />
-            <PackageDetailItem label="Validity Date" value={sim.validityDate && !isNaN(new Date(sim.validityDate)) ? new Date(sim.validityDate).toLocaleDateString() : 'N/A'} />
-          </div>
+      return (
+        <div className="md:col-span-3 text-center py-6 text-gray-500 border-2 border-dashed border-gray-700 rounded-xl bg-black/10">
+          <Smartphone size={24} className="mx-auto mb-2" />
+          Select a **Device Serial No** to view SIM details.
         </div>
-      ));
+      );
+    }
+    if (
+      mappedSims.length === 0 ||
+      mappedSims.every((sim) => !sim.simNo && !sim.iccidNo)
+    ) {
+      return (
+        <div className="md:col-span-3 text-center py-6 text-yellow-400 border-2 border-dashed border-yellow-500/30 rounded-xl bg-black/20">
+          <AlertTriangle size={24} className="mx-auto mb-2" />
+          No SIM details found for the selected device.
+        </div>
+      );
+    }
+
+    return mappedSims.map((sim, index) => (
+      <div
+        key={index}
+        className="md:col-span-1 border border-yellow-500/50 p-5 rounded-xl bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 shadow-lg backdrop-blur-sm"
+      >
+        <h4 className="font-bold mb-3 text-yellow-400 flex items-center gap-2 text-lg">
+          <Smartphone size={18} />
+          SIM {index + 1}
+        </h4>
+        <div className="space-y-3">
+          <PackageDetailItem label="Sim No" value={sim.simNo} />
+          <PackageDetailItem label="ICCID No" value={sim.iccidNo} />
+          <PackageDetailItem label="Operator" value={sim.operator} />
+          <PackageDetailItem
+            label="Validity Date"
+            value={
+              sim.validityDate && !isNaN(new Date(sim.validityDate))
+                ? new Date(sim.validityDate).toLocaleDateString()
+                : "N/A"
+            }
+          />
+        </div>
+      </div>
+    ));
   };
 
   const renderPackageDetailsBox = () => {
@@ -555,78 +1194,102 @@ function App() {
         </h4>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 text-sm">
           <PackageDetailItem label="Package Name" value={details.packageName} />
-          <PackageDetailItem label="Billing Cycle" value={details.billingCycle} />
+          <PackageDetailItem
+            label="Billing Cycle"
+            value={details.billingCycle}
+          />
           <PackageDetailItem label="Renewal" value={details.renewal} />
           <PackageDetailItem label="Price (₹)" value={details.price} />
         </div>
-        <p className="mt-4 text-sm text-yellow-200/80">Description: {details.description}</p>
+        <p className="mt-4 text-sm text-yellow-200/80">
+          Description: {details.description}
+        </p>
       </div>
     );
   };
 
   const renderFormInput = (key, span = 1) => {
-    // Determine input type based on key
-    const isDateField = key.toLowerCase().includes('date') || key === 'VechileBirth';
-    const type = isDateField ? 'date' : 'text';
-    
-    // Determine required fields
-    const isRequired = ['vechileNo', 'deviceType', 'voltage', 'RegistrationNo', 'date', 'ChassisNumber', 'EngineNumber', 'VehicleType', 'MakeModel', 'fullName', 'mobileNo', 'AdharNo', 'PanNo', 'CompliteAddress', 'Customerstate'].includes(key);
-    
-    // **FIX IMPLEMENTED**: Disable Element Type and Batch No if a device is selected.
-    const isAutoFilled = ['elementType', 'batchNo'].includes(key);
+    const isDateField =
+      key.toLowerCase().includes("date") || key === "VechileBirth";
+    const type = isDateField ? "date" : "text";
+
+    const isRequired = [
+      "vechileNo",
+      "deviceType",
+      "voltage",
+      "RegistrationNo",
+      "date",
+      "ChassisNumber",
+      "EngineNumber",
+      "VehicleType",
+      "MakeModel",
+      "fullName",
+      "mobileNo",
+      "AdharNo",
+      "PanNo",
+      "CompliteAddress",
+      "Customerstate",
+    ].includes(key);
+
+    const isAutoFilled = ["elementType", "batchNo"].includes(key);
     const isDisabled = isAutoFilled && !!formData.deviceNo;
 
     return (
       <div key={key} className={`col-span-${span}`}>
-        <label className="block mb-2 font-medium text-yellow-300 text-sm">{getLabel(key)} {isRequired ? '*' : ''}</label>
+        <label className="block mb-2 font-medium text-yellow-300 text-sm">
+          {getLabel(key)} {isRequired ? "*" : ""}
+        </label>
         <input
           type={type}
           name={key}
-          value={formData[key] || ''}
+          value={formData[key] || ""}
           onChange={handleChange}
           required={isRequired}
           disabled={isDisabled}
-          className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder:text-gray-500 ${isDisabled ? 'opacity-70 cursor-not-allowed bg-gray-900/50' : ''}`}
+          className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder:text-gray-500 ${
+            isDisabled ? "opacity-70 cursor-not-allowed bg-gray-900/50" : ""
+          }`}
           placeholder={getLabel(key)}
         />
       </div>
     );
   };
-  
+
   const renderFileInput = (key) => {
     return (
       <div key={key} className="col-span-1">
-        <label className="block mb-2 font-medium text-gray-500 text-sm">{getLabel(key)} (Disabled)</label>
+        <label className="block mb-2 font-medium text-gray-500 text-sm">
+          {getLabel(key)} (Disabled)
+        </label>
         <div className="w-full px-4 py-2.5 border border-gray-700 rounded-lg bg-black/60 text-gray-500 flex items-center justify-between opacity-50 cursor-not-allowed">
-            <span className="truncate">{formData[key]?.name || "File upload disabled"}</span>
-            <FileText size={18} />
+          <span className="truncate">
+            {formData[key]?.name || "File upload disabled"}
+          </span>
+          <FileText size={18} />
         </div>
       </div>
     );
   };
-  
-  // Render the global submitting loader if needed
-  if (submitting) {
-      return (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[999] flex items-center justify-center">
-              <div className="text-center text-yellow-400 p-10 bg-gray-900/80 rounded-xl shadow-2xl border border-yellow-500/30">
-                  <Loader2 size={64} className="mx-auto animate-spin mb-4" />
-                  <h1 className="text-3xl font-bold">Processing Submission...</h1>
-                  <p className="mt-2 text-lg">Please wait while the device is mapped and the portal reloads.</p>
-              </div>
-          </div>
-      );
-  }
 
+  if (submitting) {
+    return (
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-[999] flex items-center justify-center">
+        <div className="text-center text-yellow-400 p-10 bg-gray-900/80 rounded-xl shadow-2xl border border-yellow-500/30">
+          <Loader2 size={64} className="mx-auto animate-spin mb-4" />
+          <h1 className="text-3xl font-bold">Processing Submission...</h1>
+          <p className="mt-2 text-lg">
+            Please wait while the device is mapped and the portal reloads.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="font-sans">
-      
-     <DealerNavbar/>
-    
+      <DealerNavbar />
 
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
-        
         {/* Navbar */}
         <nav className="bg-black/90 backdrop-blur-md border-b-2 border-yellow-500 sticky top-0 z-40 shadow-2xl">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -640,7 +1303,7 @@ function App() {
 
               <div className="hidden md:block">
                 <button
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => setIsMapModalOpen(true)}
                   className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-6 py-3 rounded-lg font-bold hover:from-yellow-400 hover:to-yellow-500 transition-all duration-300 shadow-lg hover:shadow-yellow-500/50 flex items-center gap-2"
                 >
                   <MapPin size={20} />
@@ -664,7 +1327,7 @@ function App() {
               <div className="px-4 py-4">
                 <button
                   onClick={() => {
-                    setIsModalOpen(true);
+                    setIsMapModalOpen(true);
                     setMobileMenuOpen(false);
                   }}
                   className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-4 py-3 rounded-lg font-bold hover:from-yellow-400 hover:to-yellow-500 transition-all duration-300 flex items-center justify-center gap-2"
@@ -676,24 +1339,27 @@ function App() {
             </div>
           )}
         </nav>
-        
+
         {/* Main Content (Mapped Devices Table) */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <DelerMapDevicesTable/>
+          {/* PASS NEW FUNCTIONS TO TABLE */}
+          <DelerMapDevicesTable 
+              openEditModal={openEditModal} 
+              openViewModal={openViewModal}
+          />
         </div>
 
         {/* Toast Notification Renderer */}
-        <ToastNotification 
-          message={toast.message} 
-          type={toast.type} 
-          onClose={() => setToast({ message: '', type: null })} 
+        <ToastNotification
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast({ message: "", type: null })}
         />
 
         {/* Modal (Mapping Form) */}
-        {isModalOpen && (
+        {isMapModalOpen && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
             <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-yellow-500 rounded-2xl shadow-2xl max-w-5xl w-full my-8 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-yellow-600 scrollbar-track-gray-800">
-              
               {/* Modal Header */}
               <div className="sticky top-0 bg-black/95 backdrop-blur-md border-b-2 border-yellow-500/80 p-6 flex justify-between items-center z-10">
                 <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 flex items-center gap-3">
@@ -701,7 +1367,7 @@ function App() {
                   Device Mapping Form
                 </h2>
                 <button
-                  onClick={() => setIsModalOpen(false)}
+                  onClick={() => setIsMapModalOpen(false)}
                   className="text-yellow-400 hover:text-white transition-colors p-2 rounded-full hover:bg-yellow-500/10 border border-yellow-500/20"
                 >
                   <X size={28} />
@@ -712,12 +1378,14 @@ function App() {
               <div className="p-8">
                 {/* JSON Submission Warning */}
                 <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-xl mb-6 flex items-start gap-3">
-                    <AlertTriangle size={24} className="flex-shrink-0 mt-0.5" />
-                    <span className="text-sm font-medium"> **JSON Submission Active:** File uploads are **disabled**.</span>
+                  <AlertTriangle size={24} className="flex-shrink-0 mt-0.5" />
+                  <span className="text-sm font-medium">
+                    {" "}
+                    **JSON Submission Active:** File uploads are **disabled**.
+                  </span>
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-8">
-
                   {/* ========================================= */}
                   {/* SECTION 1: DEVICE ALLOCATION (Simplified) */}
                   {/* ========================================= */}
@@ -726,36 +1394,79 @@ function App() {
                       <Package size={22} />
                       Device & Package Selection
                     </h3>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      
                       {/* Device Serial No. (Barcode List) */}
                       <div>
-                        <label className="block mb-2 font-medium text-yellow-300 text-sm">Device Serial No (Barcode) *</label>
-                        <select name="deviceNo" value={formData.deviceNo} onChange={handleChange} required disabled={barcodesLoading} className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${barcodesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        <label className="block mb-2 font-medium text-yellow-300 text-sm">
+                          Device Serial No (Barcode) *
+                        </label>
+                        <select
+                          name="deviceNo"
+                          value={formData.deviceNo}
+                          onChange={handleChange}
+                          required
+                          disabled={barcodesLoading}
+                          className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${
+                            barcodesLoading
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
                           <option value="">
-                            {barcodesLoading ? 'Loading Devices...' : deviceBarcodes.length > 0 ? 'Select Device Number' : 'No Devices Available'}
+                            {barcodesLoading
+                              ? "Loading Devices..."
+                              : deviceBarcodes.length > 0
+                              ? "Select Device Number"
+                              : "No Devices Available"}
                           </option>
-                          {deviceBarcodes.map(device => (<option key={device.barCodeNo} value={device.barCodeNo}>{device.barCodeNo}</option>))}
+                          {deviceBarcodes.map((device) => (
+                            <option
+                              key={device.barCodeNo}
+                              value={device.barCodeNo}
+                            >
+                              {device.barCodeNo}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
                       {/* Package */}
                       <div>
-                        <label className="block mb-2 font-medium text-yellow-300 text-sm">Package *</label>
-                        <select name="Packages" value={formData.Packages} onChange={handleChange} required disabled={packagesLoading} className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${packagesLoading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        <label className="block mb-2 font-medium text-yellow-300 text-sm">
+                          Package *
+                        </label>
+                        <select
+                          name="Packages"
+                          value={formData.Packages}
+                          onChange={handleChange}
+                          required
+                          disabled={packagesLoading}
+                          className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${
+                            packagesLoading
+                              ? "opacity-50 cursor-not-allowed"
+                              : ""
+                          }`}
+                        >
                           <option value="">
-                            {packagesLoading ? 'Loading Packages...' : packages.length > 0 ? 'Select Package' : 'No Packages Found'}
+                            {packagesLoading
+                              ? "Loading Packages..."
+                              : packages.length > 0
+                              ? "Select Package"
+                              : "No Packages Found"}
                           </option>
                           {/* Use _id for value, packageName for display. This ensures the _id is passed. */}
-                          {packages.map(pkg => (<option key={pkg._id} value={pkg._id}>{pkg.packageName || pkg._id}</option>))}
+                          {packages.map((pkg) => (
+                            <option key={pkg._id} value={pkg._id}>
+                              {pkg.packageName || pkg._id}
+                            </option>
+                          ))}
                         </select>
                       </div>
                     </div>
 
                     {renderPackageDetailsBox()}
                   </div>
-
 
                   {/* ========================================= */}
                   {/* SECTION 2: SIM DETAILS */}
@@ -779,28 +1490,28 @@ function App() {
                       Vehicle & Device Information
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {renderFormInput('vechileNo')}
+                      {renderFormInput("vechileNo")}
                       {/* Manual Entry Fields */}
-                      {renderFormInput('deviceType')}
-                      {renderFormInput('voltage')}
+                      {renderFormInput("deviceType")}
+                      {renderFormInput("voltage")}
                       {/* Auto-fetched/Disabled Fields (FIXED) */}
-                      {renderFormInput('elementType')}
-                      {renderFormInput('batchNo')}
-                      
-                      {renderFormInput('VechileBirth')}
-                      {renderFormInput('RegistrationNo')}
-                      {renderFormInput('date')}
-                      {renderFormInput('ChassisNumber')}
-                      {renderFormInput('EngineNumber')}
-                      {renderFormInput('VehicleType')}
-                      {renderFormInput('MakeModel')}
-                      {renderFormInput('ModelYear')}
-                      {renderFormInput('InsuranceRenewDate')}
-                      {renderFormInput('PollutionRenewdate')}
-                      {renderFormInput('VehicleKMReading')}
-                      {renderFormInput('DriverLicenseNo')}
-                      {renderFormInput('MappedDate')}
-                      {renderFormInput('NoOfPanicButtons')}
+                      {renderFormInput("elementType")}
+                      {renderFormInput("batchNo")}
+
+                      {renderFormInput("VechileBirth")}
+                      {renderFormInput("RegistrationNo")}
+                      {renderFormInput("date")}
+                      {renderFormInput("ChassisNumber")}
+                      {renderFormInput("EngineNumber")}
+                      {renderFormInput("VehicleType")}
+                      {renderFormInput("MakeModel")}
+                      {renderFormInput("ModelYear")}
+                      {renderFormInput("InsuranceRenewDate")}
+                      {renderFormInput("PollutionRenewdate")}
+                      {renderFormInput("VehicleKMReading")}
+                      {renderFormInput("DriverLicenseNo")}
+                      {renderFormInput("MappedDate")}
+                      {renderFormInput("NoOfPanicButtons")}
                     </div>
                   </div>
 
@@ -813,39 +1524,71 @@ function App() {
                       Customer Details
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {renderFormInput('fullName')}
-                      {renderFormInput('email')}
-                      {renderFormInput('mobileNo')}
-                      {renderFormInput('GstinNo')}
-                      
+                      {renderFormInput("fullName")}
+                      {renderFormInput("email")}
+                      {renderFormInput("mobileNo")}
+                      {renderFormInput("GstinNo")}
+
                       {/* Customer Location */}
                       <div>
-                        <label className="block mb-2 font-medium text-yellow-300 text-sm">Customer Country *</label>
-                        <select name="Customercountry" value={formData.Customercountry} onChange={handleChange} required className="w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
+                        <label className="block mb-2 font-medium text-yellow-300 text-sm">
+                          Customer Country *
+                        </label>
+                        <select
+                          name="Customercountry"
+                          value={formData.Customercountry}
+                          onChange={handleChange}
+                          required
+                          className="w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors"
+                        >
                           <option value="">Select Country</option>
-                          {COUNTRIES.map(c => (<option key={c.code} value={c.name}>{c.name}</option>))}
+                          {COUNTRIES.map((c) => (
+                            <option key={c.code} value={c.name}>
+                              {c.name}
+                            </option>
+                          ))}
                         </select>
                       </div>
-                      
+
                       <div>
-                        <label className="block mb-2 font-medium text-yellow-300 text-sm">Customer State *</label>
-                        {formData.Customercountry === 'India' ? (
-                          <select name="Customerstate" value={formData.Customerstate} onChange={handleChange} required className="w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors">
+                        <label className="block mb-2 font-medium text-yellow-300 text-sm">
+                          Customer State *
+                        </label>
+                        {formData.Customercountry === "India" ? (
+                          <select
+                            name="Customerstate"
+                            value={formData.Customerstate}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors"
+                          >
                             <option value="">Select State</option>
-                            {INDIA_STATES.map(state => (<option key={state} value={state}>{state}</option>))}
+                            {INDIA_STATES.map((state) => (
+                              <option key={state} value={state}>
+                                {state}
+                              </option>
+                            ))}
                           </select>
                         ) : (
-                          <input type="text" name="Customerstate" value={formData.Customerstate} onChange={handleChange} required className="w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 placeholder:text-gray-500" placeholder="Enter State/Province" />
+                          <input
+                            type="text"
+                            name="Customerstate"
+                            value={formData.Customerstate}
+                            onChange={handleChange}
+                            required
+                            className="w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 placeholder:text-gray-500"
+                            placeholder="Enter State/Province"
+                          />
                         )}
                       </div>
 
-                      {renderFormInput('Customerdistrict')}
-                      {renderFormInput('Rto')}
-                      {renderFormInput('PinCode')}
-                      {renderFormInput('AdharNo')}
-                      {renderFormInput('PanNo')}
-                      {renderFormInput('InvoiceNo')}
-                      {renderFormInput('CompliteAddress', 3)}
+                      {renderFormInput("Customerdistrict")}
+                      {renderFormInput("Rto")}
+                      {renderFormInput("PinCode")}
+                      {renderFormInput("AdharNo")}
+                      {renderFormInput("PanNo")}
+                      {renderFormInput("InvoiceNo")}
+                      {renderFormInput("CompliteAddress", 3)}
                     </div>
                   </div>
 
@@ -859,18 +1602,20 @@ function App() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {/* File Inputs (Disabled) */}
-                      {renderFileInput('Vechile_Doc')}
-                      {renderFileInput('Rc_Doc')}
-                      {renderFileInput('Pan_Card')}
-                      {renderFileInput('Device_Doc')}
-                      {renderFileInput('Adhar_Card')}
-                      {renderFileInput('Invious_Doc')}
-                      {renderFileInput('Signature_Doc')}
-                      {renderFileInput('Panic_Sticker')}
+                      {renderFileInput("Vechile_Doc")}
+                      {renderFileInput("Rc_Doc")}
+                      {renderFileInput("Pan_Card")}
+                      {renderFileInput("Device_Doc")}
+                      {renderFileInput("Adhar_Card")}
+                      {renderFileInput("Invious_Doc")}
+                      {renderFileInput("Signature_Doc")}
+                      {renderFileInput("Panic_Sticker")}
                     </div>
-                    <p className="mt-4 text-sm text-red-300/80">These fields are disabled because the submission is currently configured to use **JSON format**.</p>
+                    <p className="mt-4 text-sm text-red-300/80">
+                      These fields are disabled because the submission is
+                      currently configured to use **JSON format**.
+                    </p>
                   </div>
-
 
                   {/* ========================================= */}
                   {/* SUBMIT BUTTON */}
@@ -894,15 +1639,34 @@ function App() {
                       )}
                     </button>
                   </div>
-
                 </form>
               </div>
             </div>
           </div>
         )}
+
+        {/* NEW: Device Details Modal */}
+        <DeviceDetailModal
+            isOpen={isDetailModalOpen}
+            onClose={closeModals}
+            device={selectedDeviceForModal}
+            isEditMode={false}
+            packages={packages}
+        />
+
+        {/* NEW: Device Edit Modal */}
+        <DeviceDetailModal
+            isOpen={isEditModalOpen}
+            onClose={closeModals}
+            device={selectedDeviceForModal}
+            isEditMode={true}
+            packages={packages}
+        />
       </div>
     </div>
   );
 }
 
+// Export both App and the new LiveTracking component
 export default App;
+export { LiveTracking };

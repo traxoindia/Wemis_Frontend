@@ -63,6 +63,7 @@ import TicketsApp from "./ManufacturePage/TicketsApp";
 import Barcodelist from "./Dealer_Distributor/Barcodelist";
 import TechnicianDealer from "./Dealer_Distributor/TechnicianDealer";
 import MapManageDevice from "./Dealer_Distributor/MapManageDevice";
+import LiveTracking from "./Dealer_Distributor/LiveTracking";
 
 
 function App() {
@@ -225,6 +226,7 @@ function App() {
              <Route path="/distributor/dealer/Barcode" element={<Barcodelist/>}/>
               <Route path="/distributor/dealer/technicians" element={<TechnicianDealer/>}/>
                <Route path="/distributor/dealer/map-device" element={<MapManageDevice/>}/>
+               <Route path="/dealer/map-device/livetracking" element={<LiveTracking/>}/>
 
           </>
         )}
