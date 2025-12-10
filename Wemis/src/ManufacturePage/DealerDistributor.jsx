@@ -152,6 +152,7 @@ function DealerDistributor() {
         {},
         { headers: { Authorization: `Bearer ${tkn}` } }
       );
+      console.log(res.data)
       setDealers(res.data.fetchAllCreateDelerUnderDistributor);
     } catch {
       toast.error("Failed to fetch Dealers");
