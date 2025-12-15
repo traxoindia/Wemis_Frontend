@@ -13,11 +13,18 @@ import {
     Car,
     Gauge,
     Info,
-    Move
+    Move,
+    Play,
+    Pause,
+    SkipBack,
+    SkipForward,
+    Calendar,
+    History,
+    RotateCcw
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
-// 1. ADD THE LOGO IMPORT HERE 
+// Logo import
 import vehicleLogo from '../Images/car.png';
 
 // Helper function to calculate the bearing (heading) between two coordinates
@@ -36,6 +43,12 @@ const calculateHeading = (from, to) => {
     return heading;
 };
 
+// Helper function to format date to local datetime-local input format
+const formatDateTimeForInput = (date) => {
+    const d = new Date(date);
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+};
 
 const Livetracking = () => {
     const location = useLocation();
@@ -47,7 +60,7 @@ const Livetracking = () => {
     const [currentLocation, setCurrentLocation] = useState(null);
     const [status, setStatus] = useState("Initializing");
     const [speed, setSpeed] = useState(0);
-    const [heading, setHeading] = useState(0); // Heading used for rotation
+    const [heading, setHeading] = useState(0);
     const [satellites, setSatellites] = useState(0);
     const [batteryVoltage, setBatteryVoltage] = useState("0");
     const [gsmSignal, setGsmSignal] = useState("0");
@@ -56,7 +69,20 @@ const Livetracking = () => {
     const [lastUpdateTime, setLastUpdateTime] = useState(null);
     const [rawData, setRawData] = useState(null);
     const [activeTab, setActiveTab] = useState("tracking");
-    const [smoothPathData, setSmoothPathData] = useState([]); // State to hold the path data
+    const [smoothPathData, setSmoothPathData] = useState([]);
+
+    // Route Playback States
+    const [isPlaybackMode, setIsPlaybackMode] = useState(false);
+    const [playbackData, setPlaybackData] = useState(null);
+    const [playbackRoute, setPlaybackRoute] = useState([]);
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentPlaybackIndex, setCurrentPlaybackIndex] = useState(0);
+    const [playbackSpeed, setPlaybackSpeed] = useState(1);
+    const [playbackStartTime, setPlaybackStartTime] = useState("");
+    const [playbackEndTime, setPlaybackEndTime] = useState("");
+    const [isLoadingPlayback, setIsLoadingPlayback] = useState(false);
+    const [totalPlaybackPoints, setTotalPlaybackPoints] = useState(0);
+    const [playbackProgress, setPlaybackProgress] = useState(0);
 
     const loaderRef = useRef(null);
     const geoErrorRef = useRef(null);
@@ -68,17 +94,27 @@ const Livetracking = () => {
     const leafletMapRef = useRef(null);
     const leafletVehicleMarkerRef = useRef(null);
     const leafletPathRef = useRef(null);
+    const playbackMarkerRef = useRef(null);
+    const playbackPathRef = useRef(null);
     
     const startTime = useRef(Date.now());
     const [duration, setDuration] = useState(0);
     
-    const pathAnimationTimer = useRef(null); // Timer for smooth animation
-    const lastKnownVehiclePosition = useRef(null); // Last known position (used for animation start)
-
+    const pathAnimationTimer = useRef(null);
+    const playbackTimer = useRef(null);
+    const liveTrackingTimer = useRef(null); // Store live tracking interval
+    const lastKnownVehiclePosition = useRef(null);
 
     // --- Core Effects and Map Setup ---
 
     useEffect(() => {
+        // Set default playback times (last 1 hour)
+        const now = new Date();
+        const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+        
+        setPlaybackStartTime(formatDateTimeForInput(oneHourAgo));
+        setPlaybackEndTime(formatDateTimeForInput(now));
+
         // Timer for session duration
         const timer = setInterval(() => {
             setDuration(Math.floor((Date.now() - startTime.current) / 1000));
@@ -101,6 +137,14 @@ const Livetracking = () => {
             // Cleanup the path animation timer
             if (pathAnimationTimer.current) {
                 clearInterval(pathAnimationTimer.current);
+            }
+            // Cleanup playback timer
+            if (playbackTimer.current) {
+                clearInterval(playbackTimer.current);
+            }
+            // Cleanup live tracking timer
+            if (liveTrackingTimer.current) {
+                clearInterval(liveTrackingTimer.current);
             }
         };
     }, []);
@@ -153,17 +197,17 @@ const Livetracking = () => {
                         lng: pos.coords.longitude,
                     };
                     setCurrentLocation(userLocation);
-                    setVehiclePosition(userLocation); // Set initial vehicle pos to user pos
+                    setVehiclePosition(userLocation);
                     initializeMap(userLocation);
                 },
                 (err) => {
                     handleGeoError("Location access denied. Using default map center.");
-                    setVehiclePosition(defaultLocation); // Set initial vehicle pos to default
+                    setVehiclePosition(defaultLocation);
                     initializeMap(defaultLocation);
                 }
             );
         } else {
-            setVehiclePosition(defaultLocation); // Set initial vehicle pos to default
+            setVehiclePosition(defaultLocation);
             initializeMap(defaultLocation);
         }
     };
@@ -198,20 +242,21 @@ const Livetracking = () => {
         hideLoader();
     };
 
-    // Creates the HTML structure for the vehicle icon (USING PNG LOGO and current heading state)
-    const createVehicleIcon = () => {
-        const isMoving = speed > 0.5;
-        let statusColor = isMoving ? '#10B981' : '#F59E0B'; // Green if moving, Amber if stopped
+    // Creates the HTML structure for the vehicle icon
+    const createVehicleIcon = (customSpeed = null, customHeading = null) => {
+        const currentSpeed = customSpeed !== null ? customSpeed : speed;
+        const currentHeading = customHeading !== null ? customHeading : heading;
+        const isMoving = currentSpeed > 0.5;
+        let statusColor = isMoving ? '#10B981' : '#F59E0B';
         
-        // Use a wrapping div to position the label and an inner div to handle the rotation of the image.
         return `
             <div style="position: relative; width: 60px; height: 60px;">
                 <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #1F2937; color: white; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.3); white-space: nowrap; display: flex; align-items: center; gap: 4px;">
                     <div style="width: 6px; height: 6px; border-radius: 50%; background: ${statusColor};"></div>
-                    ${speed.toFixed(0)} km/h
+                    ${currentSpeed.toFixed(0)} km/h
                 </div>
                 
-                <div style="width: 40px; height: 40px; position: absolute; top: 10px; left: 10px; transform: rotate(${heading}deg); filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));">
+                <div style="width: 40px; height: 40px; position: absolute; top: 10px; left: 10px; transform: rotate(${currentHeading}deg); filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));">
                     <img 
                         src="${vehicleLogo}" 
                         alt="Vehicle Logo" 
@@ -222,6 +267,31 @@ const Livetracking = () => {
         `;
     };
     
+    const createPlaybackIcon = (speed, heading) => {
+        const isMoving = speed > 0.5;
+        let statusColor = isMoving ? '#10B981' : '#F59E0B';
+        
+        return `
+            <div style="position: relative; width: 60px; height: 60px;">
+                <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #DC2626; color: white; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.3); white-space: nowrap; display: flex; align-items: center; gap: 4px;">
+                    <div style="width: 6px; height: 6px; border-radius: 50%; background: ${statusColor};"></div>
+                    ${speed.toFixed(0)} km/h
+                </div>
+                
+                <div style="width: 40px; height: 40px; position: absolute; top: 10px; left: 10px; transform: rotate(${heading}deg); filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));">
+                    <img 
+                        src="${vehicleLogo}" 
+                        alt="Vehicle Logo" 
+                        style="width: 100%; height: 100%; object-fit: contain; opacity: 0.9;"
+                    />
+                </div>
+                <div style="position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); background: #DC2626; color: white; padding: 2px 6px; border-radius: 4px; font-size: 8px; font-weight: 700; white-space: nowrap;">
+                    PLAYBACK
+                </div>
+            </div>
+        `;
+    };
+
     const initializeVehicleTracking = (mapInstance, initialPosition) => {
         // Create the initial vehicle marker icon
         const vehicleIcon = window.L.divIcon({
@@ -255,13 +325,40 @@ const Livetracking = () => {
 
         leafletPathRef.current = vehiclePath;
 
-        // Set the API polling interval
-        const trackingInterval = setInterval(() => {
-            updateVehicleFromAPI(mapInstance, vehicleMarker, vehiclePath);
-        }, 3000); // Poll API every 3 seconds
-
-        mapInstance.trackingInterval = trackingInterval;
+        // Start live tracking
+        startLiveTracking(mapInstance, vehicleMarker, vehiclePath);
+        
         setStatus("Live");
+    };
+
+    // New function to start live tracking
+    const startLiveTracking = (mapInstance, vehicleMarker, vehiclePath) => {
+        // Clear any existing live tracking timer
+        if (liveTrackingTimer.current) {
+            clearInterval(liveTrackingTimer.current);
+        }
+        
+        // Set the API polling interval
+        liveTrackingTimer.current = setInterval(() => {
+            updateVehicleFromAPI(mapInstance, vehicleMarker, vehiclePath);
+        }, 3000);
+
+        // Store the timer reference on map instance for cleanup
+        mapInstance.liveTrackingInterval = liveTrackingTimer.current;
+    };
+
+    // New function to stop live tracking
+    const stopLiveTracking = () => {
+        if (liveTrackingTimer.current) {
+            clearInterval(liveTrackingTimer.current);
+            liveTrackingTimer.current = null;
+        }
+        
+        // Also stop any smooth path animation
+        if (pathAnimationTimer.current) {
+            clearInterval(pathAnimationTimer.current);
+            pathAnimationTimer.current = null;
+        }
     };
 
     const hideLoader = () => {
@@ -328,7 +425,7 @@ const Livetracking = () => {
             const locationData = data.location || {};
             const rawData = data.rawData || data;
             const deviceInfo = data.deviceInfo || {};
-            const previousLocation = data.previousLocation || {}; // Used for smooth path start
+            const previousLocation = data.previousLocation || {};
 
             // Safely parse primary location and speed
             const lat = parseFloat(locationData.latitude || rawData.lat || 0);
@@ -364,14 +461,13 @@ const Livetracking = () => {
                 return {
                     position: { lat: lat, lng: lng },
                     previousPosition: { 
-                        // Use previousLocation from API, or the current state position, for animation start
                         lat: parseFloat(previousLocation.latitude || vehiclePosition?.lat || lat),
                         lng: parseFloat(previousLocation.longitude || vehiclePosition?.lng || lng)
                     },
                     speed: speed,
                     heading: headingValue,
                     timestamp: Date.now(),
-                    smoothPath: parsedSmoothPath, // Use the cleaned array
+                    smoothPath: parsedSmoothPath,
                 };
             } else {
                 setStatus("No GPS Fix");
@@ -387,21 +483,15 @@ const Livetracking = () => {
         }
     };
 
-    /**
-     * Animates the vehicle marker along the smooth path.
-     */
     const animateVehiclePath = (mapInstance, vehicleMarker, path, durationMs, initialPosition) => {
         if (!path || path.length < 1 || !initialPosition) return;
         
-        // Use 'lat' and 'lng' keys for the start point
         const startPoint = { lat: initialPosition.lat, lng: initialPosition.lng }; 
         const fullPath = [startPoint, ...path].filter((point, index, self) => 
-            // Deduplicate the start point if it's the same as the first path point
             !(index > 0 && point.lat === self[0].lat && point.lng === self[0].lng)
         );
         
         if (fullPath.length < 2) {
-             // If path is too short, just jump to the final position.
              const finalPosition = fullPath[0] || initialPosition;
              setVehiclePosition(finalPosition);
              vehicleMarker.setLatLng([finalPosition.lat, finalPosition.lng]);
@@ -409,71 +499,56 @@ const Livetracking = () => {
              return;
         }
 
-        // Clear any existing animation interval
         if (pathAnimationTimer.current) {
             clearInterval(pathAnimationTimer.current);
         }
 
-        // Calculate the time interval between each step
         const interval = durationMs / (fullPath.length - 1); 
         let stepIndex = 0;
         
-        // Start position is the initialPosition passed in
-        let lastPosition = initialPosition; 
+        let lastPosition = initialPosition;
 
-        // Set the marker to the absolute start position immediately
         vehicleMarker.setLatLng([initialPosition.lat, initialPosition.lng]);
         
-        // --- Animation Step Function ---
         const animationStep = () => {
-            if (stepIndex >= fullPath.length - 1) { // Stop one step before the end
+            if (stepIndex >= fullPath.length - 1) {
                 clearInterval(pathAnimationTimer.current);
-                // Set the final state to the last point in the path from the API
                 const finalPosition = fullPath[fullPath.length - 1];
                 setVehiclePosition(finalPosition);
                 return;
             }
 
-            // Move from stepIndex (lastPosition) to stepIndex + 1 (newPosition)
             const newPosition = fullPath[stepIndex + 1]; 
             
             let currentHeading = heading;
             
-            // Calculate instantaneous heading between steps for smooth rotation
             if (lastPosition.lat !== newPosition.lat || lastPosition.lng !== newPosition.lng) {
                  currentHeading = calculateHeading(lastPosition, newPosition);
-                 // ONLY update the local heading variable for this step's rotation
             }
 
-            // Update marker position
             vehicleMarker.setLatLng([newPosition.lat, newPosition.lng]); 
-            setVehiclePosition(newPosition); // Update React state to trigger UI updates
+            setVehiclePosition(newPosition);
 
-            // Update heading state and marker icon rotation
             setHeading(currentHeading);
             const newIcon = window.L.divIcon({
                 className: 'vehicle-marker',
-                // createVehicleIcon uses the updated 'heading' state value
                 html: createVehicleIcon(), 
                 iconSize: [60, 60],
                 iconAnchor: [30, 30],
             });
             vehicleMarker.setIcon(newIcon);
 
-            // Center map on the vehicle's new position (smooth pan)
             mapInstance.panTo([newPosition.lat, newPosition.lng], {
                 animate: true,
                 duration: interval / 1000 
             });
 
-            // Update map path trail 
             pathCoordinates.current.push(newPosition);
             if (pathCoordinates.current.length > 200) {
                 pathCoordinates.current.shift();
             }
             const latlngs = pathCoordinates.current.map(p => [p.lat, p.lng]);
             leafletPathRef.current.setLatLngs(latlngs);
-
 
             lastPosition = newPosition;
             stepIndex++;
@@ -482,12 +557,15 @@ const Livetracking = () => {
         pathAnimationTimer.current = setInterval(animationStep, interval);
     };
 
-
     const updateVehicleFromAPI = async (mapInstance, vehicleMarker, vehiclePath) => {
+        // Don't update if we're in playback mode
+        if (isPlaybackMode) {
+            return;
+        }
+
         const apiData = await fetchVehicleDataFromAPI(device);
 
         if (!apiData) {
-            // Stop animation if API call fails
             if (pathAnimationTimer.current) {
                 clearInterval(pathAnimationTimer.current);
             }
@@ -500,7 +578,6 @@ const Livetracking = () => {
         const smoothPath = apiData.smoothPath;
         setSmoothPathData(smoothPath);
         
-        // Determine the animation start position
         let animationStartPos;
         if (lastKnownVehiclePosition.current) {
             animationStartPos = lastKnownVehiclePosition.current; 
@@ -508,35 +585,27 @@ const Livetracking = () => {
             animationStartPos = apiData.previousPosition;
         }
         
-        // Store the final position from this API response for the next cycle's smooth start
-        lastKnownVehiclePosition.current = apiData.position; 
+        lastKnownVehiclePosition.current = apiData.position;
 
         if (smoothPath.length > 0) {
-            // Start path animation over the 3-second polling interval
             animateVehiclePath(mapInstance, vehicleMarker, smoothPath, 3000, animationStartPos);
         } else {
-             // Handle cases where no smoothPath is provided (e.g., stopping or single point update)
-            
-            // Clear animation timer as there is no path to animate
-            if (pathAnimationTimer.current) {
+             if (pathAnimationTimer.current) {
                 clearInterval(pathAnimationTimer.current);
             }
 
             const newPosition = apiData.position;
             let finalHeading = apiData.heading;
             
-            // Calculate heading if moving and API didn't provide one
             if (apiData.speed > 0.5 && finalHeading === 0 && vehiclePosition) {
                  finalHeading = calculateHeading(vehiclePosition, newPosition);
             } else if (apiData.speed <= 0.5) {
-                // If stopped, maintain current heading
                 finalHeading = heading;
             }
 
             setVehiclePosition(newPosition);
             setHeading(finalHeading);
             
-            // Immediately update the marker position
             vehicleMarker.setLatLng([newPosition.lat, newPosition.lng]);
             const newIcon = window.L.divIcon({
                 className: 'vehicle-marker',
@@ -546,13 +615,11 @@ const Livetracking = () => {
             });
             vehicleMarker.setIcon(newIcon);
 
-            // Pan the map to the new position
             mapInstance.panTo([newPosition.lat, newPosition.lng], {
                 animate: true,
-                duration: 1.0 // Slower pan for single update
+                duration: 1.0
             });
 
-             // Update path trail for single point
              pathCoordinates.current.push(newPosition);
              if (pathCoordinates.current.length > 200) {
                  pathCoordinates.current.shift();
@@ -562,6 +629,300 @@ const Livetracking = () => {
         }
     };
 
+    // --- Route Playback Functions ---
+
+    const fetchRoutePlayback = async () => {
+        if (!device || !device.deviceNo) {
+            alert("Device information is missing");
+            return;
+        }
+
+        if (!playbackStartTime || !playbackEndTime) {
+            alert("Please select both start and end times");
+            return;
+        }
+
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert("Authentication required");
+            return;
+        }
+
+        setIsLoadingPlayback(true);
+
+        try {
+            const apiUrl = 'https://api.websave.in/api/manufactur/fetchSingleRoutePlayback';
+            
+            const requestData = {
+                deviceNo: device.deviceNo,
+                startTime: new Date(playbackStartTime).toISOString(),
+                endTime: new Date(playbackEndTime).toISOString()
+            };
+
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify(requestData),
+            });
+
+            if (!response.ok) {
+                throw new Error(`API call failed with status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            if (data.success && data.route && data.route.length > 0) {
+                setPlaybackData(data);
+                setPlaybackRoute(data.route);
+                setTotalPlaybackPoints(data.totalPoints || data.route.length);
+                setCurrentPlaybackIndex(0);
+                
+                // Visualize the entire route on the map
+                visualizePlaybackRoute(data.route);
+                
+                alert(`Route playback loaded successfully! Found ${data.route.length} points.`);
+            } else {
+                alert("No route data found for the selected time period");
+            }
+        } catch (error) {
+            console.error("Route playback fetch error:", error);
+            alert("Failed to fetch route playback data");
+        } finally {
+            setIsLoadingPlayback(false);
+        }
+    };
+
+    const visualizePlaybackRoute = (route) => {
+        if (!leafletMapRef.current || !route || route.length === 0) return;
+
+        // Remove existing playback markers and path
+        if (playbackMarkerRef.current) {
+            leafletMapRef.current.removeLayer(playbackMarkerRef.current);
+        }
+        if (playbackPathRef.current) {
+            leafletMapRef.current.removeLayer(playbackPathRef.current);
+        }
+
+        // Create path from route coordinates
+        const pathCoordinates = route.map(point => [point.latitude, point.longitude]);
+        
+        // Add playback path to map (different color than live tracking)
+        const playbackPath = window.L.polyline(pathCoordinates, {
+            color: '#DC2626',
+            weight: 3,
+            opacity: 0.6,
+            lineJoin: 'round',
+            dashArray: '5, 10'
+        }).addTo(leafletMapRef.current);
+        
+        playbackPathRef.current = playbackPath;
+
+        // Fit map to show the entire route
+        const bounds = window.L.latLngBounds(pathCoordinates);
+        leafletMapRef.current.fitBounds(bounds, { padding: [50, 50] });
+
+        // Show first point as marker
+        const firstPoint = route[0];
+        const playbackIcon = window.L.divIcon({
+            className: 'playback-marker',
+            html: createPlaybackIcon(firstPoint.speed, firstPoint.heading),
+            iconSize: [60, 60],
+            iconAnchor: [30, 30],
+        });
+
+        const playbackMarker = window.L.marker(
+            [firstPoint.latitude, firstPoint.longitude],
+            { icon: playbackIcon, zIndexOffset: 2000 }
+        ).addTo(leafletMapRef.current).bindPopup(`
+            <div style="font-weight: bold;">
+                <span style="color: #DC2626;">PLAYBACK MODE</span><br/>
+                ${device?.vehicleNo || 'Vehicle'} - ${firstPoint.speed.toFixed(0)} km/h<br/>
+                Time: ${new Date(firstPoint.timestamp).toLocaleString()}<br/>
+                Heading: ${firstPoint.heading.toFixed(1)}°
+            </div>
+        `);
+
+        playbackMarkerRef.current = playbackMarker;
+        
+        // Stop live tracking when entering playback mode
+        stopLiveTracking();
+        
+        // Enter playback mode
+        setIsPlaybackMode(true);
+        setStatus("Playback Mode");
+    };
+
+    const startPlayback = () => {
+        if (!playbackRoute || playbackRoute.length === 0) {
+            alert("No playback data loaded");
+            return;
+        }
+
+        if (playbackTimer.current) {
+            clearInterval(playbackTimer.current);
+        }
+
+        setIsPlaying(true);
+        setPlaybackProgress(0);
+
+        const startTime = Date.now();
+        const totalDuration = (playbackRoute.length - 1) * (1000 / playbackSpeed); // Based on speed multiplier
+        
+        const playbackStep = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / totalDuration, 1);
+            
+            const index = Math.floor(progress * (playbackRoute.length - 1));
+            
+            if (index >= playbackRoute.length) {
+                stopPlayback();
+                return;
+            }
+
+            setCurrentPlaybackIndex(index);
+            setPlaybackProgress(progress * 100);
+
+            const point = playbackRoute[index];
+            
+            // Update marker position
+            if (playbackMarkerRef.current) {
+                playbackMarkerRef.current.setLatLng([point.latitude, point.longitude]);
+                
+                // Update marker icon with current speed and heading
+                const newIcon = window.L.divIcon({
+                    className: 'playback-marker',
+                    html: createPlaybackIcon(point.speed, point.heading),
+                    iconSize: [60, 60],
+                    iconAnchor: [30, 30],
+                });
+                playbackMarkerRef.current.setIcon(newIcon);
+                
+                // Update popup
+                playbackMarkerRef.current.bindPopup(`
+                    <div style="font-weight: bold;">
+                        <span style="color: #DC2626;">PLAYBACK MODE</span><br/>
+                        ${device?.vehicleNo || 'Vehicle'} - ${point.speed.toFixed(0)} km/h<br/>
+                        Time: ${new Date(point.timestamp).toLocaleString()}<br/>
+                        Heading: ${point.heading.toFixed(1)}°<br/>
+                        Point: ${index + 1} of ${playbackRoute.length}
+                    </div>
+                `);
+                
+                playbackMarkerRef.current.openPopup();
+            }
+
+            // Pan map to current position
+            leafletMapRef.current.panTo([point.latitude, point.longitude], {
+                animate: true,
+                duration: 0.5
+            });
+
+            // Update stats display
+            setSpeed(point.speed);
+            setHeading(point.heading);
+            setVehiclePosition({ lat: point.latitude, lng: point.longitude });
+        };
+
+        playbackTimer.current = setInterval(playbackStep, 100);
+    };
+
+    const pausePlayback = () => {
+        if (playbackTimer.current) {
+            clearInterval(playbackTimer.current);
+            playbackTimer.current = null;
+        }
+        setIsPlaying(false);
+    };
+
+    const stopPlayback = () => {
+        if (playbackTimer.current) {
+            clearInterval(playbackTimer.current);
+            playbackTimer.current = null;
+        }
+        setIsPlaying(false);
+        setCurrentPlaybackIndex(0);
+        setPlaybackProgress(0);
+        
+        // Reset to first point
+        if (playbackRoute.length > 0 && playbackMarkerRef.current) {
+            const firstPoint = playbackRoute[0];
+            playbackMarkerRef.current.setLatLng([firstPoint.latitude, firstPoint.longitude]);
+            setSpeed(firstPoint.speed);
+            setHeading(firstPoint.heading);
+        }
+    };
+
+    const skipToPoint = (index) => {
+        if (!playbackRoute || index < 0 || index >= playbackRoute.length) return;
+        
+        const point = playbackRoute[index];
+        setCurrentPlaybackIndex(index);
+        setPlaybackProgress((index / (playbackRoute.length - 1)) * 100);
+        
+        if (playbackMarkerRef.current) {
+            playbackMarkerRef.current.setLatLng([point.latitude, point.longitude]);
+            
+            const newIcon = window.L.divIcon({
+                className: 'playback-marker',
+                html: createPlaybackIcon(point.speed, point.heading),
+                iconSize: [60, 60],
+                iconAnchor: [30, 30],
+            });
+            playbackMarkerRef.current.setIcon(newIcon);
+            
+            leafletMapRef.current.panTo([point.latitude, point.longitude]);
+        }
+        
+        setSpeed(point.speed);
+        setHeading(point.heading);
+        setVehiclePosition({ lat: point.latitude, lng: point.longitude });
+    };
+
+    const exitPlaybackMode = () => {
+        // Stop any ongoing playback
+        stopPlayback();
+        
+        // Remove playback elements from map
+        if (playbackMarkerRef.current) {
+            leafletMapRef.current.removeLayer(playbackMarkerRef.current);
+            playbackMarkerRef.current = null;
+        }
+        if (playbackPathRef.current) {
+            leafletMapRef.current.removeLayer(playbackPathRef.current);
+            playbackPathRef.current = null;
+        }
+        
+        // Reset states
+        setIsPlaybackMode(false);
+        setPlaybackData(null);
+        setPlaybackRoute([]);
+        setCurrentPlaybackIndex(0);
+        setPlaybackProgress(0);
+        
+        // Return to live tracking
+        setStatus("Resuming Live...");
+        
+        // Restart live tracking
+        if (leafletMapRef.current && leafletVehicleMarkerRef.current && leafletPathRef.current) {
+            startLiveTracking(leafletMapRef.current, leafletVehicleMarkerRef.current, leafletPathRef.current);
+        }
+        
+        // Reset map view to current vehicle position or default
+        if (vehiclePosition && leafletMapRef.current) {
+            leafletMapRef.current.setView([vehiclePosition.lat, vehiclePosition.lng], 16);
+        } else {
+            // Fetch current position from API immediately
+            fetchVehicleDataFromAPI(device).then(apiData => {
+                if (apiData && apiData.position) {
+                    setVehiclePosition(apiData.position);
+                    leafletMapRef.current.setView([apiData.position.lat, apiData.position.lng], 16);
+                }
+            });
+        }
+    };
 
     const getSignalStrength = (signal) => {
         const signalNum = parseInt(signal);
@@ -613,17 +974,31 @@ const Livetracking = () => {
         </div>
     );
     
-    const MapDataWidget = ({ speed, position }) => (
+    const MapDataWidget = ({ speed, position, isPlayback = false, playbackInfo = null }) => (
         <div className="absolute top-4 right-4 bg-white/90 rounded-xl shadow-2xl p-4 z-10 border border-slate-200 backdrop-blur-sm w-80">
             <div className="flex justify-between items-center pb-2 mb-2 border-b border-slate-100">
                 <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
                     <Car className="w-5 h-5 text-indigo-500" />
-                    Live Data
+                    {isPlayback ? "Playback Data" : "Live Data"}
                 </h3>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${status === "Live" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                    {status}
+                <span className={`px-3 py-1 rounded-full text-xs font-bold ${isPlayback ? "bg-red-100 text-red-700" : status === "Live" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                    {isPlayback ? "Playback" : status}
                 </span>
             </div>
+            
+            {isPlayback && playbackInfo && (
+                <div className="mb-3 bg-red-50 p-2 rounded-lg border border-red-200">
+                    <div className="flex justify-between items-center text-sm">
+                        <span className="text-red-700 font-medium">
+                            Point: {playbackInfo.currentIndex + 1} of {playbackInfo.totalPoints}
+                        </span>
+                        <span className="text-red-600">
+                            {new Date(playbackInfo.timestamp).toLocaleTimeString()}
+                        </span>
+                    </div>
+                </div>
+            )}
+            
             <div className="grid grid-cols-3 gap-2 text-center">
                 <div className="border-r border-slate-100">
                     <p className="text-xs font-medium text-slate-500">Speed</p>
@@ -642,6 +1017,109 @@ const Livetracking = () => {
                     <p className="text-sm font-bold text-slate-800 font-mono">
                         {position ? position.lng.toFixed(5) : 'N/A'}
                     </p>
+                </div>
+            </div>
+        </div>
+    );
+
+    const PlaybackControls = () => (
+        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white/95 rounded-xl shadow-2xl p-4 z-10 border border-red-200 backdrop-blur-sm w-96">
+            <div className="flex flex-col gap-3">
+                <div className="flex justify-between items-center">
+                    <h3 className="font-bold text-lg text-red-700 flex items-center gap-2">
+                        <History className="w-5 h-5" />
+                        Route Playback
+                    </h3>
+                    <button
+                        onClick={exitPlaybackMode}
+                        className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition-colors"
+                    >
+                        Exit
+                    </button>
+                </div>
+                
+                {/* Progress Bar */}
+                <div className="w-full">
+                    <div className="flex justify-between text-xs text-slate-500 mb-1">
+                        <span>Progress</span>
+                        <span>{playbackProgress.toFixed(1)}%</span>
+                    </div>
+                    <div className="w-full bg-slate-200 rounded-full h-2">
+                        <div 
+                            className="bg-red-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${playbackProgress}%` }}
+                        ></div>
+                    </div>
+                    <div className="flex justify-between text-xs text-slate-500 mt-1">
+                        <span>Point {currentPlaybackIndex + 1} of {playbackRoute.length}</span>
+                        {playbackRoute[currentPlaybackIndex] && (
+                            <span>{new Date(playbackRoute[currentPlaybackIndex].timestamp).toLocaleTimeString()}</span>
+                        )}
+                    </div>
+                </div>
+                
+                {/* Control Buttons */}
+                <div className="flex justify-center items-center gap-2">
+                    <button
+                        onClick={() => skipToPoint(0)}
+                        className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700"
+                        disabled={currentPlaybackIndex === 0}
+                    >
+                        <SkipBack className="w-5 h-5" />
+                    </button>
+                    
+                    <button
+                        onClick={() => skipToPoint(Math.max(0, currentPlaybackIndex - 10))}
+                        className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700"
+                        disabled={currentPlaybackIndex === 0}
+                    >
+                        <RotateCcw className="w-5 h-5" />
+                    </button>
+                    
+                    {isPlaying ? (
+                        <button
+                            onClick={pausePlayback}
+                            className="p-3 bg-red-600 hover:bg-red-700 rounded-full text-white"
+                        >
+                            <Pause className="w-6 h-6" />
+                        </button>
+                    ) : (
+                        <button
+                            onClick={startPlayback}
+                            className="p-3 bg-red-600 hover:bg-red-700 rounded-full text-white"
+                        >
+                            <Play className="w-6 h-6" />
+                        </button>
+                    )}
+                    
+                    <button
+                        onClick={() => skipToPoint(Math.min(playbackRoute.length - 1, currentPlaybackIndex + 10))}
+                        className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700"
+                        disabled={currentPlaybackIndex >= playbackRoute.length - 1}
+                    >
+                        <RotateCcw className="w-5 h-5 transform rotate-180" />
+                    </button>
+                    
+                    <button
+                        onClick={() => skipToPoint(playbackRoute.length - 1)}
+                        className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700"
+                        disabled={currentPlaybackIndex >= playbackRoute.length - 1}
+                    >
+                        <SkipForward className="w-5 h-5" />
+                    </button>
+                </div>
+                
+                {/* Speed Controls */}
+                <div className="flex justify-center gap-2">
+                    {[0.5, 1, 2, 5].map(speedOption => (
+                        <button
+                            key={speedOption}
+                            onClick={() => setPlaybackSpeed(speedOption)}
+                            className={`px-3 py-1 text-sm font-semibold rounded-lg ${playbackSpeed === speedOption ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                        >
+                            {speedOption}x
+                        </button>
+                    ))}
                 </div>
             </div>
         </div>
@@ -688,6 +1166,16 @@ const Livetracking = () => {
                     >
                         <Activity className="w-4 h-4 inline mr-2" />
                         Tracking
+                    </button>
+                    <button
+                        onClick={() => setActiveTab("playback")}
+                        className={`flex-1 py-3 text-sm font-semibold transition-all ${activeTab === "playback"
+                                ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
+                                : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                            }`}
+                    >
+                        <History className="w-4 h-4 inline mr-2" />
+                        Playback
                     </button>
                     <button
                         onClick={() => setActiveTab("details")}
@@ -790,6 +1278,100 @@ const Livetracking = () => {
                                 />
                             </div>
                         </div>
+                    ) : activeTab === "playback" ? (
+                        <div className="p-6">
+                            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
+                                <History className="w-5 h-5 text-indigo-500" />
+                                Route Playback
+                            </h3>
+
+                            <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm mb-4">
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            Start Time
+                                        </label>
+                                        <input
+                                            type="datetime-local"
+                                            value={playbackStartTime}
+                                            onChange={(e) => setPlaybackStartTime(e.target.value)}
+                                            className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                                            End Time
+                                        </label>
+                                        <input
+                                            type="datetime-local"
+                                            value={playbackEndTime}
+                                            onChange={(e) => setPlaybackEndTime(e.target.value)}
+                                            className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        />
+                                    </div>
+                                    
+                                    <button
+                                        onClick={fetchRoutePlayback}
+                                        disabled={isLoadingPlayback}
+                                        className={`w-full py-2 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 ${isLoadingPlayback ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
+                                    >
+                                        {isLoadingPlayback ? (
+                                            <>
+                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                Loading...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <History className="w-4 h-4" />
+                                                Load Route Playback
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {playbackData && (
+                                <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
+                                    <h4 className="font-bold text-slate-900 mb-3">Playback Information</h4>
+                                    <div className="space-y-2">
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-slate-600">Total Points:</span>
+                                            <span className="text-sm font-bold text-slate-900">{totalPlaybackPoints}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-slate-600">Time Range:</span>
+                                            <span className="text-sm text-slate-900">
+                                                {new Date(playbackStartTime).toLocaleString()} - {new Date(playbackEndTime).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-sm text-slate-600">Device:</span>
+                                            <span className="text-sm font-bold text-slate-900">{playbackData.deviceNo}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    {isPlaybackMode && (
+                                        <div className="mt-4 pt-4 border-t border-slate-200">
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={exitPlaybackMode}
+                                                    className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-lg transition-colors"
+                                                >
+                                                    Exit Playback
+                                                </button>
+                                                <button
+                                                    onClick={isPlaying ? pausePlayback : startPlayback}
+                                                    className={`flex-1 py-2 font-semibold rounded-lg transition-colors ${isPlaying ? 'bg-yellow-500 hover:bg-yellow-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white'}`}
+                                                >
+                                                    {isPlaying ? 'Pause' : 'Start Playback'}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     ) : (
                         <div className="p-6">
                             <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
@@ -839,10 +1421,26 @@ const Livetracking = () => {
             <div className="flex-1 relative">
                 <div ref={mapRef} className="w-full h-full"></div>
 
-                {/* 1. TOP-RIGHT MAP DATA WIDGET */}
-                {vehiclePosition && <MapDataWidget speed={speed} position={vehiclePosition} />}
+                {/* TOP-RIGHT MAP DATA WIDGET */}
+                {vehiclePosition && (
+                    <MapDataWidget 
+                        speed={speed} 
+                        position={vehiclePosition} 
+                        isPlayback={isPlaybackMode}
+                        playbackInfo={isPlaybackMode && playbackRoute[currentPlaybackIndex] ? {
+                            currentIndex: currentPlaybackIndex,
+                            totalPoints: playbackRoute.length,
+                            timestamp: playbackRoute[currentPlaybackIndex].timestamp
+                        } : null}
+                    />
+                )}
 
-                {/* 2. Loader */}
+                {/* PLAYBACK CONTROLS */}
+                {isPlaybackMode && playbackRoute.length > 0 && (
+                    <PlaybackControls />
+                )}
+
+                {/* Loader */}
                 <div
                     ref={loaderRef}
                     className="absolute inset-0 flex flex-col items-center justify-center bg-white bg-opacity-80 z-30 transition-opacity duration-500"
@@ -855,7 +1453,7 @@ const Livetracking = () => {
                     <p className="text-sm text-slate-500 mt-2">Initializing live tracker</p>
                 </div>
 
-                {/* 3. Geolocation Error */}
+                {/* Geolocation Error */}
                 <div
                     ref={geoErrorRef}
                     className="hidden absolute top-4 left-1/2 transform -translate-x-1/2 px-5 py-3 bg-white border-l-4 border-indigo-500 rounded-lg shadow-2xl z-40 transition-all duration-300 opacity-100"
