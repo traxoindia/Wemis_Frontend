@@ -58,10 +58,8 @@ const Livetracking = () => {
     const startTime = useRef(Date.now());
     const [duration, setDuration] = useState(0);
 
-    // --- Core Effects and Map Setup ---
-
     useEffect(() => {
-        // If no device is passed, stop initialization and show error
+       
         if (trackedDeviceNo === 'N/A') {
             setStatus("No Device Selected");
             hideLoader();

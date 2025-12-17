@@ -43,7 +43,7 @@ const calculateHeading = (from, to) => {
 
     // Calculate initial bearing in radians and convert to degrees
     let heading = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-    
+
     return heading;
 };
 
@@ -95,15 +95,15 @@ const Livetracking = () => {
     const loaderRef = useRef(null);
     const geoErrorRef = useRef(null);
     const geoErrorMessageRef = useRef(null);
-    
+
     const pathCoordinates = useRef([]); // Stores live path history
-    
+
     const leafletMapRef = useRef(null);
     const leafletVehicleMarkerRef = useRef(null);
     const leafletPathRef = useRef(null);
     const playbackMarkerRef = useRef(null);
     const playbackPathRef = useRef(null);
-    
+
     const startTimeRef = useRef(Date.now());
     const pathAnimationTimer = useRef(null);
     const playbackTimer = useRef(null);
@@ -160,7 +160,7 @@ const Livetracking = () => {
             }, 4000);
         }
     };
-    
+
     // =========================================================================
     // Leaflet Map and Marker Helpers
     // =========================================================================
@@ -171,7 +171,7 @@ const Livetracking = () => {
         const currentHeading = customHeading !== null ? customHeading : heading;
         const isMoving = currentSpeed > 0.5;
         let statusColor = isMoving ? '#10B981' : '#F59E0B';
-        
+
         return `
             <div style="position: relative; width: 60px; height: 60px;">
                 <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #1F2937; color: white; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.3); white-space: nowrap; display: flex; align-items: center; gap: 4px;">
@@ -189,12 +189,12 @@ const Livetracking = () => {
             </div>
         `;
     };
-    
+
     // Creates the HTML structure for the vehicle icon (Playback Mode)
     const createPlaybackIcon = (currentSpeed, currentHeading) => {
         const isMoving = currentSpeed > 0.5;
         let statusColor = isMoving ? '#10B981' : '#F59E0B';
-        
+
         return `
             <div style="position: relative; width: 60px; height: 60px;">
                 <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #DC2626; color: white; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.3); white-space: nowrap; display: flex; align-items: center; gap: 4px;">
@@ -257,20 +257,20 @@ const Livetracking = () => {
 
         // Add the polyline for the historical path trail
         const vehiclePath = L.polyline([], {
-            color: '#4F46E5', 
+            color: '#4F46E5',
             weight: 4,
             opacity: 0.7,
             lineJoin: 'round'
         }).addTo(mapInstance);
 
         leafletPathRef.current = vehiclePath;
-        
+
         // Clear old path history if re-initializing live tracking
-        pathCoordinates.current = [{ lat: initialPosition.lat, lng: initialPosition.lng }]; 
+        pathCoordinates.current = [{ lat: initialPosition.lat, lng: initialPosition.lng }];
         vehiclePath.setLatLngs(pathCoordinates.current.map(p => [p.lat, p.lng]));
 
         startLiveTracking(mapInstance, vehicleMarker, vehiclePath);
-        
+
         setStatus("Live");
     };
 
@@ -305,11 +305,11 @@ const Livetracking = () => {
 
         // Only initialize once
         if (leafletMapRef.current) {
-            return; 
+            return;
         }
 
         const defaultLocation = { lat: 20.2961, lng: 85.8245 };
-        
+
         // Use user's location to center initially, or default
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
@@ -363,7 +363,7 @@ const Livetracking = () => {
                 icon: currentIcon,
             }).addTo(mapInstance).bindPopup("Your Location");
         }
-        
+
         initializeVehicleTracking(mapInstance, location);
         hideLoader();
     };
@@ -371,22 +371,22 @@ const Livetracking = () => {
     // =========================================================================
     // Live Tracking Logic
     // =========================================================================
-    
+
     // Smoothly interpolates the vehicle position between points
     const animateVehiclePath = (mapInstance, vehicleMarker, path, durationMs, initialPosition) => {
         const L = window.L;
         if (!L || !path || path.length < 1 || !initialPosition) return;
-        
+
         if (pathAnimationTimer.current) {
             clearInterval(pathAnimationTimer.current);
             pathAnimationTimer.current = null;
         }
 
-        const startPoint = { lat: initialPosition.lat, lng: initialPosition.lng }; 
+        const startPoint = { lat: initialPosition.lat, lng: initialPosition.lng };
         const fullPath = [startPoint, ...path].filter((point, index, self) =>
             !(index > 0 && point.lat === self[0].lat && point.lng === self[0].lng)
         );
-        
+
         if (fullPath.length < 2) {
             const finalPosition = fullPath[fullPath.length - 1] || initialPosition;
             setVehiclePosition(finalPosition);
@@ -400,7 +400,7 @@ const Livetracking = () => {
         let lastPosition = initialPosition;
 
         vehicleMarker.setLatLng([initialPosition.lat, initialPosition.lng]);
-        
+
         const animationStep = () => {
             if (stepIndex >= fullPath.length - 1) {
                 clearInterval(pathAnimationTimer.current);
@@ -410,16 +410,16 @@ const Livetracking = () => {
                 return;
             }
 
-            const newPosition = fullPath[stepIndex + 1]; 
-            
+            const newPosition = fullPath[stepIndex + 1];
+
             let currentHeading = heading;
-            
+
             if (lastPosition.lat !== newPosition.lat || lastPosition.lng !== newPosition.lng) {
                 currentHeading = calculateHeading(lastPosition, newPosition);
             }
 
             // Update marker position and state
-            vehicleMarker.setLatLng([newPosition.lat, newPosition.lng]); 
+            vehicleMarker.setLatLng([newPosition.lat, newPosition.lng]);
             setVehiclePosition(newPosition);
 
             // Update heading and marker icon (re-render marker with new heading/speed)
@@ -449,7 +449,7 @@ const Livetracking = () => {
             lastPosition = newPosition;
             stepIndex++;
         };
-        
+
         pathAnimationTimer.current = setInterval(animationStep, interval);
     };
 
@@ -475,7 +475,7 @@ const Livetracking = () => {
                 },
                 body: JSON.stringify({ deviceNo: device.deviceNo }),
             });
-            
+
             if (!response.ok) {
                 if (response.status === 401 || response.status === 403) {
                     setStatus("Unauthorized");
@@ -486,9 +486,9 @@ const Livetracking = () => {
             }
 
             const data = await response.json();
-            
+
             setRawData(data.rawData || data);
-            
+
             // Extract data points
             const locationData = data.location || {};
             const rawData = data.rawData || data;
@@ -500,7 +500,7 @@ const Livetracking = () => {
             const lng = parseFloat(locationData.longitude || rawData.lng || 0);
             const speed = parseFloat(locationData.speed || rawData.speed || 0);
             const headingValue = parseFloat(locationData.heading || rawData.headDegree || 0);
-            
+
             // Other metrics
             const satellitesValue = parseInt(rawData.satellites || 0);
             const batteryValue = rawData.batteryVoltage || "0";
@@ -511,7 +511,7 @@ const Livetracking = () => {
 
             // Process smoothPath
             const smoothPath = data.smoothPath || [];
-            
+
             if (lat !== 0 && lng !== 0) {
                 setSatellites(satellitesValue);
                 setBatteryVoltage(batteryValue);
@@ -519,15 +519,15 @@ const Livetracking = () => {
                 setAltitude(altitudeValue);
                 setDeviceStatus(deviceStatusValue);
                 setLastUpdateTime(lastUpdateDate);
-                
-                const parsedSmoothPath = smoothPath.map(p => ({ 
+
+                const parsedSmoothPath = smoothPath.map(p => ({
                     lat: parseFloat(p.latitude) || 0,
                     lng: parseFloat(p.longitude) || 0
                 })).filter(p => p.lat !== 0 && p.lng !== 0);
 
                 return {
                     position: { lat: lat, lng: lng },
-                    previousPosition: { 
+                    previousPosition: {
                         lat: parseFloat(previousLocation.latitude || vehiclePosition?.lat || lat),
                         lng: parseFloat(previousLocation.longitude || vehiclePosition?.lng || lng)
                     },
@@ -570,14 +570,14 @@ const Livetracking = () => {
         setStatus("Live");
 
         const smoothPath = apiData.smoothPath;
-        
+
         let animationStartPos;
         if (lastKnownVehiclePosition.current) {
-            animationStartPos = lastKnownVehiclePosition.current; 
+            animationStartPos = lastKnownVehiclePosition.current;
         } else {
             animationStartPos = apiData.previousPosition;
         }
-        
+
         lastKnownVehiclePosition.current = apiData.position;
 
         if (smoothPath.length > 0) {
@@ -591,7 +591,7 @@ const Livetracking = () => {
 
             const newPosition = apiData.position;
             let finalHeading = apiData.heading;
-            
+
             if (apiData.speed > 0.5 && finalHeading === 0 && vehiclePosition) {
                 finalHeading = calculateHeading(vehiclePosition, newPosition);
             } else if (apiData.speed <= 0.5) {
@@ -600,7 +600,7 @@ const Livetracking = () => {
 
             setVehiclePosition(newPosition);
             setHeading(finalHeading);
-            
+
             vehicleMarker.setLatLng([newPosition.lat, newPosition.lng]);
             const newIcon = L.divIcon({
                 className: 'vehicle-marker',
@@ -629,16 +629,16 @@ const Livetracking = () => {
             clearInterval(liveTrackingTimer.current);
             liveTrackingTimer.current = null;
         }
-        
+
         if (pathAnimationTimer.current) {
             clearInterval(pathAnimationTimer.current);
             pathAnimationTimer.current = null;
         }
-        
-        updateVehicleFromAPI(mapInstance, vehicleMarker, vehiclePath); 
+
+        updateVehicleFromAPI(mapInstance, vehicleMarker, vehiclePath);
         liveTrackingTimer.current = setInterval(() => {
             updateVehicleFromAPI(mapInstance, vehicleMarker, vehiclePath);
-        }, 3000); 
+        }, 3000);
 
         mapInstance.liveTrackingInterval = liveTrackingTimer.current;
     };
@@ -648,13 +648,13 @@ const Livetracking = () => {
             clearInterval(liveTrackingTimer.current);
             liveTrackingTimer.current = null;
         }
-        
+
         if (pathAnimationTimer.current) {
             clearInterval(pathAnimationTimer.current);
             pathAnimationTimer.current = null;
         }
     };
-    
+
     // =========================================================================
     // Route Playback Logic
     // =========================================================================
@@ -680,7 +680,7 @@ const Livetracking = () => {
 
         try {
             const apiUrl = 'https://api.websave.in/api/manufactur/fetchSingleRoutePlayback';
-            
+
             const requestData = {
                 deviceNo: device.deviceNo,
                 startTime: new Date(playbackStartTime).toISOString(),
@@ -701,18 +701,18 @@ const Livetracking = () => {
             }
 
             const data = await response.json();
-            
+
             if (data.success && data.route && data.route.length > 0) {
                 setPlaybackRoute(data.route);
                 setTotalPlaybackPoints(data.totalPoints || data.route.length);
                 setCurrentPlaybackIndex(0);
                 setPlaybackProgress(0);
-                
+
                 visualizePlaybackRoute(data.route);
-                
+
                 setIsPlaybackMode(true);
                 setStatus("Playback Mode");
-                
+
                 alert(`Route playback loaded successfully! Found ${data.route.length} points.`);
             } else {
                 setPlaybackRoute([]);
@@ -747,7 +747,7 @@ const Livetracking = () => {
 
         // Create path from route coordinates (Leaflet expects [lat, lng])
         const pathCoordinates = route.map(point => [point.latitude, point.longitude]);
-        
+
         // Add playback path to map
         const playbackPath = L.polyline(pathCoordinates, {
             color: '#DC2626',
@@ -756,7 +756,7 @@ const Livetracking = () => {
             lineJoin: 'round',
             dashArray: '5, 10'
         }).addTo(leafletMapRef.current);
-        
+
         playbackPathRef.current = playbackPath;
 
         // *FIX FOR MAP OVERLAP/ZOOM*: Fit map to show the entire route bounds
@@ -784,12 +784,12 @@ const Livetracking = () => {
         `).openPopup();
 
         playbackMarkerRef.current = playbackMarker;
-        
+
         // Update live tracking stats with initial point data
         setSpeed(firstPoint.speed);
         setHeading(firstPoint.heading);
         setVehiclePosition({ lat: firstPoint.latitude, lng: firstPoint.longitude });
-        
+
         // Stop live tracking when entering playback mode
         stopLiveTracking();
     };
@@ -806,26 +806,26 @@ const Livetracking = () => {
         }
 
         setIsPlaying(true);
-        
+
         // Set the timer interval based on the playback speed multiplier
         // 100ms base delay for smooth animation
-        const intervalDelay = 100 / playbackSpeed; 
+        const intervalDelay = 100 / playbackSpeed;
 
         const playbackStep = () => {
             setCurrentPlaybackIndex(prevIndex => {
                 const newIndex = prevIndex + 1;
-                
+
                 if (newIndex >= playbackRoute.length) {
                     stopPlayback();
                     return prevIndex;
                 }
 
                 const point = playbackRoute[newIndex];
-                
+
                 // --- Update Map Elements ---
                 if (playbackMarkerRef.current) {
                     playbackMarkerRef.current.setLatLng([point.latitude, point.longitude]);
-                    
+
                     const newIcon = L.divIcon({
                         className: 'playback-marker',
                         html: createPlaybackIcon(point.speed, point.heading),
@@ -833,7 +833,7 @@ const Livetracking = () => {
                         iconAnchor: [30, 30],
                     });
                     playbackMarkerRef.current.setIcon(newIcon);
-                    
+
                     playbackMarkerRef.current.setPopupContent(`
                         <div style="font-weight: bold;">
                             <span style="color: #DC2626;">PLAYBACK IN PROGRESS</span><br/>
@@ -874,7 +874,7 @@ const Livetracking = () => {
         pausePlayback();
         setCurrentPlaybackIndex(0);
         setPlaybackProgress(0);
-        
+
         if (playbackRoute.length > 0 && playbackMarkerRef.current) {
             skipToPoint(0);
         }
@@ -883,14 +883,14 @@ const Livetracking = () => {
     const skipToPoint = (index) => {
         const L = window.L;
         if (!L || !playbackRoute || index < 0 || index >= playbackRoute.length) return;
-        
+
         const point = playbackRoute[index];
         setCurrentPlaybackIndex(index);
         setPlaybackProgress((index / (playbackRoute.length - 1)) * 100);
-        
+
         if (playbackMarkerRef.current) {
             playbackMarkerRef.current.setLatLng([point.latitude, point.longitude]);
-            
+
             const newIcon = L.divIcon({
                 className: 'playback-marker',
                 html: createPlaybackIcon(point.speed, point.heading),
@@ -898,15 +898,15 @@ const Livetracking = () => {
                 iconAnchor: [30, 30],
             });
             playbackMarkerRef.current.setIcon(newIcon);
-            
+
             leafletMapRef.current.panTo([point.latitude, point.longitude]);
         }
-        
+
         setSpeed(point.speed);
         setHeading(point.heading);
         setVehiclePosition({ lat: point.latitude, lng: point.longitude });
     };
-    
+
     const handlePlaybackSpeedChange = (speedOption) => {
         setPlaybackSpeed(speedOption);
         if (isPlaying) {
@@ -918,9 +918,9 @@ const Livetracking = () => {
     const exitPlaybackMode = () => {
         const L = window.L;
         if (!L || !leafletMapRef.current) return;
-        
+
         stopPlayback();
-        
+
         // Remove playback elements from map
         if (playbackMarkerRef.current) {
             leafletMapRef.current.removeLayer(playbackMarkerRef.current);
@@ -930,24 +930,24 @@ const Livetracking = () => {
             leafletMapRef.current.removeLayer(playbackPathRef.current);
             playbackPathRef.current = null;
         }
-        
+
         // Reset states
         setIsPlaybackMode(false);
         setPlaybackRoute([]);
         setCurrentPlaybackIndex(0);
         setTotalPlaybackPoints(0);
         setPlaybackProgress(0);
-        
+
         // Return to live tracking
         setStatus("Resuming Live...");
-        
+
         // Re-initialize live marker and path, then restart tracking
         if (leafletMapRef.current) {
             let restartPosition = vehiclePosition || { lat: 20.2961, lng: 85.8245 };
-            
+
             // Re-add marker and path (re-run initialization)
             initializeVehicleTracking(leafletMapRef.current, restartPosition);
-            
+
             // Reset map view to current vehicle position
             leafletMapRef.current.setView([restartPosition.lat, restartPosition.lng], 16);
         }
@@ -961,7 +961,7 @@ const Livetracking = () => {
         // Set default playback times (last 1 hour)
         const now = new Date();
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        
+
         setPlaybackStartTime(formatDateTimeForInput(oneHourAgo));
         setPlaybackEndTime(formatDateTimeForInput(now));
 
@@ -992,7 +992,7 @@ const Livetracking = () => {
     const StatCard = ({ icon: Icon, label, value, unit, color = "indigo", subtitle }) => (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 transition-all duration-200 hover:shadow-md">
             <div className="flex items-center justify-between mb-2">
-                <div className={`p-1 rounded-full border border-slate-200`}> 
+                <div className={`p-1 rounded-full border border-slate-200`}>
                     <Icon className={`w-5 h-5 text-${color}-600`} />
                 </div>
                 <span className="text-xs font-semibold text-slate-500">{label}</span>
@@ -1012,16 +1012,16 @@ const Livetracking = () => {
     const RawDataItem = ({ label, value, color = "slate" }) => (
         <div className="flex justify-between items-center py-2 border-b border-slate-100 last:border-b-0">
             <span className="text-sm font-medium text-slate-600">{label}</span>
-            <span className={`text-sm font-mono font-bold text-${color}-600 bg-slate-100 px-2 py-0.5 rounded`}> 
+            <span className={`text-sm font-mono font-bold text-${color}-600 bg-slate-100 px-2 py-0.5 rounded`}>
                 {value}
             </span>
         </div>
     );
-    
+
     // Playback Controls (Moved to Sidebar)
     const PlaybackControls = () => {
         const currentPoint = playbackRoute[currentPlaybackIndex];
-        
+
         return (
             <div className="bg-white rounded-xl p-4 shadow-md border border-red-200">
                 <div className="flex flex-col gap-3">
@@ -1037,7 +1037,7 @@ const Livetracking = () => {
                             Exit
                         </button>
                     </div>
-                    
+
                     {/* Progress Bar */}
                     <div className="w-full">
                         <div className="flex justify-between text-xs text-slate-500 mb-1">
@@ -1045,7 +1045,7 @@ const Livetracking = () => {
                             <span>{playbackProgress.toFixed(1)}%</span>
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-2">
-                            <div 
+                            <div
                                 className="bg-red-600 h-2 rounded-full transition-all duration-100"
                                 style={{ width: `${playbackProgress}%` }}
                             ></div>
@@ -1075,7 +1075,7 @@ const Livetracking = () => {
                             </div>
                         </div>
                     )}
-                    
+
                     {/* Control Buttons */}
                     <div className="flex justify-center items-center gap-2">
                         <button
@@ -1085,7 +1085,7 @@ const Livetracking = () => {
                         >
                             <SkipBack className="w-5 h-5" />
                         </button>
-                        
+
                         <button
                             onClick={() => skipToPoint(Math.max(0, currentPlaybackIndex - 10))}
                             className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 disabled:opacity-50"
@@ -1093,7 +1093,7 @@ const Livetracking = () => {
                         >
                             <RotateCcw className="w-5 h-5" />
                         </button>
-                        
+
                         {isPlaying ? (
                             <button
                                 onClick={pausePlayback}
@@ -1110,7 +1110,7 @@ const Livetracking = () => {
                                 <Play className="w-6 h-6" />
                             </button>
                         )}
-                        
+
                         <button
                             onClick={() => skipToPoint(Math.min(playbackRoute.length - 1, currentPlaybackIndex + 10))}
                             className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 disabled:opacity-50"
@@ -1118,7 +1118,7 @@ const Livetracking = () => {
                         >
                             <RotateCcw className="w-5 h-5 transform rotate-180" />
                         </button>
-                        
+
                         <button
                             onClick={() => skipToPoint(playbackRoute.length - 1)}
                             className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 disabled:opacity-50"
@@ -1127,7 +1127,7 @@ const Livetracking = () => {
                             <SkipForward className="w-5 h-5" />
                         </button>
                     </div>
-                    
+
                     {/* Speed Controls */}
                     <div className="flex justify-center gap-2 pt-2 border-t border-slate-100">
                         <span className="text-sm font-medium text-slate-700 my-auto">Speed:</span>
@@ -1153,7 +1153,7 @@ const Livetracking = () => {
                 <Car className="w-5 h-5 text-indigo-500" />
                 Live Coordinates
             </h3>
-            
+
             <div className="grid grid-cols-2 gap-4">
                 <div className="border-r border-slate-100 text-center">
                     <p className="text-xs font-medium text-slate-500">Speed</p>
@@ -1161,7 +1161,7 @@ const Livetracking = () => {
                         {speed.toFixed(0)} <span className="text-sm font-semibold">km/h</span>
                     </p>
                 </div>
-                 <div className="text-center">
+                <div className="text-center">
                     <p className="text-xs font-medium text-slate-500">Heading</p>
                     <p className="text-xl font-extrabold text-indigo-600">
                         {heading.toFixed(0)} <span className="text-sm font-semibold">°</span>
@@ -1191,7 +1191,7 @@ const Livetracking = () => {
     // =========================================================================
 
     return (
-        <div className="flex h-screen bg-slate-50"> 
+        <div className="flex h-screen bg-slate-50">
             {/* Sidebar */}
             <div className="w-96 bg-white shadow-xl border-r border-slate-200 flex flex-col">
                 {/* Header */}
@@ -1223,8 +1223,8 @@ const Livetracking = () => {
                     <button
                         onClick={() => setActiveTab("tracking")}
                         className={`flex-1 py-3 text-sm font-semibold transition-all ${activeTab === "tracking"
-                                ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
-                                : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                            ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
+                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                             }`}
                     >
                         <Activity className="w-4 h-4 inline mr-2" />
@@ -1233,8 +1233,8 @@ const Livetracking = () => {
                     <button
                         onClick={() => setActiveTab("playback")}
                         className={`flex-1 py-3 text-sm font-semibold transition-all ${activeTab === "playback"
-                                ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
-                                : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                            ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
+                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                             }`}
                     >
                         <History className="w-4 h-4 inline mr-2" />
@@ -1243,8 +1243,8 @@ const Livetracking = () => {
                     <button
                         onClick={() => setActiveTab("details")}
                         className={`flex-1 py-3 text-sm font-semibold transition-all ${activeTab === "details"
-                                ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
-                                : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
+                            ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
+                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
                             }`}
                     >
                         <Info className="w-4 h-4 inline mr-2" />
@@ -1265,8 +1265,8 @@ const Livetracking = () => {
                                         <span className="font-semibold text-slate-700">System Status</span>
                                     </div>
                                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${status === "Live" && !isPlaybackMode
-                                            ? "bg-green-100 text-green-700"
-                                            : "bg-red-100 text-red-700"
+                                        ? "bg-green-100 text-green-700"
+                                        : "bg-red-100 text-red-700"
                                         }`}>
                                         {isPlaybackMode ? "Playback Mode" : status}
                                     </span>
@@ -1285,7 +1285,7 @@ const Livetracking = () => {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             {/* LIVE DATA WIDGET (MOVED HERE) */}
                             {vehiclePosition && (
                                 <LiveDataWidget speed={speed} position={vehiclePosition} heading={heading} />
@@ -1351,7 +1351,7 @@ const Livetracking = () => {
                                             className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         />
                                     </div>
-                                    
+
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">
                                             End Time
@@ -1363,7 +1363,7 @@ const Livetracking = () => {
                                             className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         />
                                     </div>
-                                    
+
                                     <button
                                         onClick={fetchRoutePlayback}
                                         disabled={isLoadingPlayback}
@@ -1405,7 +1405,7 @@ const Livetracking = () => {
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     {/* PLAYBACK CONTROLS (MOVED HERE) */}
                                     {isPlaybackMode && <PlaybackControls />}
                                 </>
@@ -1436,7 +1436,7 @@ const Livetracking = () => {
                                         {rawData.packetStatus && <RawDataItem label="Packet Status" value={rawData.packetStatus} color={rawData.packetStatus === "H" ? "green" : "yellow"} />}
                                         {rawData.satellites && <RawDataItem label="Satellites" value={rawData.satellites} color="indigo" />}
                                         {rawData.speed && <RawDataItem label="Speed" value={rawData.speed} color="indigo" />}
-                                        
+
                                         <div className="mt-4 pt-4 border-t border-slate-100">
                                             <RawDataItem label="Raw Packet Dump" value={JSON.stringify(rawData).slice(0, 50) + "..."} color="slate" />
                                         </div>

@@ -948,6 +948,7 @@ function App() {
       const data = await response.json();
 
       setDeviceBarcodes(data.barcodes || data.data || []);
+      
     } catch (error) {
       console.error("Error fetching device barcodes:", error.message);
     } finally {
@@ -960,6 +961,7 @@ function App() {
     fetchBarcodesForDealer(); 
   }, [fetchPackages, fetchBarcodesForDealer]);
 
+  
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
     let newFormData = { ...formData };
