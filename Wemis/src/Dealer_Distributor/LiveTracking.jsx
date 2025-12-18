@@ -317,6 +317,7 @@ const Livetracking = () => {
             }
 
             const data = await response.json();
+            console.log(data)
             setRawData(data.rawData || data);
 
             const locationData = data.location || {};
