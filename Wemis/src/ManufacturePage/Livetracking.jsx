@@ -373,85 +373,163 @@ const Livetracking = () => {
     // =========================================================================
 
     // Smoothly interpolates the vehicle position between points
-    const animateVehiclePath = (mapInstance, vehicleMarker, path, durationMs, initialPosition) => {
+    // const animateVehiclePath = (mapInstance, vehicleMarker, path, durationMs, initialPosition) => {
+    //     const L = window.L;
+    //     if (!L || !path || path.length < 1 || !initialPosition) return;
+
+    //     if (pathAnimationTimer.current) {
+    //         clearInterval(pathAnimationTimer.current);
+    //         pathAnimationTimer.current = null;
+    //     }
+
+    //     const startPoint = { lat: initialPosition.lat, lng: initialPosition.lng };
+    //     const fullPath = [startPoint, ...path].filter((point, index, self) =>
+    //         !(index > 0 && point.lat === self[0].lat && point.lng === self[0].lng)
+    //     );
+
+    //     if (fullPath.length < 2) {
+    //         const finalPosition = fullPath[fullPath.length - 1] || initialPosition;
+    //         setVehiclePosition(finalPosition);
+    //         vehicleMarker.setLatLng([finalPosition.lat, finalPosition.lng]);
+    //         mapInstance.panTo([finalPosition.lat, finalPosition.lng], { animate: true, duration: 0.5 });
+    //         return;
+    //     }
+
+    //     const interval = durationMs / (fullPath.length - 1);
+    //     let stepIndex = 0;
+    //     let lastPosition = initialPosition;
+
+    //     vehicleMarker.setLatLng([initialPosition.lat, initialPosition.lng]);
+
+    //     const animationStep = () => {
+    //         if (stepIndex >= fullPath.length - 1) {
+    //             clearInterval(pathAnimationTimer.current);
+    //             pathAnimationTimer.current = null;
+    //             const finalPosition = fullPath[fullPath.length - 1];
+    //             setVehiclePosition(finalPosition);
+    //             return;
+    //         }
+
+    //         const newPosition = fullPath[stepIndex + 1];
+
+    //         let currentHeading = heading;
+
+    //         if (lastPosition.lat !== newPosition.lat || lastPosition.lng !== newPosition.lng) {
+    //             currentHeading = calculateHeading(lastPosition, newPosition);
+    //         }
+
+    //         // Update marker position and state
+    //         vehicleMarker.setLatLng([newPosition.lat, newPosition.lng]);
+    //         setVehiclePosition(newPosition);
+
+    //         // Update heading and marker icon (re-render marker with new heading/speed)
+    //         setHeading(currentHeading);
+    //         const newIcon = L.divIcon({
+    //             className: 'vehicle-marker',
+    //             html: createVehicleIcon(speed, currentHeading),
+    //             iconSize: [60, 60],
+    //             iconAnchor: [30, 30],
+    //         });
+    //         vehicleMarker.setIcon(newIcon);
+
+    //         // Pan map
+    //         mapInstance.panTo([newPosition.lat, newPosition.lng], {
+    //             animate: true,
+    //             duration: interval / 1000
+    //         });
+
+    //         // Update path trail (retains last 200 points)
+    //         pathCoordinates.current.push(newPosition);
+    //         if (pathCoordinates.current.length > 200) {
+    //             pathCoordinates.current.shift();
+    //         }
+    //         const latlngs = pathCoordinates.current.map(p => [p.lat, p.lng]);
+    //         leafletPathRef.current.setLatLngs(latlngs);
+
+    //         lastPosition = newPosition;
+    //         stepIndex++;
+    //     };
+
+    //     pathAnimationTimer.current = setInterval(animationStep, interval);
+    // };
+
+
+    const animateVehiclePath = (mapInstance, vehicleMarker, path, totalDurationMs, initialPosition) => {
         const L = window.L;
-        if (!L || !path || path.length < 1 || !initialPosition) return;
+        if (!L || !path || path.length === 0) return;
 
-        if (pathAnimationTimer.current) {
-            clearInterval(pathAnimationTimer.current);
-            pathAnimationTimer.current = null;
-        }
+        let startTime = null;
+        let currentStepIndex = 0;
 
-        const startPoint = { lat: initialPosition.lat, lng: initialPosition.lng };
-        const fullPath = [startPoint, ...path].filter((point, index, self) =>
-            !(index > 0 && point.lat === self[0].lat && point.lng === self[0].lng)
-        );
+        // We treat the total path as a single timeline
+        const animate = (timestamp) => {
+            if (!startTime) startTime = timestamp;
+            const elapsed = timestamp - startTime;
+            const progress = Math.min(elapsed / totalDurationMs, 1);
 
-        if (fullPath.length < 2) {
-            const finalPosition = fullPath[fullPath.length - 1] || initialPosition;
-            setVehiclePosition(finalPosition);
-            vehicleMarker.setLatLng([finalPosition.lat, finalPosition.lng]);
-            mapInstance.panTo([finalPosition.lat, finalPosition.lng], { animate: true, duration: 0.5 });
-            return;
-        }
+            // Determine which segment of the smoothPath we are in
+            const segmentProgress = progress * path.length;
+            const index = Math.floor(segmentProgress);
+            const nextIndex = Math.min(index, path.length - 1);
 
-        const interval = durationMs / (fullPath.length - 1);
-        let stepIndex = 0;
-        let lastPosition = initialPosition;
+            // Get start and end for current sub-segment interpolation
+            const start = index === 0 ? initialPosition : {
+                lat: path[index - 1].latitude || path[index - 1].lat,
+                lng: path[index - 1].longitude || path[index - 1].lng
+            };
+            const end = {
+                lat: path[nextIndex].latitude || path[nextIndex].lat,
+                lng: path[nextIndex].longitude || path[nextIndex].lng
+            };
 
-        vehicleMarker.setLatLng([initialPosition.lat, initialPosition.lng]);
+            // LERP: Linear Interpolation formula
+            const t = segmentProgress - index;
+            const currentLat = start.lat + (end.lat - start.lat) * t;
+            const currentLng = start.lng + (end.lng - start.lng) * t;
 
-        const animationStep = () => {
-            if (stepIndex >= fullPath.length - 1) {
-                clearInterval(pathAnimationTimer.current);
-                pathAnimationTimer.current = null;
-                const finalPosition = fullPath[fullPath.length - 1];
-                setVehiclePosition(finalPosition);
-                return;
+            // 1. Update Marker Position (Every Frame)
+            vehicleMarker.setLatLng([currentLat, currentLng]);
+
+            // 2. Update Heading (Only when moving to a new segment to save CPU)
+            if (index !== currentStepIndex) {
+                const currentHeading = calculateHeading(start, end);
+                const newIcon = L.divIcon({
+                    className: 'vehicle-marker',
+                    html: createVehicleIcon(speed, currentHeading),
+                    iconSize: [60, 60],
+                    iconAnchor: [30, 30],
+                });
+                vehicleMarker.setIcon(newIcon);
+                currentStepIndex = index;
+
+                // 3. Update Path Trail
+                pathCoordinates.current.push({ lat: currentLat, lng: currentLng });
+                if (pathCoordinates.current.length > 200) pathCoordinates.current.shift();
+                leafletPathRef.current.setLatLngs(pathCoordinates.current.map(p => [p.lat, p.lng]));
+
+                // 4. Ease-In-Out Panning (Native Leaflet)
+                mapInstance.panTo([currentLat, currentLng], {
+                    animate: true,
+                    duration: 0.8, // Slightly less than 1s to allow overlap
+                    easeLinearity: 0.25
+                });
             }
 
-            const newPosition = fullPath[stepIndex + 1];
-
-            let currentHeading = heading;
-
-            if (lastPosition.lat !== newPosition.lat || lastPosition.lng !== newPosition.lng) {
-                currentHeading = calculateHeading(lastPosition, newPosition);
+            if (progress < 1) {
+                pathAnimationTimer.current = requestAnimationFrame(animate);
             }
-
-            // Update marker position and state
-            vehicleMarker.setLatLng([newPosition.lat, newPosition.lng]);
-            setVehiclePosition(newPosition);
-
-            // Update heading and marker icon (re-render marker with new heading/speed)
-            setHeading(currentHeading);
-            const newIcon = L.divIcon({
-                className: 'vehicle-marker',
-                html: createVehicleIcon(speed, currentHeading),
-                iconSize: [60, 60],
-                iconAnchor: [30, 30],
-            });
-            vehicleMarker.setIcon(newIcon);
-
-            // Pan map
-            mapInstance.panTo([newPosition.lat, newPosition.lng], {
-                animate: true,
-                duration: interval / 1000
-            });
-
-            // Update path trail (retains last 200 points)
-            pathCoordinates.current.push(newPosition);
-            if (pathCoordinates.current.length > 200) {
-                pathCoordinates.current.shift();
-            }
-            const latlngs = pathCoordinates.current.map(p => [p.lat, p.lng]);
-            leafletPathRef.current.setLatLngs(latlngs);
-
-            lastPosition = newPosition;
-            stepIndex++;
         };
 
-        pathAnimationTimer.current = setInterval(animationStep, interval);
+        // Cancel previous frame to prevent overlapping animations
+        if (pathAnimationTimer.current) cancelAnimationFrame(pathAnimationTimer.current);
+        pathAnimationTimer.current = requestAnimationFrame(animate);
     };
+
+
+    
+
+
+
 
     const fetchVehicleDataFromAPI = useCallback(async () => {
         if (!device || !device.deviceNo) {
@@ -1493,5 +1571,7 @@ const Livetracking = () => {
         </div>
     );
 };
+
+
 
 export default Livetracking;

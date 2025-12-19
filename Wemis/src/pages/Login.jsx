@@ -54,6 +54,9 @@ export default function Login() {
             case "dealer-distributor":
               navigate("distributor/dealer/dashboard");
               break;
+               case "coustmer":
+              navigate("/customer/dashboard");
+              break;
             default:
               navigate("/manufacturer/dashboard");
           }

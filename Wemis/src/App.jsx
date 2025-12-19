@@ -64,7 +64,8 @@ import Barcodelist from "./Dealer_Distributor/Barcodelist";
 import TechnicianDealer from "./Dealer_Distributor/TechnicianDealer";
 import MapManageDevice from "./Dealer_Distributor/MapManageDevice";
 import LiveTracking from "./Dealer_Distributor/LiveTracking";
-
+import Dashboard from "./CustomerPage/Dashboard";
+import LiveTracking1 from "./CustomerPage/Livetracking";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -227,6 +228,11 @@ function App() {
               <Route path="/distributor/dealer/technicians" element={<TechnicianDealer/>}/>
                <Route path="/distributor/dealer/map-device" element={<MapManageDevice/>}/>
                <Route path="/dealer/map-device/livetracking" element={<LiveTracking/>}/>
+
+              {/* Customer Routes */}
+
+              <Route path="/customer/dashboard" element={<Dashboard/>}/>
+               <Route path="/customer/tracking" element={<LiveTracking1/>}/>
 
           </>
         )}
