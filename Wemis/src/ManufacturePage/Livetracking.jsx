@@ -765,6 +765,7 @@ const Livetracking = () => {
                 startTime: new Date(playbackStartTime).toISOString(),
                 endTime: new Date(playbackEndTime).toISOString()
             };
+            console.log(requestData)
 
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -780,7 +781,7 @@ const Livetracking = () => {
             }
 
             const data = await response.json();
-
+console.log(data)
             if (data.success && data.route && data.route.length > 0) {
                 setPlaybackRoute(data.route);
                 setTotalPlaybackPoints(data.totalPoints || data.route.length);

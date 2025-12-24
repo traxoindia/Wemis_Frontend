@@ -14,6 +14,7 @@ import 'leaflet/dist/leaflet.css';
 // Import your car logo image
 import vehicleLogo from '../Images/car.png';
 import Navbar from './Navbar';
+import VehicleDataTable from './VehicleDataTable';
 
 // --- Sub-component: Reverse Geocoding ---
 const MapAddress = ({ lat, lng }) => {
@@ -85,6 +86,7 @@ const Livetracking = () => {
             const data = await res.json();
             const loc = data.location || data.rawData || {};
             const raw = data.rawData || data;
+            console.log(raw)
             setRawData(raw);
             setDeviceInfo({ deviceNo: trackedDeviceNo, vehicleNo: data.deviceInfo?.vehicleName || 'Vehicle' });
 
@@ -110,6 +112,7 @@ const Livetracking = () => {
     // --- Fetch Route Playback ---
     const handleFetchPlayback = async () => {
         if (!startTime || !endTime) return alert("Please select both Start and End time");
+       
         setLoadingPlayback(true);
         const token = localStorage.getItem('token');
         try {
@@ -118,8 +121,10 @@ const Livetracking = () => {
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ deviceNo: trackedDeviceNo, startTime, endTime }),
             });
+             
             const data = await res.json();
             console.log(data)
+         
             if (data.route && data.route.length > 0) {
                 const formattedPath = data.route.map(p => ({
                     lat: parseFloat(p.latitude),
@@ -233,7 +238,7 @@ const Livetracking = () => {
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-350px)] min-h-[500px]">
                         {/* LEFT: MAP */}
                         <div className="lg:col-span-9 bg-white rounded-[2.5rem] p-3 shadow-xl border border-slate-200 relative overflow-hidden flex flex-col">
-                            <div className="flex-1 rounded-[2rem] overflow-hidden">
+                            <div className="flex-1 rounded-[2rem] overflow-hidden z-20">
                                 {displayData ? (
                                     <MapContainer center={[displayData.lat || displayData.position?.lat, displayData.lng || displayData.position?.lng]} zoom={16} zoomControl={false} style={{ height: "100%", width: "100%" }}>
                                         <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
@@ -297,6 +302,9 @@ const Livetracking = () => {
                         </div>
                     </div>
                 </div>
+            </div>
+            <div className=' z-40'>
+                <VehicleDataTable/>
             </div>
         </>
     );
