@@ -6,7 +6,7 @@ const VehicleDataTable = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [lastUpdate, setLastUpdate] = useState(null);
-    
+
     const STORAGE_KEY = 'vehicle_tracking_data';
     const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes in milliseconds
 
@@ -14,11 +14,11 @@ const VehicleDataTable = () => {
     const getCachedData = () => {
         const cached = localStorage.getItem(STORAGE_KEY);
         if (!cached) return null;
-        
+
         try {
             const { data, timestamp } = JSON.parse(cached);
             const now = new Date().getTime();
-            
+
             // Check if cache is still valid (less than 5 minutes old)
             if (now - timestamp < CACHE_DURATION) {
                 return data;
@@ -47,11 +47,11 @@ const VehicleDataTable = () => {
     const clearOldCache = () => {
         const cached = localStorage.getItem(STORAGE_KEY);
         if (!cached) return;
-        
+
         try {
             const { timestamp } = JSON.parse(cached);
             const now = new Date().getTime();
-            
+
             if (now - timestamp >= CACHE_DURATION) {
                 localStorage.removeItem(STORAGE_KEY);
                 console.log('Cleared expired cache');
@@ -71,9 +71,9 @@ const VehicleDataTable = () => {
     const fetchVehicleData = useCallback(async (forceRefresh = false) => {
         const trackedDeviceNo = "862567077901184"; // Replace with your actual device number
         const token = localStorage.getItem('token');
-        
+
         if (!trackedDeviceNo) return;
-        
+
         // Try cache first if not forcing refresh
         if (!forceRefresh) {
             const cachedData = getCachedData();
@@ -86,33 +86,33 @@ const VehicleDataTable = () => {
                 return;
             }
         }
-        
+
         setLoading(true);
-        
+
         try {
             const res = await fetch('https://api.websave.in/api/manufactur/liveTrackingSingleDevice', {
                 method: 'POST',
-                headers: { 
-                    'Content-Type': 'application/json', 
-                    'Authorization': `Bearer ${token}` 
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
                 },
                 body: JSON.stringify({ deviceNo: trackedDeviceNo }),
             });
-            
+
             if (!res.ok) {
                 throw new Error(`HTTP error! status: ${res.status}`);
             }
-            
+
             const data = await res.json();
             const loc = data.location || data.rawData || {};
             const raw = data.rawData || data;
-            
+
             console.log("API Response:", raw);
-            
+
             setRawData(raw);
             const updateTime = new Date();
             setLastUpdate(updateTime.toLocaleTimeString());
-            
+
             // Prepare vehicle data
             const vehicleDataObj = {
                 // Device Information
@@ -121,32 +121,32 @@ const VehicleDataTable = () => {
                 vehicleNo: raw.vehicleNo || 'N/A',
                 firmware: raw.firmware || 'N/A',
                 vendorId: raw.vendorId || 'N/A',
-                
+
                 // Location Data
                 latitude: raw.lat || loc.latitude || 'N/A',
                 latDir: raw.latDir || 'N/A',
                 longitude: raw.lng || loc.longitude || 'N/A',
                 lngDir: raw.lngDir || 'N/A',
                 altitude: raw.altitude || 'N/A',
-                
+
                 // Movement Data
                 speed: raw.speed || loc.speed || '0',
                 heading: raw.headDegree || loc.heading || '0',
                 date: raw.date || 'N/A',
                 time: raw.time || 'N/A',
                 timestamp: raw.timestamp || new Date().toISOString(),
-                
+
                 // GPS Information
                 gpsFix: raw.gpsFix || '0',
                 satellites: raw.satellites || '0',
                 hdop: raw.hdop || 'N/A',
                 pdop: raw.pdop || 'N/A',
-                
+
                 // Power Information
                 batteryVoltage: raw.batteryVoltage || '0',
                 mainsVoltage: raw.mainsVoltage || '0',
                 mainsPowerStatus: raw.mainsPowerStatus || '0',
-                
+
                 // Network Information
                 gsmSignal: raw.gsmSignal || '0',
                 networkOperator: raw.networkOperator || 'N/A',
@@ -154,7 +154,7 @@ const VehicleDataTable = () => {
                 mnc: raw.mnc || 'N/A',
                 lac: raw.lac || 'N/A',
                 cellId: raw.cellId || 'N/A',
-                
+
                 // Status Information
                 ignition: raw.ignition || '0',
                 sosStatus: raw.sosStatus || '0',
@@ -164,9 +164,9 @@ const VehicleDataTable = () => {
                 packetType: raw.packetType || 'N/A',
                 packetHeader: raw.packetHeader || 'N/A'
             };
-            
+
             setVehicleData(vehicleDataObj);
-            
+
             // Save to cache
             const cacheData = {
                 vehicleData: vehicleDataObj,
@@ -174,13 +174,13 @@ const VehicleDataTable = () => {
                 timestamp: updateTime.getTime()
             };
             saveToCache(cacheData);
-            
+
             setLoading(false);
             setError(null);
-            
+
         } catch (e) {
             console.error("Error fetching vehicle data:", e);
-            
+
             // Try cache on error
             const cachedData = getCachedData();
             if (cachedData) {
@@ -199,20 +199,20 @@ const VehicleDataTable = () => {
     // Fetch data on component mount
     useEffect(() => {
         fetchVehicleData();
-        
+
         // Set up refresh interval (every 30 seconds)
         const interval = setInterval(() => {
             fetchVehicleData();
         }, 30000);
-        
+
         return () => clearInterval(interval);
     }, [fetchVehicleData]);
 
     // Helper function to format status values
     const formatStatus = (value, type) => {
         if (value === undefined || value === null || value === 'N/A') return 'N/A';
-        
-        switch(type) {
+
+        switch (type) {
             case 'boolean':
                 return value === '1' || value === 1 ? 'Yes' : 'No';
             case 'speed':
@@ -239,7 +239,7 @@ const VehicleDataTable = () => {
     const getCacheAge = () => {
         const cached = localStorage.getItem(STORAGE_KEY);
         if (!cached) return null;
-        
+
         try {
             const { timestamp } = JSON.parse(cached);
             const age = new Date().getTime() - timestamp;
@@ -277,13 +277,13 @@ const VehicleDataTable = () => {
                     <h3 className="text-xl font-semibold text-red-600 mb-2">Error Loading Data</h3>
                     <p className="text-gray-600 mb-6">{error}</p>
                     <div className="space-y-3">
-                        <button 
+                        <button
                             onClick={() => fetchVehicleData(true)}
                             className="w-full bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
                         >
                             Retry Fresh Data
                         </button>
-                        <button 
+                        <button
                             onClick={clearCache}
                             className="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
                         >
@@ -320,7 +320,7 @@ const VehicleDataTable = () => {
                             </div>
                         </div>
                         <div className="flex gap-3">
-                            <button 
+                            <button
                                 onClick={() => fetchVehicleData(true)}
                                 className="flex items-center gap-2 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors"
                             >
@@ -329,7 +329,7 @@ const VehicleDataTable = () => {
                                 </svg>
                                 Refresh
                             </button>
-                            <button 
+                            <button
                                 onClick={clearCache}
                                 className="flex items-center gap-2 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
                             >
@@ -415,7 +415,7 @@ const VehicleDataTable = () => {
                                         <p className="text-sm text-gray-500 mb-1">Signal</p>
                                         <div className="flex items-center gap-3">
                                             <div className="flex-1 bg-gray-200 rounded-full h-2">
-                                                <div 
+                                                <div
                                                     className="bg-gradient-to-r from-red-500 via-yellow-500 to-green-500 h-2 rounded-full"
                                                     style={{ width: `${Math.min(parseInt(vehicleData.gsmSignal) || 0, 100)}%` }}
                                                 ></div>
