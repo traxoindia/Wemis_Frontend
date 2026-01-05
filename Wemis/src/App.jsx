@@ -66,6 +66,7 @@ import MapManageDevice from "./Dealer_Distributor/MapManageDevice";
 import LiveTracking from "./Dealer_Distributor/LiveTracking";
 import Dashboard from "./CustomerPage/Dashboard";
 import LiveTracking1 from "./CustomerPage/Livetracking";
+import WalletSystem from "./ManufacturePage/WalletSystem";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -142,7 +143,7 @@ function App() {
             {/* Manufacture Routes */}
             <Route
               path="/manufacturer/dashboard"
-              element={<ManufactureDashboard />}
+              element={<ManufactureDashboard/>}
             />
             <Route path="/dashboard/status" element={<StatusDashboard />} />
             <Route path="/dashboard/ccc" element={<CCCDashboard />} />
@@ -233,6 +234,9 @@ function App() {
 
               <Route path="/customer/dashboard" element={<Dashboard/>}/>
                <Route path="/customer/tracking" element={<LiveTracking1/>}/>
+
+               {/* Wallet */}
+                <Route path="/wallet" element={<WalletSystem/>}/>
 
           </>
         )}
