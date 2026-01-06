@@ -3,7 +3,10 @@ import { useLocation } from 'react-router-dom';
 import { 
     Car, Navigation, Zap, Satellite, 
     Battery, Signal, Clock, AlertCircle, RefreshCw,
-    Play, Pause, Square, History, Calendar
+    Play, Pause, Square, History, Calendar,
+    MapPin, StopCircle, FileText, Download, Filter, X,
+    Power, Activity, ParkingCircle, Fuel, BarChart3,
+    ChevronDown, ChevronUp, TrendingUp, Layers
 } from "lucide-react";
 
 // --- Map Imports ---
@@ -41,6 +44,144 @@ const RecenterMap = ({ position }) => {
     return null;
 };
 
+// --- Sub-component: Report Modal ---
+const ReportModal = ({ isOpen, onClose, deviceNo, reportType, onFetchReport }) => {
+    const [formData, setFormData] = useState({
+        date: new Date().toISOString().split('T')[0],
+        startTime: '08:00:00',
+        endTime: '11:00:00'
+    });
+    const [loading, setLoading] = useState(false);
+
+    const reportConfigs = {
+        stoppage: {
+            name: "Stoppage Report",
+            icon: <StopCircle className="w-6 h-6 text-amber-600" />,
+            bg: "bg-amber-100",
+            endpoint: "fetchStoppageReport",
+            fields: ['date', 'startTime', 'endTime']
+        },
+        ignition: {
+            name: "Ignition Report",
+            icon: <Power className="w-6 h-6 text-blue-600" />,
+            bg: "bg-blue-100",
+            endpoint: "fetchIgnitionReport",
+            fields: ['date', 'startTime', 'endTime']
+        },
+        moving: {
+            name: "Moving Time Report",
+            icon: <Activity className="w-6 h-6 text-green-600" />,
+            bg: "bg-green-100",
+            endpoint: "fetchMovingTimeReport",
+            fields: ['date', 'startTime', 'endTime']
+        },
+        idle: {
+            name: "Idle Time Report",
+            icon: <Clock className="w-6 h-6 text-yellow-600" />,
+            bg: "bg-yellow-100",
+            endpoint: "fetchIdleTimeReport",
+            fields: ['date', 'startTime', 'endTime']
+        },
+        parking: {
+            name: "Parking Time Report",
+            icon: <ParkingCircle className="w-6 h-6 text-purple-600" />,
+            bg: "bg-purple-100",
+            endpoint: "fetchParkingTimeReport",
+            fields: ['date', 'startTime', 'endTime']
+        }
+    };
+
+    const config = reportConfigs[reportType];
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        await onFetchReport(reportType, { deviceNo, ...formData });
+        setLoading(false);
+    };
+
+    if (!isOpen || !config) return null;
+
+    return (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl">
+                <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2 ${config.bg} rounded-xl`}>
+                            {config.icon}
+                        </div>
+                        <div>
+                            <h3 className="font-black text-slate-900">{config.name}</h3>
+                            <p className="text-[10px] text-slate-400 uppercase font-bold">Device: {deviceNo}</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl">
+                        <X className="w-5 h-5 text-slate-400" />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-2 block">Date</label>
+                        <input
+                            type="date"
+                            className="w-full p-3 bg-slate-50 border rounded-xl text-sm outline-none focus:ring-2 ring-indigo-500"
+                            value={formData.date}
+                            onChange={e => setFormData({...formData, date: e.target.value})}
+                            required
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-2 block">Start Time</label>
+                            <input
+                                type="time"
+                                className="w-full p-3 bg-slate-50 border rounded-xl text-sm outline-none focus:ring-2 ring-indigo-500"
+                                value={formData.startTime}
+                                onChange={e => setFormData({...formData, startTime: e.target.value})}
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-2 block">End Time</label>
+                            <input
+                                type="time"
+                                className="w-full p-3 bg-slate-50 border rounded-xl text-sm outline-none focus:ring-2 ring-indigo-500"
+                                value={formData.endTime}
+                                onChange={e => setFormData({...formData, endTime: e.target.value})}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 px-4 py-3 border border-slate-300 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 flex items-center justify-center gap-2"
+                        >
+                            {loading ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <Filter className="w-4 h-4" />
+                            )}
+                            Generate Report
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+};
+
 const Livetracking = () => {
     const location = useLocation();
     const trackedDeviceNo = location.state?.deviceNo;
@@ -62,6 +203,32 @@ const Livetracking = () => {
     const [loadingPlayback, setLoadingPlayback] = useState(false);
     const playbackTimer = useRef(null);
 
+    // --- Report States ---
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [activeReportType, setActiveReportType] = useState('stoppage');
+    const [reports, setReports] = useState({
+        stoppage: null,
+        ignition: null,
+        moving: null,
+        idle: null,
+        parking: null
+    });
+    const [loadingReports, setLoadingReports] = useState({
+        stoppage: false,
+        ignition: false,
+        moving: false,
+        idle: false,
+        parking: false
+    });
+    const [selectedReportItem, setSelectedReportItem] = useState(null);
+    const [expandedReports, setExpandedReports] = useState({
+        stoppage: true,
+        ignition: false,
+        moving: false,
+        idle: false,
+        parking: false
+    });
+
     const carIcon = (heading, isHistory = false) => L.divIcon({
         className: 'vehicle-marker-container',
         html: `
@@ -72,6 +239,40 @@ const Livetracking = () => {
         iconSize: [50, 50],
         iconAnchor: [25, 25]
     });
+
+    // Report marker icons
+    const reportIcon = (type) => L.divIcon({
+        className: 'report-marker',
+        html: `
+            <div style="width: 24px; height: 24px; background: ${getMarkerColor(type)}; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.2); display: flex; align-items: center; justify-content: center;">
+                <div style="color: white; font-size: 10px; font-weight: bold;">${getMarkerLabel(type)}</div>
+            </div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+    });
+
+    const getMarkerColor = (type) => {
+        const colors = {
+            stoppage: '#ef4444',
+            ignition: '#3b82f6',
+            moving: '#10b981',
+            idle: '#f59e0b',
+            parking: '#8b5cf6'
+        };
+        return colors[type] || '#6b7280';
+    };
+
+    const getMarkerLabel = (type) => {
+        const labels = {
+            stoppage: 'S',
+            ignition: 'I',
+            moving: 'M',
+            idle: 'D',
+            parking: 'P'
+        };
+        return labels[type] || 'R';
+    };
 
     // --- Fetch Live Data ---
     const fetchVehicleData = useCallback(async () => {
@@ -144,12 +345,152 @@ const Livetracking = () => {
         finally { setLoadingPlayback(false); }
     };
 
+    // --- Generic Report Fetch Function ---
+    const fetchReport = async (reportType, filters) => {
+        setLoadingReports(prev => ({ ...prev, [reportType]: true }));
+        
+        const token = localStorage.getItem('token');
+        try {
+            const endpoints = {
+                stoppage: 'fetchStoppageReport',
+                ignition: 'fetchIgnitionReport',
+                moving: 'fetchMovingTimeReport',
+                idle: 'fetchIdleTimeReport',
+                parking: 'fetchParkingTimeReport'
+            };
+
+            const response = await fetch(`https://api.websave.in/api/manufactur/${endpoints[reportType]}`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json', 
+                    'Authorization': `Bearer ${token}` 
+                },
+                body: JSON.stringify({
+                    deviceNo: filters.deviceNo,
+                    date: filters.date,
+                    startTime: filters.startTime,
+                    endTime: filters.endTime
+                }),
+            });
+
+            const data = await response.json();
+            console.log(`${reportType} Report:`, data);
+            
+            if (data.success || data.data) {
+                setReports(prev => ({
+                    ...prev,
+                    [reportType]: data.data || data
+                }));
+                setShowReportModal(false);
+            } else {
+                alert(data.message || `No ${reportType} data found`);
+                // Set mock data for demonstration
+                setReports(prev => ({
+                    ...prev,
+                    [reportType]: getMockData(reportType)
+                }));
+            }
+        } catch (error) {
+            console.error(`Error fetching ${reportType} report:`, error);
+            alert(`Failed to fetch ${reportType} report`);
+            // Set mock data for demonstration
+            setReports(prev => ({
+                ...prev,
+                [reportType]: getMockData(reportType)
+            }));
+        } finally {
+            setLoadingReports(prev => ({ ...prev, [reportType]: false }));
+        }
+    };
+
+    // Mock data for demonstration
+    const getMockData = (reportType) => {
+        const mockData = {
+            stoppage: [
+                { startTime: "08:15:00", endTime: "08:30:00", duration: "15m", latitude: 19.0760, longitude: 72.8777, address: "Mumbai Central" },
+                { startTime: "09:45:00", endTime: "10:00:00", duration: "15m", latitude: 19.0760, longitude: 72.8777, address: "Bandra" }
+            ],
+            ignition: {
+                ignitionCount: 5,
+                totalOnTime: "2h 30m",
+                averageDuration: "30m",
+                firstIgnition: "08:10:00",
+                lastIgnition: "10:45:00"
+            },
+            moving: {
+                totalMovingTime: "1h 45m",
+                movingPercentage: "70%",
+                averageSpeed: "45 km/h",
+                maxSpeed: "80 km/h"
+            },
+            idle: {
+                totalIdleTime: "45m",
+                idlePercentage: "30%",
+                idleCount: 6,
+                averageIdleDuration: "7.5m"
+            },
+            parking: {
+                totalParkingTime: "1h 15m",
+                parkingCount: 3,
+                longestPark: "40m",
+                overnightParking: false
+            }
+        };
+        return mockData[reportType];
+    };
+
+    // --- Export Report to CSV ---
+    const exportReport = (reportType) => {
+        const report = reports[reportType];
+        if (!report || (Array.isArray(report) && report.length === 0)) {
+            alert('No data to export');
+            return;
+        }
+
+        const reportNames = {
+            stoppage: "Stoppage",
+            ignition: "Ignition",
+            moving: "Moving_Time",
+            idle: "Idle_Time",
+            parking: "Parking_Time"
+        };
+
+        let headers = [];
+        let rows = [];
+
+        if (Array.isArray(report)) {
+            headers = Object.keys(report[0] || {});
+            rows = report.map(item => headers.map(header => `"${item[header] || ''}"`));
+        } else {
+            headers = ['Metric', 'Value'];
+            rows = Object.entries(report).map(([key, value]) => [
+                key,
+                typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value
+            ]);
+        }
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${reportNames[reportType]}_Report_${deviceInfo.deviceNo}_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+    };
+
     // --- Playback Animation Loop ---
     useEffect(() => {
         if (isPlaying && playbackIndex < playbackPath.length - 1) {
             playbackTimer.current = setTimeout(() => {
                 setPlaybackIndex(prev => prev + 1);
-            }, 500); // Animation speed 500ms per point
+            }, 500);
         } else {
             setIsPlaying(false);
         }
@@ -171,7 +512,94 @@ const Livetracking = () => {
         setStatus("Live");
     };
 
-    if (!trackedDeviceNo) return <div className="h-screen flex items-center justify-center bg-slate-100"><AlertCircle size={48} className="text-red-500 animate-pulse"/></div>;
+    // Toggle report section
+    const toggleReportSection = (section) => {
+        setExpandedReports(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
+    };
+
+    // Open report modal
+    const openReportModal = (reportType) => {
+        setActiveReportType(reportType);
+        setShowReportModal(true);
+    };
+
+    // Render report content
+    const renderReportContent = (reportType) => {
+        const report = reports[reportType];
+        const loading = loadingReports[reportType];
+
+        if (loading) {
+            return (
+                <div className="p-4 flex items-center justify-center">
+                    <RefreshCw className="w-6 h-6 animate-spin text-indigo-400" />
+                </div>
+            );
+        }
+
+        if (!report) {
+            return (
+                <div className="p-4 text-center">
+                    <FileText className="w-10 h-10 text-slate-200 mx-auto mb-2" />
+                    <p className="text-[10px] text-slate-400">No data available</p>
+                    <button 
+                        onClick={() => openReportModal(reportType)}
+                        className="mt-2 px-3 py-1 bg-indigo-600 text-white text-[8px] font-bold rounded-lg hover:bg-indigo-700"
+                    >
+                        Generate Report
+                    </button>
+                </div>
+            );
+        }
+
+        if (Array.isArray(report)) {
+            return (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                    {report.map((item, index) => (
+                        <div 
+                            key={index}
+                            className={`p-2 rounded-lg border cursor-pointer hover:bg-slate-50 ${
+                                selectedReportItem === item ? 'bg-indigo-50 border-indigo-300' : 'bg-slate-50 border-slate-100'
+                            }`}
+                            onClick={() => setSelectedReportItem(item)}
+                        >
+                            <div className="flex justify-between items-center">
+                                <span className="text-[9px] font-bold text-slate-700">{item.startTime} - {item.endTime}</span>
+                                <span className="text-[8px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
+                                    {item.duration}
+                                </span>
+                            </div>
+                            {item.address && (
+                                <p className="text-[8px] text-slate-500 truncate mt-1">{item.address}</p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        // For object reports
+        return (
+            <div className="grid grid-cols-2 gap-2 p-2">
+                {Object.entries(report).map(([key, value]) => (
+                    <div key={key} className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+                        <p className="text-[8px] font-bold text-slate-500 uppercase">{key}</p>
+                        <p className="text-[10px] font-bold text-slate-900">
+                            {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        );
+    };
+
+    if (!trackedDeviceNo) return (
+        <div className="h-screen flex items-center justify-center bg-slate-100">
+            <AlertCircle size={48} className="text-red-500 animate-pulse"/>
+        </div>
+    );
 
     const displayData = isPlaybackMode && playbackPath.length > 0 ? playbackPath[playbackIndex] : vehicleData;
 
@@ -196,13 +624,32 @@ const Livetracking = () => {
                             </div>
                         </div>
 
-                        {/* Status and Mode Switcher */}
-                        <div className="flex items-center gap-4 mt-6 md:mt-0">
+                        {/* Status and Controls */}
+                        <div className="flex flex-wrap items-center gap-3 mt-6 md:mt-0">
+                            {/* Report Buttons */}
+                            <div className="flex flex-wrap gap-2">
+                                {['stoppage', 'ignition', 'moving', 'idle', 'parking'].map((type) => (
+                                    <button 
+                                        key={type}
+                                        onClick={() => openReportModal(type)}
+                                        className="px-3 py-2 bg-indigo-500 hover:bg-indigo-600 rounded-xl text-xs font-bold transition-all flex items-center gap-2"
+                                    >
+                                        {type === 'stoppage' && <StopCircle size={12} />}
+                                        {type === 'ignition' && <Power size={12} />}
+                                        {type === 'moving' && <Activity size={12} />}
+                                        {type === 'idle' && <Clock size={12} />}
+                                        {type === 'parking' && <ParkingCircle size={12} />}
+                                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+                            
                             {isPlaybackMode && (
                                 <button onClick={exitPlayback} className="bg-rose-500 hover:bg-rose-600 px-4 py-2 rounded-xl text-xs font-bold transition-all">
                                     Exit Playback
                                 </button>
                             )}
+                            
                             <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase border ${status === 'Live' ? 'border-emerald-500 text-emerald-500' : 'border-indigo-500 text-indigo-500'}`}>
                                 <span className={`w-2 h-2 rounded-full bg-current ${status === 'Live' ? 'animate-pulse' : ''}`}></span>
                                 {status}
@@ -237,7 +684,7 @@ const Livetracking = () => {
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-350px)] min-h-[500px]">
                         {/* LEFT: MAP */}
-                        <div className="lg:col-span-9 bg-white rounded-[2.5rem] p-3 shadow-xl border border-slate-200 relative overflow-hidden flex flex-col">
+                        <div className="lg:col-span-8 bg-white rounded-[2.5rem] p-3 shadow-xl border border-slate-200 relative overflow-hidden flex flex-col">
                             <div className="flex-1 rounded-[2rem] overflow-hidden z-20">
                                 {displayData ? (
                                     <MapContainer center={[displayData.lat || displayData.position?.lat, displayData.lng || displayData.position?.lng]} zoom={16} zoomControl={false} style={{ height: "100%", width: "100%" }}>
@@ -247,6 +694,33 @@ const Livetracking = () => {
                                         {isPlaybackMode && playbackPath.length > 0 && (
                                             <Polyline positions={playbackPath.map(p => [p.lat, p.lng])} color="#6366f1" weight={5} opacity={0.6} />
                                         )}
+
+                                        {/* Report Markers */}
+                                        {reports.stoppage && Array.isArray(reports.stoppage) && reports.stoppage.map((stoppage, index) => (
+                                            <Marker 
+                                                key={`stoppage-${index}`}
+                                                position={[stoppage.latitude, stoppage.longitude]}
+                                                icon={reportIcon('stoppage')}
+                                                eventHandlers={{
+                                                    click: () => setSelectedReportItem(stoppage)
+                                                }}
+                                            >
+                                                <Popup>
+                                                    <div className="p-2 min-w-[200px]">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <StopCircle className="w-4 h-4 text-red-500" />
+                                                            <h3 className="font-bold text-sm">Stoppage #{index + 1}</h3>
+                                                        </div>
+                                                        <div className="space-y-1 text-xs">
+                                                            <p><span className="font-bold">From:</span> {stoppage.startTime}</p>
+                                                            <p><span className="font-bold">To:</span> {stoppage.endTime}</p>
+                                                            <p><span className="font-bold">Duration:</span> {stoppage.duration}</p>
+                                                            <p className="text-slate-500 text-[10px] mt-2">{stoppage.address || 'Address not available'}</p>
+                                                        </div>
+                                                    </div>
+                                                </Popup>
+                                            </Marker>
+                                        ))}
 
                                         <Marker 
                                             position={[displayData.lat || displayData.position?.lat, displayData.lng || displayData.position?.lng]} 
@@ -271,39 +745,140 @@ const Livetracking = () => {
                             </div>
                         </div>
 
-                        {/* RIGHT: STATS */}
-                        <div className="lg:col-span-3 space-y-4 flex flex-col">
-                            <StatCard icon={<Zap size={20}/>} label="Speed" val={displayData?.speed} unit="KM/H" color="text-amber-500" bg="bg-amber-50" />
-                            {!isPlaybackMode ? (
-                                <>
-                                    <StatCard icon={<Satellite size={20}/>} label="Sats" val={vehicleData?.satellites} unit="SATS" color="text-blue-500" bg="bg-blue-50" />
-                                    <StatCard icon={<Battery size={20}/>} label="Power" val={vehicleData?.mains} unit="V" color="text-emerald-500" bg="bg-emerald-50" />
-                                </>
-                            ) : (
-                                <div className="bg-indigo-600 text-white p-6 rounded-[2rem] shadow-lg">
-                                    <History size={24} className="mb-2 opacity-50"/>
-                                    <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Playback Progress</p>
-                                    <p className="text-2xl font-black mt-1">{playbackIndex + 1} / {playbackPath.length}</p>
-                                    <div className="w-full bg-white/20 h-1.5 rounded-full mt-4 overflow-hidden">
+                        {/* RIGHT SIDE: STATS AND REPORTS */}
+                        <div className="lg:col-span-4 flex flex-col gap-4">
+                            {/* Stats Cards */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <StatCard icon={<Zap size={16}/>} label="Speed" val={displayData?.speed} unit="KM/H" color="text-amber-500" bg="bg-amber-50" />
+                                {!isPlaybackMode && vehicleData && (
+                                    <>
+                                        <StatCard icon={<Satellite size={16}/>} label="Sats" val={vehicleData?.satellites} unit="SATS" color="text-blue-500" bg="bg-blue-50" />
+                                    </>
+                                )}
+                            </div>
+
+                            {/* Reports Panel */}
+                            <div className="flex-1 bg-white rounded-[2rem] p-4 border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1.5 bg-indigo-100 rounded-lg">
+                                            <BarChart3 className="w-4 h-4 text-indigo-600" />
+                                        </div>
+                                        <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Reports Dashboard</h4>
+                                    </div>
+                                    <span className="text-[8px] font-bold bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">
+                                        {Object.values(reports).filter(r => r !== null).length}/5
+                                    </span>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto pr-1 space-y-3">
+                                    {['stoppage', 'ignition', 'moving', 'idle', 'parking'].map((type) => (
+                                        <div key={type} className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                                            <div 
+                                                className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-100"
+                                                onClick={() => toggleReportSection(type)}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`p-1.5 rounded-lg ${
+                                                        type === 'stoppage' ? 'bg-red-100' :
+                                                        type === 'ignition' ? 'bg-blue-100' :
+                                                        type === 'moving' ? 'bg-green-100' :
+                                                        type === 'idle' ? 'bg-yellow-100' :
+                                                        'bg-purple-100'
+                                                    }`}>
+                                                        {type === 'stoppage' && <StopCircle className="w-3 h-3 text-red-600" />}
+                                                        {type === 'ignition' && <Power className="w-3 h-3 text-blue-600" />}
+                                                        {type === 'moving' && <Activity className="w-3 h-3 text-green-600" />}
+                                                        {type === 'idle' && <Clock className="w-3 h-3 text-yellow-600" />}
+                                                        {type === 'parking' && <ParkingCircle className="w-3 h-3 text-purple-600" />}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-bold text-slate-900 capitalize">{type} Report</p>
+                                                        <p className="text-[8px] text-slate-500">
+                                                            {reports[type] ? 'Data loaded' : 'No data'}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    {reports[type] && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                exportReport(type);
+                                                            }}
+                                                            className="p-1 bg-slate-200 hover:bg-slate-300 rounded-lg"
+                                                        >
+                                                            <Download className="w-3 h-3 text-slate-600" />
+                                                        </button>
+                                                    )}
+                                                    {expandedReports[type] ? 
+                                                        <ChevronUp className="w-4 h-4 text-slate-400" /> : 
+                                                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                                                    }
+                                                </div>
+                                            </div>
+                                            
+                                            {expandedReports[type] && (
+                                                <div className="px-3 pb-3">
+                                                    {renderReportContent(type)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Selected Item Details */}
+                                {selectedReportItem && (
+                                    <div className="mt-4 p-3 bg-indigo-50 rounded-xl border border-indigo-200">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <p className="text-[9px] font-bold text-indigo-700 uppercase">Selected Details</p>
+                                            <button 
+                                                onClick={() => setSelectedReportItem(null)}
+                                                className="text-[8px] text-indigo-500 hover:text-indigo-700"
+                                            >
+                                                Clear
+                                            </button>
+                                        </div>
+                                        <div className="text-[9px] text-slate-700 space-y-1">
+                                            {Object.entries(selectedReportItem).map(([key, value]) => (
+                                                <div key={key} className="flex justify-between">
+                                                    <span className="font-bold">{key}:</span>
+                                                    <span>{value}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Playback Progress */}
+                            {isPlaybackMode && (
+                                <div className="bg-indigo-600 text-white p-4 rounded-[2rem] shadow-lg">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <History className="w-4 h-4 opacity-50"/>
+                                        <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Playback Progress</p>
+                                    </div>
+                                    <p className="text-xl font-black">{playbackIndex + 1} / {playbackPath.length}</p>
+                                    <div className="w-full bg-white/20 h-1.5 rounded-full mt-2 overflow-hidden">
                                         <div className="bg-white h-full" style={{ width: `${((playbackIndex + 1) / playbackPath.length) * 100}%` }}></div>
                                     </div>
                                 </div>
                             )}
-                            <div className="flex-1 bg-white rounded-[2rem] p-6 border border-slate-200 shadow-sm flex flex-col justify-center">
-                                <div className="text-center">
-                                    <Clock size={32} className="mx-auto text-slate-200 mb-2" />
-                                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">System Log</h4>
-                                    <div className="mt-4 space-y-2 text-left">
-                                        <LogItem label="Status" val={isPlaybackMode ? 'History Replay' : 'Live Data'} />
-                                        {!isPlaybackMode && <LogItem label="Ignition" val={rawData?.ignition === '1' ? 'ON' : 'OFF'} />}
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div className=' z-40'>
+
+            {/* Report Modal */}
+            <ReportModal
+                isOpen={showReportModal}
+                onClose={() => setShowReportModal(false)}
+                deviceNo={trackedDeviceNo}
+                reportType={activeReportType}
+                onFetchReport={fetchReport}
+            />
+
+            <div className='z-40'>
                 <VehicleDataTable/>
             </div>
         </>
@@ -311,11 +886,11 @@ const Livetracking = () => {
 };
 
 const StatCard = ({ icon, label, val, unit, color, bg }) => (
-    <div className="bg-white p-5 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-4">
-        <div className={`p-3 rounded-2xl ${bg} ${color}`}>{icon}</div>
+    <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+        <div className={`p-2 rounded-xl ${bg} ${color}`}>{icon}</div>
         <div>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
-            <p className="text-xl font-black text-slate-900 leading-none">{val ?? '--'} <span className="text-[10px] font-bold text-slate-400">{unit}</span></p>
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
+            <p className="text-lg font-black text-slate-900 leading-none">{val ?? '--'} <span className="text-[9px] font-bold text-slate-400">{unit}</span></p>
         </div>
     </div>
 );

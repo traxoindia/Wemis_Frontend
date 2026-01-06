@@ -104,6 +104,8 @@ const VehicleDataTable = () => {
             }
 
             const data = await res.json();
+            console.log(data)
+            console.log("first")
             const loc = data.location || data.rawData || {};
             const raw = data.rawData || data;
 

@@ -67,6 +67,8 @@ import LiveTracking from "./Dealer_Distributor/LiveTracking";
 import Dashboard from "./CustomerPage/Dashboard";
 import LiveTracking1 from "./CustomerPage/Livetracking";
 import WalletSystem from "./ManufacturePage/WalletSystem";
+import WalletDropdown from "./ManufacturePage/WalletDropdown";
+import Renewal from "./ManufacturePage/Renewal";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -143,7 +145,7 @@ function App() {
             {/* Manufacture Routes */}
             <Route
               path="/manufacturer/dashboard"
-              element={<ManufactureDashboard/>}
+              element={<ManufactureDashboard />}
             />
             <Route path="/dashboard/status" element={<StatusDashboard />} />
             <Route path="/dashboard/ccc" element={<CCCDashboard />} />
@@ -224,19 +226,21 @@ function App() {
             <Route path="/distributor/dealer/dashboard" element={<DealerDashboard />} />
             <Route path="oem/dealer/dashboard" element={<DealerDashboardOem />} />
             <Route path="/dealer/tickets" element={<TicketListPage />} />
-             <Route path="/tickets/all" element={<TicketsApp/>} />
-             <Route path="/distributor/dealer/Barcode" element={<Barcodelist/>}/>
-              <Route path="/distributor/dealer/technicians" element={<TechnicianDealer/>}/>
-               <Route path="/distributor/dealer/map-device" element={<MapManageDevice/>}/>
-               <Route path="/dealer/map-device/livetracking" element={<LiveTracking/>}/>
+            <Route path="/tickets/all" element={<TicketsApp />} />
+            <Route path="/distributor/dealer/Barcode" element={<Barcodelist />} />
+            <Route path="/distributor/dealer/technicians" element={<TechnicianDealer />} />
+            <Route path="/distributor/dealer/map-device" element={<MapManageDevice />} />
+            <Route path="/dealer/map-device/livetracking" element={<LiveTracking />} />
 
-              {/* Customer Routes */}
+            {/* Customer Routes */}
 
-              <Route path="/customer/dashboard" element={<Dashboard/>}/>
-               <Route path="/customer/tracking" element={<LiveTracking1/>}/>
+            <Route path="/customer/dashboard" element={<Dashboard />} />
+            <Route path="/customer/tracking" element={<LiveTracking1 />} />
 
-               {/* Wallet */}
-                <Route path="/wallet" element={<WalletSystem/>}/>
+            {/* Wallet */}
+            <Route path="/wallet/renewal" element={<Renewal />} />
+            <Route path="/wallet/activation" element={<WalletSystem />} />
+
 
           </>
         )}

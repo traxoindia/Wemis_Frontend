@@ -25,11 +25,12 @@ import {
 } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { UserAppContext } from "../contexts/UserAppProvider";
+import WalletDropdown from './WalletDropdown';
 
 const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propSetActiveRoute }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  
+
   // Use local state if props aren't provided
   const [localActiveRoute, setLocalActiveRoute] = useState(location.pathname);
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -77,9 +78,9 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
         { name: "Monitoring Dashboard", route: "/dashboard/monitoring" },
       ],
     },
-    { 
-      name: "Reports", 
-      icon: <FileText className="w-5 h-5" />, 
+    {
+      name: "Reports",
+      icon: <FileText className="w-5 h-5" />,
       route: "/reports"
     },
     {
@@ -113,9 +114,9 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
         },
       ],
     },
-    { 
-      name: "Subscription", 
-      icon: <CreditCard className="w-5 h-5" />, 
+    {
+      name: "Subscription",
+      icon: <CreditCard className="w-5 h-5" />,
       route: "/subscription"
     },
     {
@@ -209,18 +210,10 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
               Tickets
             </Link>
 
-            <Link
-              to="/wallet"
-              className="flex items-center space-x-1 text-yellow-400 hover:text-yellow-300 transition-colors"
-            >
-              <span className="font-medium">Wallet</span>
-              <ChevronDown className="w-4 h-4" />
-            </Link>
+            <WalletDropdown />
 
-            <button className="flex items-center space-x-1 text-yellow-400 hover:text-yellow-300 transition-colors">
-              <Settings className="w-5 h-5" />
-              <span className="hidden lg:inline">Settings</span>
-            </button>
+
+            
           </div>
 
           {/* User Profile */}
@@ -516,7 +509,7 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
       {/* ✅ Dealer Modal */}
       {isDealerModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div 
+          <div
             className="bg-gray-900 p-6 rounded-xl w-full max-w-md border border-yellow-500/40"
             onClick={(e) => e.stopPropagation()}
           >
