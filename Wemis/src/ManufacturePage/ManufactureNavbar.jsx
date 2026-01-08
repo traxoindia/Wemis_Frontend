@@ -154,6 +154,7 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
       setActiveRoute(item.route);
       navigate(item.route);
       if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+    
     }
   };
 

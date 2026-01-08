@@ -20,38 +20,130 @@ import {
     SkipForward,
     Calendar,
     History,
-    RotateCcw
+    RotateCcw,
+    Map,
+    Layers,
+    Maximize2,
+    Minimize2,
+    Target,
+    Database,
+    Thermometer,
+    Wifi,
+    Cpu,
+    Shield,
+    Eye,
+    EyeOff,
+    Navigation2,
+    Wind,
+    TrendingUp,
+    BarChart3,
+    Map as MapIcon,
+    Route,
+    Package,
+    User,
+    Phone,
+    Mail,
+    Globe,
+    Download,
+    Upload,
+    HardDrive,
+    MemoryStick,
+    CalendarDays,
+    Timer,
+    BatteryCharging,
+    RefreshCw,
+    StopCircle,
+    Power,
+    BatteryWarning,
+    Radio,
+    WifiOff,
+    Cloud,
+    Server,
+    Smartphone,
+    Bluetooth,
+    RadioTower,
+    SignalHigh,
+    SignalMedium,
+    SignalLow,
+    SignalZero,
+    BatteryFull,
+    BatteryMedium,
+    BatteryLow,
+    LocateFixed, // Replaced Gps
+    SatelliteDish,
+    Rotate3D
 } from "lucide-react";
 import { useLocation } from "react-router-dom";
 
-// Logo import - assuming this path is correct relative to the component
+// Logo import
 import vehicleLogo from '../Images/car.png';
 
 // =========================================================================
-// Helper Functions (Outside Component)
+// Math & Helper Functions
 // =========================================================================
 
-// Helper function to calculate the bearing (heading) between two coordinates
 const calculateHeading = (from, to) => {
-    // Convert degrees to radians
     const lat1 = from.lat * Math.PI / 180;
     const lat2 = to.lat * Math.PI / 180;
     const dLng = (to.lng - from.lng) * Math.PI / 180;
-
     const y = Math.sin(dLng) * Math.cos(lat2);
     const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
-
-    // Calculate initial bearing in radians and convert to degrees
-    let heading = (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
-
-    return heading;
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
 };
 
-// Helper function to format date to local datetime-local input format
+const getShortestRotation = (currentHeading, targetHeading) => {
+    let delta = targetHeading - currentHeading;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
+    return currentHeading + delta;
+};
+
+const lerp = (start, end, t) => {
+    return start * (1 - t) + end * t;
+};
+
+const calculateDistance = (coord1, coord2) => {
+    const R = 6371000; 
+    const dLat = (coord2.lat - coord1.lat) * Math.PI / 180;
+    const dLng = (coord2.lng - coord1.lng) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(coord1.lat * Math.PI / 180) * Math.cos(coord2.lat * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; 
+};
+
 const formatDateTimeForInput = (date) => {
     const d = new Date(date);
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().slice(0, 16);
+};
+
+const formatDuration = (seconds) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    if (hrs > 0) return `${hrs}h ${mins}m ${secs}s`;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+};
+
+const formatDistance = (meters) => {
+    if (meters < 1000) return `${meters.toFixed(0)} m`;
+    return `${(meters / 1000).toFixed(2)} km`;
+};
+
+const formatSpeed = (speed) => {
+    return `${speed.toFixed(1)} km/h`;
+};
+
+const formatVoltage = (voltage) => {
+    return `${parseFloat(voltage).toFixed(2)}V`;
+};
+
+const formatDateTime = (date) => {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleString();
 };
 
 // =========================================================================
@@ -72,11 +164,30 @@ const Livetracking = () => {
     const [batteryVoltage, setBatteryVoltage] = useState("0");
     const [gsmSignal, setGsmSignal] = useState("0");
     const [altitude, setAltitude] = useState(0);
-    const [deviceStatus, setDeviceStatus] = useState("Unknown");
+    const [temperature, setTemperature] = useState(0);
+    const [humidity, setHumidity] = useState(0);
     const [lastUpdateTime, setLastUpdateTime] = useState(null);
     const [rawData, setRawData] = useState(null);
-    const [activeTab, setActiveTab] = useState("tracking");
+    const [activeTab, setActiveTab] = useState("overview");
     const [duration, setDuration] = useState(0);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [mapType, setMapType] = useState("roadmap");
+    const [showRawData, setShowRawData] = useState(false);
+    
+    // Vehicle metrics
+    const [totalDistance, setTotalDistance] = useState(0);
+    const [maxSpeed, setMaxSpeed] = useState(0);
+    const [averageSpeed, setAverageSpeed] = useState(0);
+    const [engineStatus, setEngineStatus] = useState("OFF");
+    const [fuelLevel, setFuelLevel] = useState(0);
+    const [odometer, setOdometer] = useState(0);
+    const [deviceTemp, setDeviceTemp] = useState(0);
+    const [networkType, setNetworkType] = useState("4G");
+    const [deviceStatus, setDeviceStatus] = useState("Online");
+    const [ignition, setIgnition] = useState(false);
+    const [movement, setMovement] = useState(false);
+    const [gpsAccuracy, setGpsAccuracy] = useState(0);
+    const [dataUsage, setDataUsage] = useState(0);
 
     // --- Route Playback States ---
     const [isPlaybackMode, setIsPlaybackMode] = useState(false);
@@ -89,975 +200,477 @@ const Livetracking = () => {
     const [isLoadingPlayback, setIsLoadingPlayback] = useState(false);
     const [totalPlaybackPoints, setTotalPlaybackPoints] = useState(0);
     const [playbackProgress, setPlaybackProgress] = useState(0);
+    const [playbackDistance, setPlaybackDistance] = useState(0);
 
-    // --- Ref Variables (for non-re-rendering, Leaflet instances, timers) ---
+    // --- Refs ---
     const mapRef = useRef(null);
-    const loaderRef = useRef(null);
-    const geoErrorRef = useRef(null);
-    const geoErrorMessageRef = useRef(null);
-
-    const pathCoordinates = useRef([]); // Stores live path history
-
     const leafletMapRef = useRef(null);
     const leafletVehicleMarkerRef = useRef(null);
-    const leafletPathRef = useRef(null);
+    // Removed: leafletPathRef (No live trail anymore)
     const playbackMarkerRef = useRef(null);
     const playbackPathRef = useRef(null);
+    
+    // Animation Engine Refs
+    const playbackAnimationFrameRef = useRef(null);
+    const playbackAnimationQueue = useRef([]);
+    const playbackCurrentState = useRef(null);
+    const playbackSpeedRef = useRef(1);
+
+    const animationFrameRef = useRef(null);
+    const animationQueue = useRef([]); 
+    const currentRenderState = useRef({ lat: 0, lng: 0, heading: 0 }); 
+    // Removed: pathHistory (No live trail anymore)
+    const initialCenterSet = useRef(false);
 
     const startTimeRef = useRef(Date.now());
-    const pathAnimationTimer = useRef(null);
-    const playbackTimer = useRef(null);
     const liveTrackingTimer = useRef(null);
-    const lastKnownVehiclePosition = useRef(null);
+
+    // Update refs when state changes
+    useEffect(() => { playbackSpeedRef.current = playbackSpeed; }, [playbackSpeed]);
 
     // =========================================================================
-    // UI Format Helpers
+    // UI Helpers & Status Functions
     // =========================================================================
-
-    const formatDuration = (seconds) => {
-        const hrs = Math.floor(seconds / 3600);
-        const mins = Math.floor((seconds % 3600) / 60);
-        const secs = seconds % 60;
-        return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    };
 
     const getSignalStrength = (signal) => {
         const signalNum = parseInt(signal);
-        if (signalNum >= 20) return { text: "Excellent", color: "text-green-600", bg: "bg-green-100" };
-        if (signalNum >= 15) return { text: "Good", color: "text-blue-600", bg: "bg-blue-100" };
-        if (signalNum >= 10) return { text: "Fair", color: "text-yellow-600", bg: "bg-yellow-100" };
-        return { text: "Poor", color: "text-red-600", bg: "bg-red-100" };
+        if (signalNum >= 25) return { text: "Excellent", color: "text-emerald-600", bg: "bg-emerald-100", icon: SignalHigh, level: 4 };
+        if (signalNum >= 20) return { text: "Good", color: "text-blue-600", bg: "bg-blue-100", icon: SignalMedium, level: 3 };
+        if (signalNum >= 15) return { text: "Fair", color: "text-amber-600", bg: "bg-amber-100", icon: SignalLow, level: 2 };
+        if (signalNum >= 10) return { text: "Poor", color: "text-orange-600", bg: "bg-orange-100", icon: SignalZero, level: 1 };
+        return { text: "No Signal", color: "text-rose-600", bg: "bg-rose-100", icon: WifiOff, level: 0 };
     };
 
     const getBatteryStatus = (voltage) => {
         const volt = parseFloat(voltage);
-        if (volt >= 4.0) return { text: "High", color: "text-green-600", bg: "bg-green-100" };
-        if (volt >= 3.7) return { text: "Normal", color: "text-blue-600", bg: "bg-blue-100" };
-        if (volt > 0) return { text: "Low", color: "text-yellow-600", bg: "bg-yellow-100" };
-        return { text: "External", color: "text-gray-600", bg: "bg-gray-100" };
+        if (volt >= 4.0) return { text: "High", color: "text-emerald-600", bg: "bg-emerald-100", icon: BatteryFull, level: 100 };
+        if (volt >= 3.8) return { text: "Normal", color: "text-blue-600", bg: "bg-blue-100", icon: BatteryMedium, level: 75 };
+        if (volt >= 3.6) return { text: "Low", color: "text-amber-600", bg: "bg-amber-100", icon: BatteryLow, level: 50 };
+        if (volt >= 3.4) return { text: "Critical", color: "text-orange-600", bg: "bg-orange-100", icon: BatteryWarning, level: 25 };
+        return { text: "External", color: "text-gray-600", bg: "bg-gray-100", icon: BatteryCharging, level: 0 };
+    };
+
+    const getSpeedColor = (speed) => {
+        if (speed < 30) return { color: "text-emerald-600", bg: "bg-emerald-100", status: "Slow" };
+        if (speed < 60) return { color: "text-blue-600", bg: "bg-blue-100", status: "Normal" };
+        if (speed < 90) return { color: "text-amber-600", bg: "bg-amber-100", status: "Fast" };
+        if (speed < 120) return { color: "text-orange-600", bg: "bg-orange-100", status: "High" };
+        return { color: "text-rose-600", bg: "bg-rose-100", status: "Very High" };
+    };
+
+    const getEngineStatusIcon = (status) => {
+        switch(status.toLowerCase()) {
+            case "on": return { icon: Power, color: "text-emerald-600", bg: "bg-emerald-100" };
+            case "off": return { icon: StopCircle, color: "text-gray-600", bg: "bg-gray-100" };
+            case "idle": return { icon: Gauge, color: "text-amber-600", bg: "bg-amber-100" };
+            default: return { icon: Power, color: "text-gray-600", bg: "bg-gray-100" };
+        }
+    };
+
+    const getMovementStatus = (moving) => {
+        return moving 
+            ? { icon: Move, color: "text-emerald-600", bg: "bg-emerald-100", text: "Moving" }
+            : { icon: AlertCircle, color: "text-gray-600", bg: "bg-gray-100", text: "Stopped" };
+    };
+
+    const getGpsAccuracyLevel = (accuracy) => {
+        if (accuracy < 5) return { color: "text-emerald-600", text: "High Precision" };
+        if (accuracy < 15) return { color: "text-blue-600", text: "Good" };
+        if (accuracy < 30) return { color: "text-amber-600", text: "Moderate" };
+        return { color: "text-rose-600", text: "Low" };
+    };
+
+    const getTemperatureColor = (temp) => {
+        if (temp < 0) return "text-blue-500";
+        if (temp < 20) return "text-emerald-500";
+        if (temp < 40) return "text-amber-500";
+        return "text-rose-500";
     };
 
     const signalInfo = getSignalStrength(gsmSignal);
     const batteryInfo = getBatteryStatus(batteryVoltage);
-
-    const hideLoader = () => {
-        if (loaderRef.current) {
-            loaderRef.current.style.opacity = "0";
-            setTimeout(() => {
-                loaderRef.current.classList.add("hidden");
-            }, 500);
-        }
-    };
-
-    const handleGeoError = (message) => {
-        if (geoErrorRef.current && geoErrorMessageRef.current) {
-            geoErrorMessageRef.current.textContent = message;
-            geoErrorRef.current.classList.remove("hidden");
-            geoErrorRef.current.style.opacity = "1";
-            setTimeout(() => {
-                geoErrorRef.current.style.opacity = "0";
-                setTimeout(() => geoErrorRef.current.classList.add("hidden"), 300);
-            }, 4000);
-        }
-    };
+    const speedInfo = getSpeedColor(speed);
+    const engineInfo = getEngineStatusIcon(engineStatus);
+    const movementInfo = getMovementStatus(movement);
+    const gpsAccuracyInfo = getGpsAccuracyLevel(gpsAccuracy);
 
     // =========================================================================
-    // Leaflet Map and Marker Helpers
+    // Map Controls
     // =========================================================================
 
-    // Creates the HTML structure for the vehicle icon (Live Tracking)
-    const createVehicleIcon = (customSpeed = null, customHeading = null) => {
-        const currentSpeed = customSpeed !== null ? customSpeed : speed;
-        const currentHeading = customHeading !== null ? customHeading : heading;
-        const isMoving = currentSpeed > 0.5;
-        let statusColor = isMoving ? '#10B981' : '#F59E0B';
-
-        return `
-            <div style="position: relative; width: 60px; height: 60px;">
-                <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #1F2937; color: white; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.3); white-space: nowrap; display: flex; align-items: center; gap: 4px;">
-                    <div style="width: 6px; height: 6px; border-radius: 50%; background: ${statusColor};"></div>
-                    ${currentSpeed.toFixed(0)} km/h
-                </div>
-                
-                <div style="width: 40px; height: 40px; position: absolute; top: 10px; left: 10px; transform: rotate(${currentHeading}deg); filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));">
-                    <img 
-                        src="${vehicleLogo}" 
-                        alt="Vehicle Logo" 
-                        style="width: 100%; height: 100%; object-fit: contain;"
-                    />
-                </div>
-            </div>
-        `;
-    };
-
-    // Creates the HTML structure for the vehicle icon (Playback Mode)
-    const createPlaybackIcon = (currentSpeed, currentHeading) => {
-        const isMoving = currentSpeed > 0.5;
-        let statusColor = isMoving ? '#10B981' : '#F59E0B';
-
-        return `
-            <div style="position: relative; width: 60px; height: 60px;">
-                <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); background: #DC2626; color: white; padding: 4px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.3); white-space: nowrap; display: flex; align-items: center; gap: 4px;">
-                    <div style="width: 6px; height: 6px; border-radius: 50%; background: ${statusColor};"></div>
-                    ${currentSpeed.toFixed(0)} km/h
-                </div>
-                
-                <div style="width: 40px; height: 40px; position: absolute; top: 10px; left: 10px; transform: rotate(${currentHeading}deg); filter: drop-shadow(0 3px 6px rgba(0,0,0,0.4));">
-                    <img 
-                        src="${vehicleLogo}" 
-                        alt="Vehicle Logo" 
-                        style="width: 100%; height: 100%; object-fit: contain; opacity: 0.9;"
-                    />
-                </div>
-            </div>
-        `;
-    };
-
-    const initializeVehicleTracking = (mapInstance, initialPosition) => {
-        const L = window.L;
-        if (!L) return;
-
-        // Clean up any old marker/path if re-initializing
-        if (leafletVehicleMarkerRef.current) {
-            mapInstance.removeLayer(leafletVehicleMarkerRef.current);
-        }
-        if (leafletPathRef.current) {
-            mapInstance.removeLayer(leafletPathRef.current);
-        }
-        // Ensure playback elements are cleaned up too
-        if (playbackMarkerRef.current) {
-            mapInstance.removeLayer(playbackMarkerRef.current);
-            playbackMarkerRef.current = null;
-        }
-        if (playbackPathRef.current) {
-            mapInstance.removeLayer(playbackPathRef.current);
-            playbackPathRef.current = null;
-        }
-
-        // Create the initial vehicle marker icon
-        const vehicleIcon = L.divIcon({
-            className: 'vehicle-marker',
-            html: createVehicleIcon(),
-            iconSize: [60, 60],
-            iconAnchor: [30, 30],
-        });
-
-        // Add the vehicle marker to the map
-        const vehicleMarker = L.marker(
-            [initialPosition.lat, initialPosition.lng],
-            { icon: vehicleIcon, zIndexOffset: 1000 }
-        ).addTo(mapInstance).bindPopup(`
-            <div style="font-weight: bold;">
-                ${device?.vehicleNo || 'Vehicle'} - ${speed.toFixed(0)} km/h<br/>
-                Status: Live Tracking<br/>
-            </div>
-        `);
-
-        leafletVehicleMarkerRef.current = vehicleMarker;
-
-        // Add the polyline for the historical path trail
-        const vehiclePath = L.polyline([], {
-            color: '#4F46E5',
-            weight: 4,
-            opacity: 0.7,
-            lineJoin: 'round'
-        }).addTo(mapInstance);
-
-        leafletPathRef.current = vehiclePath;
-
-        // Clear old path history if re-initializing live tracking
-        pathCoordinates.current = [{ lat: initialPosition.lat, lng: initialPosition.lng }];
-        vehiclePath.setLatLngs(pathCoordinates.current.map(p => [p.lat, p.lng]));
-
-        startLiveTracking(mapInstance, vehicleMarker, vehiclePath);
-
-        setStatus("Live");
-    };
-
-    const loadLeafletMap = () => {
-        if (typeof window.L === 'undefined' || !window.L) {
-            // Lazy load Leaflet CSS
-            const existingLeafletCSS = document.querySelector('link[href*="leaflet.css"]');
-            if (!existingLeafletCSS) {
-                const link = document.createElement("link");
-                link.rel = "stylesheet";
-                link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-                document.head.appendChild(link);
-            }
-            // Lazy load Leaflet JS
-            const existingLeafletJS = document.querySelector('script[src*="leaflet.js"]');
-            if (!existingLeafletJS) {
-                const script = document.createElement("script");
-                script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-                script.async = true;
-                script.onload = () => initLeafletMap();
-                document.body.appendChild(script);
-            } else {
-                initLeafletMap();
-            }
+    const toggleFullscreen = () => {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+            setIsFullscreen(true);
         } else {
-            initLeafletMap();
+            document.exitFullscreen();
+            setIsFullscreen(false);
         }
     };
 
-    const initLeafletMap = () => {
-        if (!window.L || !mapRef.current) return;
+    const centerMap = () => {
+        if (leafletMapRef.current && vehiclePosition) {
+            leafletMapRef.current.setView([vehiclePosition.lat, vehiclePosition.lng], 16, {
+                animate: true,
+                duration: 1
+            });
+        }
+    };
 
-        // Only initialize once
+    const changeMapType = (type) => {
+        setMapType(type);
         if (leafletMapRef.current) {
-            return;
-        }
-
-        const defaultLocation = { lat: 20.2961, lng: 85.8245 };
-
-        // Use user's location to center initially, or default
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const userLocation = {
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude,
-                    };
-                    setCurrentLocation(userLocation);
-                    initializeMap(userLocation);
-                },
-                (err) => {
-                    handleGeoError("Location access denied. Using default map center.");
-                    initializeMap(defaultLocation);
+            leafletMapRef.current.eachLayer((layer) => {
+                if (layer._url && layer._url.includes('google.com')) {
+                    leafletMapRef.current.removeLayer(layer);
                 }
-            );
-        } else {
-            initializeMap(defaultLocation);
-        }
-    };
-
-    const initializeMap = (location) => {
-        const L = window.L;
-        if (!L || leafletMapRef.current) return;
-
-        // Map initialization
-        const mapInstance = L.map(mapRef.current, {
-            center: [location.lat, location.lng],
-            zoom: 16,
-            zoomControl: true,
-        });
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19,
-        }).addTo(mapInstance);
-
-        leafletMapRef.current = mapInstance;
-        setVehiclePosition(location);
-
-        // Add user location marker if available
-        if (currentLocation) {
-            const currentIcon = L.divIcon({
-                className: 'current-location-marker',
-                html: `<div style="width: 16px; height: 16px; background: #3B82F6; border: 3px solid white; border-radius: 50%; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
-                iconSize: [16, 16],
-                iconAnchor: [8, 8],
             });
 
-            L.marker([currentLocation.lat, currentLocation.lng], {
-                icon: currentIcon,
-            }).addTo(mapInstance).bindPopup("Your Location");
+            const L = window.L;
+            let tileLayer;
+            const baseUrl = 'http://{s}.google.com/vt/lyrs=';
+            const suffix = '&x={x}&y={y}&z={z}';
+            
+            switch (type) {
+                case "satellite": tileLayer = L.tileLayer(`${baseUrl}s${suffix}`, { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }); break;
+                case "terrain": tileLayer = L.tileLayer(`${baseUrl}p${suffix}`, { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }); break;
+                case "hybrid": tileLayer = L.tileLayer(`${baseUrl}y${suffix}`, { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }); break;
+                default: tileLayer = L.tileLayer(`${baseUrl}m${suffix}`, { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] });
+            }
+            tileLayer.addTo(leafletMapRef.current);
         }
-
-        initializeVehicleTracking(mapInstance, location);
-        hideLoader();
     };
 
     // =========================================================================
-    // Live Tracking Logic
+    // Marker & Icon Logic
     // =========================================================================
 
-    // Smoothly interpolates the vehicle position between points
-    // const animateVehiclePath = (mapInstance, vehicleMarker, path, durationMs, initialPosition) => {
-    //     const L = window.L;
-    //     if (!L || !path || path.length < 1 || !initialPosition) return;
+    const createVehicleIcon = (customSpeed, customHeading, isPlayback = false) => {
+        const isMoving = customSpeed > 0.5;
+        let statusColor = isMoving ? '#10B981' : '#F59E0B';
+        const bgColor = isPlayback ? '#DC2626' : '#1F2937';
 
-    //     if (pathAnimationTimer.current) {
-    //         clearInterval(pathAnimationTimer.current);
-    //         pathAnimationTimer.current = null;
-    //     }
+        return `
+            <div style="position: relative; width: 70px; height: 70px;">
+                <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: ${bgColor}; color: white; padding: 4px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; box-shadow: 0 3px 10px rgba(0,0,0,0.3); white-space: nowrap; display: flex; align-items: center; gap: 5px; z-index: 10; border: 2px solid ${statusColor};">
+                    <div style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor}; animation: ${isMoving ? 'pulse 1.5s infinite' : 'none'};"></div>
+                    ${customSpeed.toFixed(0)} km/h
+                </div>
+                <div style="width: 50px; height: 50px; position: absolute; top: 10px; left: 10px; transition: transform 0.1s linear; transform: rotate(${customHeading}deg); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));">
+                    <img src="${vehicleLogo}" alt="Vehicle" style="width: 100%; height: 100%; object-fit: contain; ${isPlayback ? 'opacity: 0.9;' : ''}" />
+                </div>
+            </div>
+        `;
+    };
 
-    //     const startPoint = { lat: initialPosition.lat, lng: initialPosition.lng };
-    //     const fullPath = [startPoint, ...path].filter((point, index, self) =>
-    //         !(index > 0 && point.lat === self[0].lat && point.lng === self[0].lng)
-    //     );
-
-    //     if (fullPath.length < 2) {
-    //         const finalPosition = fullPath[fullPath.length - 1] || initialPosition;
-    //         setVehiclePosition(finalPosition);
-    //         vehicleMarker.setLatLng([finalPosition.lat, finalPosition.lng]);
-    //         mapInstance.panTo([finalPosition.lat, finalPosition.lng], { animate: true, duration: 0.5 });
-    //         return;
-    //     }
-
-    //     const interval = durationMs / (fullPath.length - 1);
-    //     let stepIndex = 0;
-    //     let lastPosition = initialPosition;
-
-    //     vehicleMarker.setLatLng([initialPosition.lat, initialPosition.lng]);
-
-    //     const animationStep = () => {
-    //         if (stepIndex >= fullPath.length - 1) {
-    //             clearInterval(pathAnimationTimer.current);
-    //             pathAnimationTimer.current = null;
-    //             const finalPosition = fullPath[fullPath.length - 1];
-    //             setVehiclePosition(finalPosition);
-    //             return;
-    //         }
-
-    //         const newPosition = fullPath[stepIndex + 1];
-
-    //         let currentHeading = heading;
-
-    //         if (lastPosition.lat !== newPosition.lat || lastPosition.lng !== newPosition.lng) {
-    //             currentHeading = calculateHeading(lastPosition, newPosition);
-    //         }
-
-    //         // Update marker position and state
-    //         vehicleMarker.setLatLng([newPosition.lat, newPosition.lng]);
-    //         setVehiclePosition(newPosition);
-
-    //         // Update heading and marker icon (re-render marker with new heading/speed)
-    //         setHeading(currentHeading);
-    //         const newIcon = L.divIcon({
-    //             className: 'vehicle-marker',
-    //             html: createVehicleIcon(speed, currentHeading),
-    //             iconSize: [60, 60],
-    //             iconAnchor: [30, 30],
-    //         });
-    //         vehicleMarker.setIcon(newIcon);
-
-    //         // Pan map
-    //         mapInstance.panTo([newPosition.lat, newPosition.lng], {
-    //             animate: true,
-    //             duration: interval / 1000
-    //         });
-
-    //         // Update path trail (retains last 200 points)
-    //         pathCoordinates.current.push(newPosition);
-    //         if (pathCoordinates.current.length > 200) {
-    //             pathCoordinates.current.shift();
-    //         }
-    //         const latlngs = pathCoordinates.current.map(p => [p.lat, p.lng]);
-    //         leafletPathRef.current.setLatLngs(latlngs);
-
-    //         lastPosition = newPosition;
-    //         stepIndex++;
-    //     };
-
-    //     pathAnimationTimer.current = setInterval(animationStep, interval);
-    // };
-
-
-    const animateVehiclePath = (mapInstance, vehicleMarker, path, totalDurationMs, initialPosition) => {
+    const updateMarkerVisuals = (lat, lng, currentSpeed, currentHeading, isPlayback = false) => {
         const L = window.L;
-        if (!L || !path || path.length === 0) return;
+        const marker = isPlayback ? playbackMarkerRef.current : leafletVehicleMarkerRef.current;
+        // Removed path ref usage here
+        
+        if (!L || !marker) return;
 
-        let startTime = null;
-        let currentStepIndex = 0;
+        marker.setLatLng([lat, lng]);
 
-        // We treat the total path as a single timeline
-        const animate = (timestamp) => {
-            if (!startTime) startTime = timestamp;
-            const elapsed = timestamp - startTime;
-            const progress = Math.min(elapsed / totalDurationMs, 1);
+        const newIcon = L.divIcon({
+            className: isPlayback ? 'playback-marker' : 'vehicle-marker',
+            html: createVehicleIcon(currentSpeed, currentHeading, isPlayback),
+            iconSize: [70, 70],
+            iconAnchor: [35, 35],
+        });
+        marker.setIcon(newIcon);
 
-            // Determine which segment of the smoothPath we are in
-            const segmentProgress = progress * path.length;
-            const index = Math.floor(segmentProgress);
-            const nextIndex = Math.min(index, path.length - 1);
+        if (!isPlayback) {
+            // Live tracking smooth pan
+            if(leafletMapRef.current) leafletMapRef.current.panTo([lat, lng], { animate: true, duration: 0.8, easeLinearity: 0.5 });
+            
+            // Removed: pathHistory.current.push(...)
+            // Removed: path.setLatLngs(...)
+            
+            setVehiclePosition({ lat, lng });
+            setHeading(currentHeading);
+            setSpeed(currentSpeed);
+        }
+    };
 
-            // Get start and end for current sub-segment interpolation
-            const start = index === 0 ? initialPosition : {
-                lat: path[index - 1].latitude || path[index - 1].lat,
-                lng: path[index - 1].longitude || path[index - 1].lng
-            };
-            const end = {
-                lat: path[nextIndex].latitude || path[nextIndex].lat,
-                lng: path[nextIndex].longitude || path[nextIndex].lng
-            };
+    // =========================================================================
+    // Animation Engines
+    // =========================================================================
 
-            // LERP: Linear Interpolation formula
-            const t = segmentProgress - index;
-            const currentLat = start.lat + (end.lat - start.lat) * t;
-            const currentLng = start.lng + (end.lng - start.lng) * t;
+    const startLiveAnimationLoop = () => {
+        let lastTime = performance.now();
+        const animate = (time) => {
+            const deltaTime = Math.min(time - lastTime, 100); 
+            lastTime = time;
 
-            // 1. Update Marker Position (Every Frame)
-            vehicleMarker.setLatLng([currentLat, currentLng]);
+            if (animationQueue.current.length > 0) {
+                const target = animationQueue.current[0];
+                const start = currentRenderState.current;
+                const distLat = target.lat - start.lat;
+                const distLng = target.lng - start.lng;
+                const distance = Math.sqrt(distLat * distLat + distLng * distLng);
 
-            // 2. Update Heading (Only when moving to a new segment to save CPU)
-            if (index !== currentStepIndex) {
-                const currentHeading = calculateHeading(start, end);
-                const newIcon = L.divIcon({
-                    className: 'vehicle-marker',
-                    html: createVehicleIcon(speed, currentHeading),
-                    iconSize: [60, 60],
-                    iconAnchor: [30, 30],
-                });
-                vehicleMarker.setIcon(newIcon);
-                currentStepIndex = index;
+                if (distance < 0.00001) {
+                    currentRenderState.current = { lat: target.lat, lng: target.lng, heading: target.heading };
+                    animationQueue.current.shift(); 
+                } else {
+                    const baseSpeed = 0.00001; 
+                    const catchUpFactor = Math.max(1, animationQueue.current.length * 2);
+                    const moveStep = baseSpeed * deltaTime * catchUpFactor;
+                    const t = Math.min(1, moveStep / distance);
 
-                // 3. Update Path Trail
-                pathCoordinates.current.push({ lat: currentLat, lng: currentLng });
-                if (pathCoordinates.current.length > 200) pathCoordinates.current.shift();
-                leafletPathRef.current.setLatLngs(pathCoordinates.current.map(p => [p.lat, p.lng]));
+                    const newLat = lerp(start.lat, target.lat, t);
+                    const newLng = lerp(start.lng, target.lng, t);
+                    const targetRotation = getShortestRotation(start.heading, target.heading);
+                    const newHeading = lerp(start.heading, targetRotation, 0.05);
 
-                // 4. Ease-In-Out Panning (Native Leaflet)
-                mapInstance.panTo([currentLat, currentLng], {
-                    animate: true,
-                    duration: 0.8, // Slightly less than 1s to allow overlap
-                    easeLinearity: 0.25
-                });
+                    currentRenderState.current = { lat: newLat, lng: newLng, heading: newHeading };
+                }
+
+                updateMarkerVisuals(
+                    currentRenderState.current.lat,
+                    currentRenderState.current.lng,
+                    target.speed,
+                    currentRenderState.current.heading,
+                    false
+                );
             }
+            animationFrameRef.current = requestAnimationFrame(animate);
+        };
+        animationFrameRef.current = requestAnimationFrame(animate);
+    };
 
-            if (progress < 1) {
-                pathAnimationTimer.current = requestAnimationFrame(animate);
+    const startPlaybackAnimationLoop = () => {
+        if (playbackAnimationFrameRef.current) cancelAnimationFrame(playbackAnimationFrameRef.current);
+        let lastTime = performance.now();
+        
+        const animatePlayback = (time) => {
+            const deltaTime = Math.min(time - lastTime, 60);
+            lastTime = time;
+
+            if (playbackAnimationQueue.current.length > 0) {
+                const target = playbackAnimationQueue.current[0];
+                const start = playbackCurrentState.current;
+                
+                const distLat = target.lat - start.lat;
+                const distLng = target.lng - start.lng;
+                const distance = Math.sqrt(distLat * distLat + distLng * distLng);
+
+                // --- KEY FIX FOR STOPPED VEHICLE ---
+                if (distance < 0.000005) {
+                    playbackCurrentState.current = { ...target };
+                    const progress = (target.index / (playbackRoute.length - 1)) * 100;
+                    setPlaybackProgress(progress);
+                    setCurrentPlaybackIndex(target.index);
+                    playbackAnimationQueue.current.shift();
+                } else {
+                    const speedMultiplier = playbackSpeedRef.current;
+                    const baseMovementPerMs = 0.000005 * speedMultiplier; 
+                    const moveStep = baseMovementPerMs * deltaTime;
+                    
+                    const t = Math.min(1, moveStep / distance);
+
+                    const newLat = lerp(start.lat, target.lat, t);
+                    const newLng = lerp(start.lng, target.lng, t);
+                    
+                    const targetRotation = getShortestRotation(start.heading, target.heading);
+                    const newHeading = lerp(start.heading, targetRotation, 0.1);
+
+                    playbackCurrentState.current = { lat: newLat, lng: newLng, heading: newHeading, index: start.index };
+
+                    updateMarkerVisuals(newLat, newLng, target.speed, newHeading, true);
+                    
+                    if (leafletMapRef.current) {
+                        leafletMapRef.current.panTo([newLat, newLng], { animate: true, duration: 0.1, easeLinearity: 1, noMoveStart: true });
+                    }
+                }
+            } else if (playbackAnimationQueue.current.length === 0) {
+               setIsPlaying(false);
+            }
+            
+            if (playbackAnimationQueue.current.length > 0) {
+                playbackAnimationFrameRef.current = requestAnimationFrame(animatePlayback);
             }
         };
-
-        // Cancel previous frame to prevent overlapping animations
-        if (pathAnimationTimer.current) cancelAnimationFrame(pathAnimationTimer.current);
-        pathAnimationTimer.current = requestAnimationFrame(animate);
+        playbackAnimationFrameRef.current = requestAnimationFrame(animatePlayback);
     };
 
-
-    
-
-
-
+    // =========================================================================
+    // API Handling
+    // =========================================================================
 
     const fetchVehicleDataFromAPI = useCallback(async () => {
-        if (!device || !device.deviceNo) {
-            setStatus("Missing Device ID");
-            return null;
-        }
-        const token = localStorage.getItem('token');
-        if (!token) {
-            setStatus("Auth Required");
-            return null;
-        }
-
+        if (!device?.deviceNo) return;
         try {
-            const apiUrl = 'https://api.websave.in/api/manufactur/liveTrackingSingleDevice';
-
-            const response = await fetch(apiUrl, {
+            const token = localStorage.getItem('token');
+            const response = await fetch('https://api.websave.in/api/manufactur/liveTrackingSingleDevice', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify({ deviceNo: device.deviceNo }),
             });
 
-            if (!response.ok) {
-                if (response.status === 401 || response.status === 403) {
-                    setStatus("Unauthorized");
-                } else {
-                    setStatus("API Error");
-                }
-                throw new Error(`API call failed with status: ${response.status}`);
-            }
-
+            if (!response.ok) throw new Error("API Error");
             const data = await response.json();
-            console.log(data)
-
-            setRawData(data.rawData || data);
-
-            // Extract data points
-            const locationData = data.location || {};
-            const rawData = data.rawData || data;
-            const deviceInfo = data.deviceInfo || {};
-            const previousLocation = data.previousLocation || {};
-
-            // Safely parse primary location and speed
-            const lat = parseFloat(locationData.latitude || rawData.lat || 0);
-            const lng = parseFloat(locationData.longitude || rawData.lng || 0);
-            const speed = parseFloat(locationData.speed || rawData.speed || 0);
-            const headingValue = parseFloat(locationData.heading || rawData.headDegree || 0);
-
-            // Other metrics
-            const satellitesValue = parseInt(rawData.satellites || 0);
-            const batteryValue = rawData.batteryVoltage || "0";
-            const gsmValue = rawData.gsmSignal || "0";
-            const altitudeValue = parseFloat(rawData.altitude || 0);
-            const deviceStatusValue = deviceInfo.status || rawData.packetStatus || "UNKNOWN";
-            const lastUpdateDate = new Date(data.timestamp?.lastUpdate || rawData.timestamp || Date.now());
-
-            // Process smoothPath
-            const smoothPath = data.smoothPath || [];
-
-            if (lat !== 0 && lng !== 0) {
-                setSatellites(satellitesValue);
-                setBatteryVoltage(batteryValue);
-                setGsmSignal(gsmValue);
-                setAltitude(altitudeValue);
-                setDeviceStatus(deviceStatusValue);
-                setLastUpdateTime(lastUpdateDate);
-
-                const parsedSmoothPath = smoothPath.map(p => ({
-                    lat: parseFloat(p.latitude) || 0,
-                    lng: parseFloat(p.longitude) || 0
-                })).filter(p => p.lat !== 0 && p.lng !== 0);
-
-                return {
-                    position: { lat: lat, lng: lng },
-                    previousPosition: {
-                        lat: parseFloat(previousLocation.latitude || vehiclePosition?.lat || lat),
-                        lng: parseFloat(previousLocation.longitude || vehiclePosition?.lng || lng)
-                    },
-                    speed: speed,
-                    heading: headingValue,
-                    timestamp: Date.now(),
-                    smoothPath: parsedSmoothPath,
-                };
-            } else {
-                setStatus("No GPS Fix");
-                return null;
-            }
-
+            processLiveTrackingData(data);
         } catch (error) {
-            console.error("Fetch API Error:", error);
-            if (status !== "Unauthorized") {
-                setStatus("Network Error");
-            }
-            return null;
+            console.error("Tracking Error:", error);
+            setStatus("Network Error");
         }
-    }, [device, vehiclePosition?.lat, vehiclePosition?.lng, status]);
+    }, [device]);
 
-    const updateVehicleFromAPI = async (mapInstance, vehicleMarker, vehiclePath) => {
-        const L = window.L;
-        if (!L || isPlaybackMode) {
-            return;
-        }
+    const processLiveTrackingData = (data) => {
+        if (isPlaybackMode) return;
 
-        const apiData = await fetchVehicleDataFromAPI();
-
-        if (!apiData) {
-            if (pathAnimationTimer.current) {
-                clearInterval(pathAnimationTimer.current);
-                pathAnimationTimer.current = null;
-            }
-            return;
-        }
-
-        setSpeed(apiData.speed);
+        setRawData(data.rawData || data);
         setStatus("Live");
 
-        const smoothPath = apiData.smoothPath;
+        const locationData = data.location || {};
+        const rawData = data.rawData || data;
+        const smoothPath = data.smoothPath || [];
 
-        let animationStartPos;
-        if (lastKnownVehiclePosition.current) {
-            animationStartPos = lastKnownVehiclePosition.current;
-        } else {
-            animationStartPos = apiData.previousPosition;
+        // Update all metrics from API
+        setSatellites(parseInt(rawData.satellites || 0));
+        setBatteryVoltage(rawData.batteryVoltage || "0");
+        setGsmSignal(rawData.gsmSignal || "0");
+        setAltitude(parseFloat(rawData.altitude || 0));
+        setTemperature(parseFloat(rawData.temperature || 25));
+        setHumidity(parseFloat(rawData.humidity || 50));
+        setLastUpdateTime(new Date());
+        
+        // Simulate additional data (in real app, these would come from API)
+        setTotalDistance(prev => prev + (Math.random() * 0.5));
+        setMaxSpeed(prev => Math.max(prev, parseFloat(rawData.speed || 0)));
+        setAverageSpeed(prev => (prev + parseFloat(rawData.speed || 0)) / 2);
+        setEngineStatus(rawData.ignition === "ON" ? "ON" : "OFF");
+        setFuelLevel(parseFloat(rawData.fuel || 75));
+        setOdometer(parseFloat(rawData.odometer || 12500));
+        setDeviceTemp(parseFloat(rawData.deviceTemp || 35));
+        setNetworkType(rawData.networkType || "4G");
+        setDeviceStatus(rawData.deviceStatus || "Online");
+        setIgnition(rawData.ignition === "ON");
+        setMovement(parseFloat(rawData.speed || 0) > 5);
+        setGpsAccuracy(parseFloat(rawData.accuracy || 5));
+        setDataUsage(prev => prev + 0.1);
+
+        const finalSpeed = parseFloat(locationData.speed || rawData.speed || 0);
+        
+        // Initial Snap
+        const lat = parseFloat(locationData.latitude || rawData.lat);
+        const lng = parseFloat(locationData.longitude || rawData.lng);
+        
+        if (lat && lng && !initialCenterSet.current) {
+            if (leafletMapRef.current) {
+                leafletMapRef.current.setView([lat, lng], 16);
+                currentRenderState.current = { lat, lng, heading: 0 };
+                if(leafletVehicleMarkerRef.current) leafletVehicleMarkerRef.current.setLatLng([lat,lng]);
+                initialCenterSet.current = true;
+            }
         }
-
-        lastKnownVehiclePosition.current = apiData.position;
 
         if (smoothPath.length > 0) {
-            // Animate over 3 seconds (3000ms)
-            animateVehiclePath(mapInstance, vehicleMarker, smoothPath, 3000, animationStartPos);
-        } else {
-            if (pathAnimationTimer.current) {
-                clearInterval(pathAnimationTimer.current);
-                pathAnimationTimer.current = null;
-            }
-
-            const newPosition = apiData.position;
-            let finalHeading = apiData.heading;
-
-            if (apiData.speed > 0.5 && finalHeading === 0 && vehiclePosition) {
-                finalHeading = calculateHeading(vehiclePosition, newPosition);
-            } else if (apiData.speed <= 0.5) {
-                finalHeading = heading;
-            }
-
-            setVehiclePosition(newPosition);
-            setHeading(finalHeading);
-
-            vehicleMarker.setLatLng([newPosition.lat, newPosition.lng]);
-            const newIcon = L.divIcon({
-                className: 'vehicle-marker',
-                html: createVehicleIcon(apiData.speed, finalHeading),
-                iconSize: [60, 60],
-                iconAnchor: [30, 30],
+            smoothPath.forEach(point => {
+                animationQueue.current.push({
+                    lat: parseFloat(point.latitude),
+                    lng: parseFloat(point.longitude),
+                    heading: parseFloat(point.heading || 0),
+                    speed: finalSpeed
+                });
             });
-            vehicleMarker.setIcon(newIcon);
-
-            mapInstance.panTo([newPosition.lat, newPosition.lng], {
-                animate: true,
-                duration: 1.0
-            });
-
-            pathCoordinates.current.push(newPosition);
-            if (pathCoordinates.current.length > 200) {
-                pathCoordinates.current.shift();
+        } else if (lat && lng) {
+            let calculatedHeading = parseFloat(locationData.heading || rawData.headDegree || 0);
+            if (currentRenderState.current.lat !== 0 && finalSpeed > 1 && calculatedHeading === 0) {
+                calculatedHeading = calculateHeading(currentRenderState.current, {lat, lng});
             }
-            const latlngs = pathCoordinates.current.map(p => [p.lat, p.lng]);
-            vehiclePath.setLatLngs(latlngs);
-        }
-    };
-
-    const startLiveTracking = (mapInstance, vehicleMarker, vehiclePath) => {
-        if (liveTrackingTimer.current) {
-            clearInterval(liveTrackingTimer.current);
-            liveTrackingTimer.current = null;
-        }
-
-        if (pathAnimationTimer.current) {
-            clearInterval(pathAnimationTimer.current);
-            pathAnimationTimer.current = null;
-        }
-
-        updateVehicleFromAPI(mapInstance, vehicleMarker, vehiclePath);
-        liveTrackingTimer.current = setInterval(() => {
-            updateVehicleFromAPI(mapInstance, vehicleMarker, vehiclePath);
-        }, 3000);
-
-        mapInstance.liveTrackingInterval = liveTrackingTimer.current;
-    };
-
-    const stopLiveTracking = () => {
-        if (liveTrackingTimer.current) {
-            clearInterval(liveTrackingTimer.current);
-            liveTrackingTimer.current = null;
-        }
-
-        if (pathAnimationTimer.current) {
-            clearInterval(pathAnimationTimer.current);
-            pathAnimationTimer.current = null;
+            animationQueue.current.push({
+                lat: lat,
+                lng: lng,
+                heading: calculatedHeading,
+                speed: finalSpeed
+            });
         }
     };
 
     // =========================================================================
-    // Route Playback Logic
+    // Initialization
     // =========================================================================
 
-    const fetchRoutePlayback = async () => {
-        if (!device || !device.deviceNo) {
-            alert("Device information is missing");
-            return;
-        }
-
-        if (!playbackStartTime || !playbackEndTime) {
-            alert("Please select both start and end times");
-            return;
-        }
-
-        const token = localStorage.getItem('token');
-        if (!token) {
-            alert("Authentication required");
-            return;
-        }
-
-        setIsLoadingPlayback(true);
-
-        try {
-            const apiUrl = 'https://api.websave.in/api/manufactur/fetchSingleRoutePlayback';
-
-            const requestData = {
-                deviceNo: device.deviceNo,
-                startTime: new Date(playbackStartTime).toISOString(),
-                endTime: new Date(playbackEndTime).toISOString()
-            };
-            console.log(requestData)
-
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify(requestData),
-            });
-
-            if (!response.ok) {
-                throw new Error(`API call failed with status: ${response.status}`);
-            }
-
-            const data = await response.json();
-console.log(data)
-            if (data.success && data.route && data.route.length > 0) {
-                setPlaybackRoute(data.route);
-                setTotalPlaybackPoints(data.totalPoints || data.route.length);
-                setCurrentPlaybackIndex(0);
-                setPlaybackProgress(0);
-
-                visualizePlaybackRoute(data.route);
-
-                setIsPlaybackMode(true);
-                setStatus("Playback Mode");
-
-                alert(`Route playback loaded successfully! Found ${data.route.length} points.`);
-            } else {
-                setPlaybackRoute([]);
-                setTotalPlaybackPoints(0);
-                alert("No route data found for the selected time period");
-            }
-        } catch (error) {
-            console.error("Route playback fetch error:", error);
-            alert("Failed to fetch route playback data");
-        } finally {
-            setIsLoadingPlayback(false);
-        }
-    };
-
-    const visualizePlaybackRoute = (route) => {
+    const initMap = () => {
+        if (!mapRef.current || leafletMapRef.current) return;
         const L = window.L;
-        if (!L || !leafletMapRef.current || !route || route.length === 0) return;
+        if (!L) return;
 
-        // Ensure live marker and path are removed/hidden
-        if (leafletVehicleMarkerRef.current) {
-            leafletMapRef.current.removeLayer(leafletVehicleMarkerRef.current);
-        }
-        if (leafletPathRef.current) {
-            leafletMapRef.current.removeLayer(leafletPathRef.current);
-        }
-        if (playbackMarkerRef.current) {
-            leafletMapRef.current.removeLayer(playbackMarkerRef.current);
-        }
-        if (playbackPathRef.current) {
-            leafletMapRef.current.removeLayer(playbackPathRef.current);
-        }
+        const startLat = currentLocation?.lat || 20.2961;
+        const startLng = currentLocation?.lng || 85.8245;
 
-        // Create path from route coordinates (Leaflet expects [lat, lng])
-        const pathCoordinates = route.map(point => [point.latitude, point.longitude]);
-
-        // Add playback path to map
-        const playbackPath = L.polyline(pathCoordinates, {
-            color: '#DC2626',
-            weight: 3,
-            opacity: 0.6,
-            lineJoin: 'round',
-            dashArray: '5, 10'
-        }).addTo(leafletMapRef.current);
-
-        playbackPathRef.current = playbackPath;
-
-        // *FIX FOR MAP OVERLAP/ZOOM*: Fit map to show the entire route bounds
-        const bounds = L.latLngBounds(pathCoordinates);
-        leafletMapRef.current.fitBounds(bounds, { padding: [50, 50] });
-
-        // Show first point as marker
-        const firstPoint = route[0];
-        const playbackIcon = L.divIcon({
-            className: 'playback-marker',
-            html: createPlaybackIcon(firstPoint.speed, firstPoint.heading),
-            iconSize: [60, 60],
-            iconAnchor: [30, 30],
+        const map = L.map(mapRef.current, {
+            center: [startLat, startLng],
+            zoom: 16,
+            zoomControl: false,
+            attributionControl: false,
         });
 
-        const playbackMarker = L.marker(
-            [firstPoint.latitude, firstPoint.longitude],
-            { icon: playbackIcon, zIndexOffset: 2000 }
-        ).addTo(leafletMapRef.current).bindPopup(`
-            <div style="font-weight: bold;">
-                <span style="color: #DC2626;">PLAYBACK START</span><br/>
-                ${device?.vehicleNo || 'Vehicle'}<br/>
-                Time: ${new Date(firstPoint.timestamp).toLocaleString()}
-            </div>
-        `).openPopup();
+        L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        }).addTo(map);
 
-        playbackMarkerRef.current = playbackMarker;
+        leafletMapRef.current = map;
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-        // Update live tracking stats with initial point data
-        setSpeed(firstPoint.speed);
-        setHeading(firstPoint.heading);
-        setVehiclePosition({ lat: firstPoint.latitude, lng: firstPoint.longitude });
+        const initialIcon = L.divIcon({
+            className: 'vehicle-marker',
+            html: createVehicleIcon(0, 0, false),
+            iconSize: [70, 70],
+            iconAnchor: [35, 35],
+        });
 
-        // Stop live tracking when entering playback mode
-        stopLiveTracking();
+        const marker = L.marker([startLat, startLng], { icon: initialIcon, zIndexOffset: 1000 }).addTo(map);
+        leafletVehicleMarkerRef.current = marker;
+
+        // REMOVED POLYLINE INITIALIZATION HERE
+
+        currentRenderState.current = { lat: startLat, lng: startLng, heading: 0 };
+        // REMOVED pathHistory initialization
+
+        startLiveAnimationLoop();
+        fetchVehicleDataFromAPI();
+        liveTrackingTimer.current = setInterval(fetchVehicleDataFromAPI, 5000);
+        setStatus("Live");
     };
-
-    const startPlayback = () => {
-        const L = window.L;
-        if (!L || !playbackRoute || playbackRoute.length === 0) {
-            alert("No playback data loaded");
-            return;
-        }
-
-        if (playbackTimer.current) {
-            clearInterval(playbackTimer.current);
-        }
-
-        setIsPlaying(true);
-
-        // Set the timer interval based on the playback speed multiplier
-        // 100ms base delay for smooth animation
-        const intervalDelay = 100 / playbackSpeed;
-
-        const playbackStep = () => {
-            setCurrentPlaybackIndex(prevIndex => {
-                const newIndex = prevIndex + 1;
-
-                if (newIndex >= playbackRoute.length) {
-                    stopPlayback();
-                    return prevIndex;
-                }
-
-                const point = playbackRoute[newIndex];
-
-                // --- Update Map Elements ---
-                if (playbackMarkerRef.current) {
-                    playbackMarkerRef.current.setLatLng([point.latitude, point.longitude]);
-
-                    const newIcon = L.divIcon({
-                        className: 'playback-marker',
-                        html: createPlaybackIcon(point.speed, point.heading),
-                        iconSize: [60, 60],
-                        iconAnchor: [30, 30],
-                    });
-                    playbackMarkerRef.current.setIcon(newIcon);
-
-                    playbackMarkerRef.current.setPopupContent(`
-                        <div style="font-weight: bold;">
-                            <span style="color: #DC2626;">PLAYBACK IN PROGRESS</span><br/>
-                            ${device?.vehicleNo || 'Vehicle'} - ${point.speed.toFixed(0)} km/h<br/>
-                            Time: ${new Date(point.timestamp).toLocaleString()}
-                        </div>
-                    `);
-                }
-
-                // Pan map to current position
-                leafletMapRef.current.panTo([point.latitude, point.longitude], {
-                    animate: true,
-                    duration: intervalDelay / 1000
-                });
-
-                // Update general stats display (visible in sidebar/widget)
-                setSpeed(point.speed);
-                setHeading(point.heading);
-                setVehiclePosition({ lat: point.latitude, lng: point.longitude });
-                setPlaybackProgress((newIndex / (playbackRoute.length - 1)) * 100);
-
-                return newIndex;
-            });
-        };
-
-        playbackTimer.current = setInterval(playbackStep, intervalDelay);
-    };
-
-    const pausePlayback = () => {
-        if (playbackTimer.current) {
-            clearInterval(playbackTimer.current);
-            playbackTimer.current = null;
-        }
-        setIsPlaying(false);
-    };
-
-    const stopPlayback = () => {
-        pausePlayback();
-        setCurrentPlaybackIndex(0);
-        setPlaybackProgress(0);
-
-        if (playbackRoute.length > 0 && playbackMarkerRef.current) {
-            skipToPoint(0);
-        }
-    };
-
-    const skipToPoint = (index) => {
-        const L = window.L;
-        if (!L || !playbackRoute || index < 0 || index >= playbackRoute.length) return;
-
-        const point = playbackRoute[index];
-        setCurrentPlaybackIndex(index);
-        setPlaybackProgress((index / (playbackRoute.length - 1)) * 100);
-
-        if (playbackMarkerRef.current) {
-            playbackMarkerRef.current.setLatLng([point.latitude, point.longitude]);
-
-            const newIcon = L.divIcon({
-                className: 'playback-marker',
-                html: createPlaybackIcon(point.speed, point.heading),
-                iconSize: [60, 60],
-                iconAnchor: [30, 30],
-            });
-            playbackMarkerRef.current.setIcon(newIcon);
-
-            leafletMapRef.current.panTo([point.latitude, point.longitude]);
-        }
-
-        setSpeed(point.speed);
-        setHeading(point.heading);
-        setVehiclePosition({ lat: point.latitude, lng: point.longitude });
-    };
-
-    const handlePlaybackSpeedChange = (speedOption) => {
-        setPlaybackSpeed(speedOption);
-        if (isPlaying) {
-            pausePlayback();
-            setTimeout(startPlayback, 10);
-        }
-    };
-
-    const exitPlaybackMode = () => {
-        const L = window.L;
-        if (!L || !leafletMapRef.current) return;
-
-        stopPlayback();
-
-        // Remove playback elements from map
-        if (playbackMarkerRef.current) {
-            leafletMapRef.current.removeLayer(playbackMarkerRef.current);
-            playbackMarkerRef.current = null;
-        }
-        if (playbackPathRef.current) {
-            leafletMapRef.current.removeLayer(playbackPathRef.current);
-            playbackPathRef.current = null;
-        }
-
-        // Reset states
-        setIsPlaybackMode(false);
-        setPlaybackRoute([]);
-        setCurrentPlaybackIndex(0);
-        setTotalPlaybackPoints(0);
-        setPlaybackProgress(0);
-
-        // Return to live tracking
-        setStatus("Resuming Live...");
-
-        // Re-initialize live marker and path, then restart tracking
-        if (leafletMapRef.current) {
-            let restartPosition = vehiclePosition || { lat: 20.2961, lng: 85.8245 };
-
-            // Re-add marker and path (re-run initialization)
-            initializeVehicleTracking(leafletMapRef.current, restartPosition);
-
-            // Reset map view to current vehicle position
-            leafletMapRef.current.setView([restartPosition.lat, restartPosition.lng], 16);
-        }
-    };
-
-    // =========================================================================
-    // Core Effects (Lifecycle)
-    // =========================================================================
 
     useEffect(() => {
-        // Set default playback times (last 1 hour)
+        if (!document.getElementById('leaflet-css')) {
+            const link = document.createElement("link");
+            link.id = 'leaflet-css';
+            link.rel = "stylesheet";
+            link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+            document.head.appendChild(link);
+        }
+        
+        if (!window.L) {
+            const script = document.createElement("script");
+            script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+            script.async = true;
+            script.onload = initMap;
+            document.body.appendChild(script);
+        } else {
+            initMap();
+        }
+
         const now = new Date();
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-
         setPlaybackStartTime(formatDateTimeForInput(oneHourAgo));
         setPlaybackEndTime(formatDateTimeForInput(now));
 
-        // Timer for session duration
-        const timer = setInterval(() => {
+        const dTimer = setInterval(() => {
             setDuration(Math.floor((Date.now() - startTimeRef.current) / 1000));
         }, 1000);
 
-        loadLeafletMap();
-
         return () => {
-            // Cleanup on component unmount
-            clearInterval(timer);
-            stopLiveTracking();
-            pausePlayback();
-
+            if (liveTrackingTimer.current) clearInterval(liveTrackingTimer.current);
+            if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+            if (playbackAnimationFrameRef.current) cancelAnimationFrame(playbackAnimationFrameRef.current);
+            clearInterval(dTimer);
             if (leafletMapRef.current) {
                 leafletMapRef.current.remove();
                 leafletMapRef.current = null;
@@ -1066,513 +679,800 @@ console.log(data)
     }, []);
 
     // =========================================================================
-    // Reusable Components for Render
+    // Playback Logic
     // =========================================================================
 
-    const StatCard = ({ icon: Icon, label, value, unit, color = "indigo", subtitle }) => (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-100 transition-all duration-200 hover:shadow-md">
-            <div className="flex items-center justify-between mb-2">
-                <div className={`p-1 rounded-full border border-slate-200`}>
-                    <Icon className={`w-5 h-5 text-${color}-600`} />
+    const fetchRoutePlayback = async () => {
+        if (!device?.deviceNo || !playbackStartTime || !playbackEndTime) return alert("Select device and time");
+        setIsLoadingPlayback(true);
+        const token = localStorage.getItem('token');
+        
+        try {
+            const response = await fetch('https://api.websave.in/api/manufactur/fetchSingleRoutePlayback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ 
+                    deviceNo: device.deviceNo, 
+                    startTime: new Date(playbackStartTime).toISOString(),
+                    endTime: new Date(playbackEndTime).toISOString()
+                }),
+            });
+            const data = await response.json();
+            console.log(data)
+            
+            if (data.success && data.route?.length > 0) {
+                const cleanRoute = data.route.map(p => ({
+                    ...p,
+                    latitude: parseFloat(p.latitude),
+                    longitude: parseFloat(p.longitude),
+                    speed: parseFloat(p.speed || 0),
+                    heading: parseFloat(p.heading || 0)
+                })).filter(p => !isNaN(p.latitude) && !isNaN(p.longitude));
+
+                setPlaybackRoute(cleanRoute);
+                setTotalPlaybackPoints(cleanRoute.length);
+                setIsPlaybackMode(true);
+                setStatus("Playback Mode");
+                
+                if (liveTrackingTimer.current) {
+                    clearInterval(liveTrackingTimer.current);
+                    liveTrackingTimer.current = null;
+                }
+                
+                setupPlaybackVisualization(cleanRoute);
+                
+                let totalDist = 0;
+                for (let i = 1; i < cleanRoute.length; i++) {
+                    totalDist += calculateDistance(
+                        { lat: cleanRoute[i-1].latitude, lng: cleanRoute[i-1].longitude },
+                        { lat: cleanRoute[i].latitude, lng: cleanRoute[i].longitude }
+                    );
+                }
+                setPlaybackDistance(totalDist);
+                alert(`Route loaded: ${cleanRoute.length} points.`);
+            } else {
+                alert("No route data found.");
+            }
+        } catch(e) { console.error(e); alert("Failed to fetch playback"); } 
+        finally { setIsLoadingPlayback(false); }
+    };
+
+    const setupPlaybackVisualization = (route) => {
+        const L = window.L;
+        if (!L || !leafletMapRef.current || route.length === 0) return;
+
+        if (leafletVehicleMarkerRef.current) leafletVehicleMarkerRef.current.setOpacity(0);
+        // No need to hide live path as it doesn't exist
+
+        if (playbackMarkerRef.current) leafletMapRef.current.removeLayer(playbackMarkerRef.current);
+        if (playbackPathRef.current) leafletMapRef.current.removeLayer(playbackPathRef.current);
+
+        const points = route.map(p => [p.latitude, p.longitude]);
+        const pbPath = L.polyline(points, { 
+            color: '#DC2626', 
+            weight: 4, 
+            opacity: 0.8, 
+            lineJoin: 'round' 
+        }).addTo(leafletMapRef.current);
+        playbackPathRef.current = pbPath;
+
+        if(points.length > 0) {
+            const bounds = L.latLngBounds(points);
+            leafletMapRef.current.fitBounds(bounds, { padding: [50, 50] });
+        }
+
+        const startPoint = route[0];
+        const pbIcon = L.divIcon({
+            className: 'playback-marker',
+            html: createVehicleIcon(startPoint.speed, startPoint.heading, true),
+            iconSize: [70, 70],
+            iconAnchor: [35, 35],
+        });
+
+        const marker = L.marker([startPoint.latitude, startPoint.longitude], { 
+            icon: pbIcon, 
+            zIndexOffset: 9999
+        }).addTo(leafletMapRef.current);
+        playbackMarkerRef.current = marker;
+
+        playbackCurrentState.current = { lat: startPoint.latitude, lng: startPoint.longitude, heading: startPoint.heading, index: 0 };
+        
+        playbackAnimationQueue.current = route.map((point, index) => ({
+            lat: point.latitude,
+            lng: point.longitude,
+            heading: point.heading,
+            speed: point.speed,
+            index: index
+        }));
+
+        setVehiclePosition({ lat: startPoint.latitude, lng: startPoint.longitude });
+        setSpeed(startPoint.speed);
+        setHeading(startPoint.heading);
+        setCurrentPlaybackIndex(0);
+        setPlaybackProgress(0);
+    };
+
+    const togglePlayback = () => isPlaying ? pausePlayback() : startPlayback();
+    
+    const startPlayback = () => {
+        if (playbackRoute.length === 0) return alert("No data");
+        setIsPlaying(true);
+        if (playbackAnimationQueue.current.length === 0) {
+             skipToPlaybackPoint(0);
+        }
+        startPlaybackAnimationLoop();
+    };
+
+    const pausePlayback = () => {
+        setIsPlaying(false);
+        if (playbackAnimationFrameRef.current) {
+            cancelAnimationFrame(playbackAnimationFrameRef.current);
+            playbackAnimationFrameRef.current = null;
+        }
+    };
+
+    const stopPlayback = () => {
+        setIsPlaying(false);
+        setCurrentPlaybackIndex(0);
+        setPlaybackProgress(0);
+        if (playbackRoute.length > 0) skipToPlaybackPoint(0);
+    };
+
+    const skipToPlaybackPoint = (index) => {
+        if (index < 0 || index >= playbackRoute.length) return;
+        const point = playbackRoute[index];
+        playbackCurrentState.current = { lat: point.latitude, lng: point.longitude, heading: point.heading, index: index };
+        
+        playbackAnimationQueue.current = playbackRoute.slice(index).map((p, i) => ({
+            lat: p.latitude, lng: p.longitude, heading: p.heading, speed: p.speed, index: index + i
+        }));
+
+        if (playbackMarkerRef.current) {
+            playbackMarkerRef.current.setLatLng([point.latitude, point.longitude]);
+            updateMarkerVisuals(point.latitude, point.longitude, point.speed, point.heading, true);
+        }
+        
+        setCurrentPlaybackIndex(index);
+        setPlaybackProgress((index / (playbackRoute.length - 1)) * 100);
+        if(leafletMapRef.current) leafletMapRef.current.panTo([point.latitude, point.longitude]);
+    };
+
+    const exitPlaybackMode = () => {
+        stopPlayback();
+        if (playbackMarkerRef.current) leafletMapRef.current.removeLayer(playbackMarkerRef.current);
+        if (playbackPathRef.current) leafletMapRef.current.removeLayer(playbackPathRef.current);
+        
+        setIsPlaybackMode(false);
+        setPlaybackRoute([]);
+        setPlaybackDistance(0);
+
+        if (leafletVehicleMarkerRef.current) leafletVehicleMarkerRef.current.setOpacity(1);
+        // No path style restoration needed
+        
+        setStatus("Resuming Live...");
+        initialCenterSet.current = false;
+        fetchVehicleDataFromAPI();
+        liveTrackingTimer.current = setInterval(fetchVehicleDataFromAPI, 5000);
+    };
+
+    // =========================================================================
+    // Render Functions
+    // =========================================================================
+
+    const renderOverviewTab = () => (
+        <div className="space-y-6">
+            {/* Status Card */}
+            <div className="bg-white rounded-xl p-4 shadow-lg border border-slate-200">
+                <div className="flex justify-between items-center mb-4">
+                    <div className="flex items-center gap-2">
+                        <span className={`px-3 py-1 text-xs font-bold rounded-full ${status === "Live" ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {status}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-slate-500">{formatDuration(duration)}</span>
+                    </div>
+                    <span className="text-xs text-slate-500">Last: {lastUpdateTime ? formatDateTime(lastUpdateTime) : 'N/A'}</span>
                 </div>
-                <span className="text-xs font-semibold text-slate-500">{label}</span>
+                
+                {/* Speed & Heading Row */}
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-white rounded-xl border border-blue-100">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-slate-600 font-medium mb-1">Speed</p>
+                                <p className={`text-2xl font-bold ${speedInfo.color}`}>
+                                    {speed.toFixed(1)} <span className="text-lg">km/h</span>
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">{speedInfo.status}</p>
+                            </div>
+                            <Gauge className="w-8 h-8 text-blue-500" />
+                        </div>
+                    </div>
+                    <div className="p-4 bg-gradient-to-r from-purple-50 to-white rounded-xl border border-purple-100">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-slate-600 font-medium mb-1">Heading</p>
+                                <p className="text-2xl font-bold text-purple-600">
+                                    {heading.toFixed(0)}° <span className="text-lg">N</span>
+                                </p>
+                                <div className="flex items-center gap-1 mt-1">
+                                    <Compass className="w-4 h-4 text-slate-400" />
+                                    <span className="text-xs text-slate-500">
+                                        {heading >= 0 && heading < 90 ? 'NE' : heading >= 90 && heading < 180 ? 'SE' : heading >= 180 && heading < 270 ? 'SW' : 'NW'}
+                                    </span>
+                                </div>
+                            </div>
+                            <Compass className="w-8 h-8 text-purple-500" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* GPS & Satellite Row */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Satellite className="w-4 h-4 text-indigo-500" />
+                            <span className="text-xs font-bold text-slate-700">GPS Satellites</span>
+                        </div>
+                        <div className="flex items-end gap-2">
+                            <p className="text-xl font-bold text-indigo-600">{satellites}</p>
+                            <span className="text-xs text-slate-500 mb-1">locked</span>
+                        </div>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-2">
+                            <LocateFixed className="w-4 h-4 text-emerald-500" />
+                            <span className="text-xs font-bold text-slate-700">Accuracy</span>
+                        </div>
+                        <p className={`text-xl font-bold ${gpsAccuracyInfo.color}`}>
+                            {gpsAccuracy.toFixed(1)}m
+                        </p>
+                        <p className="text-xs text-slate-500">{gpsAccuracyInfo.text}</p>
+                    </div>
+                </div>
+
+                {/* Engine & Movement Status */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div className={`p-3 rounded-lg ${engineInfo.bg}`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <engineInfo.icon className={`w-4 h-4 ${engineInfo.color}`} />
+                                <span className="text-sm font-medium text-slate-700">Engine</span>
+                            </div>
+                            <span className={`text-sm font-bold ${engineInfo.color}`}>{engineStatus}</span>
+                        </div>
+                        <div className="mt-2">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-600">Ignition</span>
+                                <span className={`font-bold ${ignition ? 'text-emerald-600' : 'text-slate-500'}`}>
+                                    {ignition ? 'ON' : 'OFF'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className={`p-3 rounded-lg ${movementInfo.bg}`}>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <movementInfo.icon className={`w-4 h-4 ${movementInfo.color}`} />
+                                <span className="text-sm font-medium text-slate-700">Movement</span>
+                            </div>
+                            <span className={`text-sm font-bold ${movementInfo.color}`}>{movementInfo.text}</span>
+                        </div>
+                        <div className="mt-2">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-600">Distance Today</span>
+                                <span className="font-bold text-slate-700">{formatDistance(totalDistance * 1000)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div className="flex items-end gap-1">
-                <p className="text-2xl font-bold text-slate-900">{value}</p>
-                {unit && <span className="text-sm text-slate-500 mb-1">{unit}</span>}
+
+            {/* Signal & Battery Cards */}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <Signal className="w-5 h-5 text-slate-600" />
+                            <h3 className="font-bold text-slate-800">Network</h3>
+                        </div>
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${signalInfo.bg} ${signalInfo.color}`}>
+                            {signalInfo.text}
+                        </span>
+                    </div>
+                    <div className="space-y-3">
+                        <div>
+                            <p className="text-xs text-slate-500 mb-1">Signal Strength</p>
+                            <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-slate-200 rounded-full h-2">
+                                    <div 
+                                        className="bg-blue-600 h-2 rounded-full transition-all" 
+                                        style={{ width: `${(parseInt(gsmSignal) / 31) * 100}%` }}
+                                    ></div>
+                                </div>
+                                <span className="text-sm font-bold text-slate-700">{gsmSignal} dB</span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <p className="text-xs text-slate-500">Network Type</p>
+                                <p className="font-bold text-slate-800">{networkType}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500">Data Usage</p>
+                                <p className="font-bold text-slate-800">{dataUsage.toFixed(1)} MB</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                    <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                            <Battery className="w-5 h-5 text-slate-600" />
+                            <h3 className="font-bold text-slate-800">Power</h3>
+                        </div>
+                        <span className={`text-xs font-bold px-2 py-1 rounded ${batteryInfo.bg} ${batteryInfo.color}`}>
+                            {batteryInfo.text}
+                        </span>
+                    </div>
+                    <div className="space-y-3">
+                        <div>
+                            <p className="text-xs text-slate-500 mb-1">Battery Voltage</p>
+                            <p className="text-2xl font-bold text-emerald-600">{formatVoltage(batteryVoltage)}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <p className="text-xs text-slate-500">Device Temp</p>
+                                <p className={`font-bold ${getTemperatureColor(deviceTemp)}`}>{deviceTemp.toFixed(1)}°C</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-slate-500">Power Source</p>
+                                <p className="font-bold text-slate-800">Internal</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            {subtitle && (
-                <p className={`text-xs text-${color}-500 font-medium mt-1`}>
-                    {subtitle}
-                </p>
+
+            {/* Additional Metrics */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-indigo-500" />
+                    Vehicle Metrics
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 bg-gradient-to-r from-slate-50 to-white rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Gauge className="w-4 h-4 text-blue-500" />
+                            <span className="text-sm font-medium text-slate-700">Max Speed</span>
+                        </div>
+                        <p className="text-xl font-bold text-blue-600">{maxSpeed.toFixed(1)} km/h</p>
+                    </div>
+                    <div className="p-3 bg-gradient-to-r from-slate-50 to-white rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <TrendingUp className="w-4 h-4 text-emerald-500" />
+                            <span className="text-sm font-medium text-slate-700">Avg Speed</span>
+                        </div>
+                        <p className="text-xl font-bold text-emerald-600">{averageSpeed.toFixed(1)} km/h</p>
+                    </div>
+                    <div className="p-3 bg-gradient-to-r from-slate-50 to-white rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <MapPin className="w-4 h-4 text-purple-500" />
+                            <span className="text-sm font-medium text-slate-700">Altitude</span>
+                        </div>
+                        <p className="text-xl font-bold text-purple-600">{altitude.toFixed(0)} m</p>
+                    </div>
+                    <div className="p-3 bg-gradient-to-r from-slate-50 to-white rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Thermometer className="w-4 h-4 text-orange-500" />
+                            <span className="text-sm font-medium text-slate-700">Temperature</span>
+                        </div>
+                        <p className={`text-xl font-bold ${getTemperatureColor(temperature)}`}>{temperature.toFixed(1)}°C</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
+    const renderDetailsTab = () => (
+        <div className="space-y-6">
+            {/* Device Information */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <Database className="w-5 h-5 text-indigo-500" />
+                    Device Details
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                        <p className="text-xs text-slate-500 mb-1">Device Number</p>
+                        <p className="font-bold text-slate-800">{device?.deviceNo || 'N/A'}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                        <p className="text-xs text-slate-500 mb-1">Vehicle Number</p>
+                        <p className="font-bold text-slate-800">{device?.vehicleNo || 'N/A'}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                        <p className="text-xs text-slate-500 mb-1">Device Status</p>
+                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${deviceStatus === "Online" ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                            {deviceStatus}
+                        </span>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                        <p className="text-xs text-slate-500 mb-1">Odometer</p>
+                        <p className="font-bold text-slate-800">{odometer.toFixed(0)} km</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Fuel Information */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-amber-500" />
+                    Fuel Information
+                </h3>
+                <div className="space-y-3">
+                    <div>
+                        <div className="flex justify-between text-sm mb-1">
+                            <span className="text-slate-600">Fuel Level</span>
+                            <span className="font-bold text-slate-800">{fuelLevel.toFixed(0)}%</span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-2">
+                            <div 
+                                className={`h-2 rounded-full transition-all ${fuelLevel > 50 ? 'bg-emerald-500' : fuelLevel > 20 ? 'bg-amber-500' : 'bg-rose-500'}`}
+                                style={{ width: `${fuelLevel}%` }}
+                            ></div>
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-gradient-to-r from-amber-50 to-white rounded-lg border border-amber-100">
+                            <p className="text-xs text-slate-500 mb-1">Estimated Range</p>
+                            <p className="font-bold text-slate-800">{(fuelLevel * 15).toFixed(0)} km</p>
+                        </div>
+                        <div className="p-3 bg-gradient-to-r from-blue-50 to-white rounded-lg border border-blue-100">
+                            <p className="text-xs text-slate-500 mb-1">Fuel Consumption</p>
+                            <p className="font-bold text-slate-800">8.5 km/L</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Environmental Data */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-emerald-500" />
+                    Environmental Data
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-gradient-to-r from-emerald-50 to-white rounded-lg border border-emerald-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Thermometer className="w-4 h-4 text-emerald-500" />
+                            <span className="text-sm font-medium text-slate-700">Temperature</span>
+                        </div>
+                        <p className={`text-2xl font-bold ${getTemperatureColor(temperature)}`}>
+                            {temperature.toFixed(1)}°C
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">Ambient</p>
+                    </div>
+                    <div className="p-3 bg-gradient-to-r from-blue-50 to-white rounded-lg border border-blue-100">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Wind className="w-4 h-4 text-blue-500" />
+                            <span className="text-sm font-medium text-slate-700">Humidity</span>
+                        </div>
+                        <p className="text-2xl font-bold text-blue-600">
+                            {humidity.toFixed(0)}%
+                        </p>
+                        <p className="text-xs text-slate-500 mt-1">Relative</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Raw Data Toggle */}
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                        <Code className="w-5 h-5 text-slate-600" />
+                        Raw Data
+                    </h3>
+                    <button 
+                        onClick={() => setShowRawData(!showRawData)}
+                        className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700"
+                    >
+                        {showRawData ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        {showRawData ? 'Hide Raw Data' : 'Show Raw Data'}
+                    </button>
+                </div>
+                {showRawData && rawData && (
+                    <div className="mt-3 bg-slate-900 rounded-lg p-3 overflow-auto max-h-60">
+                        <pre className="text-xs text-slate-200 whitespace-pre-wrap">
+                            {JSON.stringify(rawData, null, 2)}
+                        </pre>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    const renderPlaybackTab = () => (
+        <div className="space-y-6">
+            {!isPlaybackMode ? (
+                <div className="bg-gradient-to-r from-indigo-50 to-white p-4 rounded-xl shadow-sm border border-indigo-100 space-y-4">
+                    <h3 className="font-bold text-indigo-800 flex items-center gap-2">
+                        <History className="w-5 h-5" />
+                        Route Playback
+                    </h3>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-sm font-bold text-slate-700">Start Time</label>
+                            <input 
+                                type="datetime-local" 
+                                value={playbackStartTime} 
+                                onChange={e => setPlaybackStartTime(e.target.value)} 
+                                className="w-full mt-1 p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-sm font-bold text-slate-700">End Time</label>
+                            <input 
+                                type="datetime-local" 
+                                value={playbackEndTime} 
+                                onChange={e => setPlaybackEndTime(e.target.value)} 
+                                className="w-full mt-1 p-2 border rounded-md bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                        </div>
+                        <button 
+                            onClick={fetchRoutePlayback} 
+                            disabled={isLoadingPlayback}
+                            className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-md font-bold hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                        >
+                            {isLoadingPlayback ? (
+                                <>
+                                    <RefreshCw className="w-4 h-4 animate-spin" />
+                                    Loading...
+                                </>
+                            ) : (
+                                <>
+                                    <Play className="w-4 h-4" />
+                                    Load Route Playback
+                                </>
+                            )}
+                        </button>
+                    </div>
+                    <div className="text-xs text-slate-500">
+                        <p>• Load historical route data for playback</p>
+                        <p>• Adjust playback speed from 1x to 5x</p>
+                        <p>• View complete journey with time stamps</p>
+                    </div>
+                </div>
+            ) : (
+                <div className="bg-gradient-to-r from-rose-50 to-white p-4 rounded-xl shadow-sm border border-rose-100 space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h3 className="font-bold text-rose-800 flex items-center gap-2">
+                            <History className="w-5 h-5" />
+                            Playback Active
+                        </h3>
+                        <button 
+                            onClick={exitPlaybackMode}
+                            className="text-sm bg-slate-100 px-3 py-1 rounded hover:bg-slate-200 font-medium"
+                        >
+                            Exit Playback
+                        </button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                            <span className="text-slate-600">Progress</span>
+                            <span className="font-bold text-rose-600">
+                                {currentPlaybackIndex + 1} / {playbackRoute.length}
+                            </span>
+                        </div>
+                        <div className="w-full bg-slate-200 rounded-full h-2">
+                            <div 
+                                className="bg-gradient-to-r from-rose-500 to-pink-500 h-2 rounded-full transition-all duration-300" 
+                                style={{width: `${playbackProgress}%`}}
+                            ></div>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-center gap-4">
+                        <button 
+                            onClick={() => skipToPlaybackPoint(Math.max(0, currentPlaybackIndex - 10))}
+                            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"
+                            title="Skip Back"
+                        >
+                            <SkipBack className="w-5 h-5 text-slate-600" />
+                        </button>
+                        <button 
+                            onClick={togglePlayback} 
+                            className="p-3 bg-gradient-to-r from-rose-600 to-pink-600 rounded-full text-white hover:from-rose-700 hover:to-pink-700"
+                        >
+                            {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+                        </button>
+                        <button 
+                            onClick={() => skipToPlaybackPoint(Math.min(playbackRoute.length - 1, currentPlaybackIndex + 10))}
+                            className="p-2 bg-slate-100 rounded-full hover:bg-slate-200"
+                            title="Skip Forward"
+                        >
+                            <SkipForward className="w-5 h-5 text-slate-600" />
+                        </button>
+                    </div>
+
+                    <div className="flex justify-center gap-2 pt-2 border-t border-rose-100">
+                        {[1, 2, 5].map(x => (
+                            <button 
+                                key={x}
+                                onClick={() => setPlaybackSpeed(x)}
+                                className={`px-3 py-1 text-sm rounded-lg transition-all ${playbackSpeed === x ? 'bg-rose-100 text-rose-700 font-bold' : 'bg-slate-100 hover:bg-slate-200'}`}
+                            >
+                                {x}x Speed
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 pt-3 border-t border-rose-100">
+                        <div className="text-center">
+                            <p className="text-xs text-slate-500">Distance</p>
+                            <p className="font-bold text-slate-800">{formatDistance(playbackDistance)}</p>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-xs text-slate-500">Points</p>
+                            <p className="font-bold text-slate-800">{playbackRoute.length}</p>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
 
-    const RawDataItem = ({ label, value, color = "slate" }) => (
-        <div className="flex justify-between items-center py-2 border-b border-slate-100 last:border-b-0">
-            <span className="text-sm font-medium text-slate-600">{label}</span>
-            <span className={`text-sm font-mono font-bold text-${color}-600 bg-slate-100 px-2 py-0.5 rounded`}>
-                {value}
-            </span>
-        </div>
-    );
-
-    // Playback Controls (Moved to Sidebar)
-    const PlaybackControls = () => {
-        const currentPoint = playbackRoute[currentPlaybackIndex];
-
-        return (
-            <div className="bg-white rounded-xl p-4 shadow-md border border-red-200">
-                <div className="flex flex-col gap-3">
-                    <div className="flex justify-between items-center pb-2 border-b border-slate-100">
-                        <h3 className="font-bold text-lg text-red-700 flex items-center gap-2">
-                            <History className="w-5 h-5" />
-                            Control Panel
-                        </h3>
-                        <button
-                            onClick={exitPlaybackMode}
-                            className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-semibold rounded-lg transition-colors"
-                        >
-                            Exit
-                        </button>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div className="w-full">
-                        <div className="flex justify-between text-xs text-slate-500 mb-1">
-                            <span>Progress</span>
-                            <span>{playbackProgress.toFixed(1)}%</span>
-                        </div>
-                        <div className="w-full bg-slate-200 rounded-full h-2">
-                            <div
-                                className="bg-red-600 h-2 rounded-full transition-all duration-100"
-                                style={{ width: `${playbackProgress}%` }}
-                            ></div>
-                        </div>
-                        <div className="flex justify-between text-xs text-slate-500 mt-1">
-                            <span>Point {currentPlaybackIndex + 1} of {playbackRoute.length}</span>
-                            {currentPoint && (
-                                <span>{new Date(currentPoint.timestamp).toLocaleTimeString()}</span>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Quick Stats from Current Playback Point (Now integrated here) */}
-                    {currentPoint && (
-                        <div className="grid grid-cols-2 gap-2 text-center bg-red-50 p-2 rounded-lg border border-red-200">
-                            <div className="border-r border-red-100">
-                                <p className="text-xs font-medium text-red-500">Speed</p>
-                                <p className="text-xl font-extrabold text-red-700">
-                                    {currentPoint.speed.toFixed(0)} <span className="text-sm font-semibold">km/h</span>
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-xs font-medium text-red-500">Heading</p>
-                                <p className="text-xl font-extrabold text-red-700">
-                                    {currentPoint.heading.toFixed(0)} <span className="text-sm font-semibold">°</span>
-                                </p>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Control Buttons */}
-                    <div className="flex justify-center items-center gap-2">
-                        <button
-                            onClick={() => skipToPoint(0)}
-                            className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 disabled:opacity-50"
-                            disabled={currentPlaybackIndex === 0}
-                        >
-                            <SkipBack className="w-5 h-5" />
-                        </button>
-
-                        <button
-                            onClick={() => skipToPoint(Math.max(0, currentPlaybackIndex - 10))}
-                            className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 disabled:opacity-50"
-                            disabled={currentPlaybackIndex === 0}
-                        >
-                            <RotateCcw className="w-5 h-5" />
-                        </button>
-
-                        {isPlaying ? (
-                            <button
-                                onClick={pausePlayback}
-                                className="p-3 bg-red-600 hover:bg-red-700 rounded-full text-white"
-                            >
-                                <Pause className="w-6 h-6" />
-                            </button>
-                        ) : (
-                            <button
-                                onClick={startPlayback}
-                                className="p-3 bg-red-600 hover:bg-red-700 rounded-full text-white disabled:bg-red-300"
-                                disabled={playbackRoute.length === 0}
-                            >
-                                <Play className="w-6 h-6" />
-                            </button>
-                        )}
-
-                        <button
-                            onClick={() => skipToPoint(Math.min(playbackRoute.length - 1, currentPlaybackIndex + 10))}
-                            className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 disabled:opacity-50"
-                            disabled={currentPlaybackIndex >= playbackRoute.length - 1}
-                        >
-                            <RotateCcw className="w-5 h-5 transform rotate-180" />
-                        </button>
-
-                        <button
-                            onClick={() => skipToPoint(playbackRoute.length - 1)}
-                            className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-slate-700 disabled:opacity-50"
-                            disabled={currentPlaybackIndex >= playbackRoute.length - 1}
-                        >
-                            <SkipForward className="w-5 h-5" />
-                        </button>
-                    </div>
-
-                    {/* Speed Controls */}
-                    <div className="flex justify-center gap-2 pt-2 border-t border-slate-100">
-                        <span className="text-sm font-medium text-slate-700 my-auto">Speed:</span>
-                        {[0.5, 1, 2, 5].map(speedOption => (
-                            <button
-                                key={speedOption}
-                                onClick={() => handlePlaybackSpeedChange(speedOption)}
-                                className={`px-3 py-1 text-sm font-semibold rounded-lg ${playbackSpeed === speedOption ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-                            >
-                                {speedOption}x
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    // Live Map Data (Moved to Sidebar Tracking Tab)
-    const LiveDataWidget = ({ speed, position, heading }) => (
-        <div className="bg-white rounded-xl p-4 shadow-md border border-slate-200">
-            <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
-                <Car className="w-5 h-5 text-indigo-500" />
-                Live Coordinates
-            </h3>
-
-            <div className="grid grid-cols-2 gap-4">
-                <div className="border-r border-slate-100 text-center">
-                    <p className="text-xs font-medium text-slate-500">Speed</p>
-                    <p className="text-xl font-extrabold text-indigo-600">
-                        {speed.toFixed(0)} <span className="text-sm font-semibold">km/h</span>
-                    </p>
-                </div>
-                <div className="text-center">
-                    <p className="text-xs font-medium text-slate-500">Heading</p>
-                    <p className="text-xl font-extrabold text-indigo-600">
-                        {heading.toFixed(0)} <span className="text-sm font-semibold">°</span>
-                    </p>
-                </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 pt-3 mt-3 border-t border-slate-100">
-                <div>
-                    <p className="text-xs font-medium text-slate-500">Latitude</p>
-                    <p className="text-sm font-bold text-slate-800 font-mono">
-                        {position ? position.lat.toFixed(5) : 'N/A'}
-                    </p>
-                </div>
-                <div>
-                    <p className="text-xs font-medium text-slate-500">Longitude</p>
-                    <p className="text-sm font-bold text-slate-800 font-mono">
-                        {position ? position.lng.toFixed(5) : 'N/A'}
-                    </p>
-                </div>
-            </div>
-        </div>
-    );
-
-
-    // =========================================================================
-    // Final Render
-    // =========================================================================
-
     return (
-        <div className="flex h-screen bg-slate-50">
+        <div className="flex h-screen bg-gradient-to-br from-slate-50 to-slate-100">
             {/* Sidebar */}
-            <div className="w-96 bg-white shadow-xl border-r border-slate-200 flex flex-col">
-                {/* Header */}
-                <div className="p-6 border-b border-slate-200">
+            <div className="w-[450px] bg-white shadow-2xl border-r border-slate-200 flex flex-col z-20">
+                <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-white">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                            <Navigation className="w-6 h-6 text-white" />
+                        <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                            <Navigation className="w-7 h-7 text-white" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-extrabold text-slate-900">Sentinel Track</h1>
-                            <p className="text-sm text-slate-500">Live Vehicle Monitoring</p>
+                            <h1 className="text-xl font-extrabold text-slate-900">Sentinel Track Pro</h1>
+                            <p className="text-sm text-slate-500">Advanced Vehicle Tracking System</p>
                         </div>
                     </div>
-
-                    {/* Vehicle Info */}
-                    <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                        <div className="flex items-center gap-3">
-                            <Car className="w-8 h-8 text-indigo-500" />
-                            <div>
-                                <h2 className="font-bold text-slate-900">{device?.vehicleNo || 'OD00000'}</h2>
-                                <p className="text-xs text-slate-500">ID: {device?.deviceNo || 'N/A'}</p>
+                    
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl p-4 border border-indigo-100 shadow-sm">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg shadow">
+                                <Car className="w-6 h-6 text-white" />
                             </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Navigation Tabs */}
-                <div className="flex border-b border-slate-200">
-                    <button
-                        onClick={() => setActiveTab("tracking")}
-                        className={`flex-1 py-3 text-sm font-semibold transition-all ${activeTab === "tracking"
-                            ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
-                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                            }`}
-                    >
-                        <Activity className="w-4 h-4 inline mr-2" />
-                        Tracking
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("playback")}
-                        className={`flex-1 py-3 text-sm font-semibold transition-all ${activeTab === "playback"
-                            ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
-                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                            }`}
-                    >
-                        <History className="w-4 h-4 inline mr-2" />
-                        Playback
-                    </button>
-                    <button
-                        onClick={() => setActiveTab("details")}
-                        className={`flex-1 py-3 text-sm font-semibold transition-all ${activeTab === "details"
-                            ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50"
-                            : "text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                            }`}
-                    >
-                        <Info className="w-4 h-4 inline mr-2" />
-                        Raw Data
-                    </button>
-                </div>
-
-                {/* Content Area */}
-                <div className="flex-1 overflow-y-auto">
-                    {activeTab === "tracking" ? (
-                        <div className="p-6">
-                            {/* Status Card */}
-                            <div className="bg-white rounded-xl p-4 shadow-md border border-slate-200 mb-6">
-                                <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-3 h-3 rounded-full ${status === "Live" && !isPlaybackMode ? "bg-green-500 animate-pulse" : "bg-red-500"
-                                            }`}></div>
-                                        <span className="font-semibold text-slate-700">System Status</span>
-                                    </div>
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${status === "Live" && !isPlaybackMode
-                                        ? "bg-green-100 text-green-700"
-                                        : "bg-red-100 text-red-700"
-                                        }`}>
-                                        {isPlaybackMode ? "Playback Mode" : status}
+                            <div className="flex-1">
+                                <h2 className="font-bold text-lg text-slate-900">{device?.vehicleNo || 'Unknown Vehicle'}</h2>
+                                <p className="text-xs text-slate-500 mb-2">{device?.deviceNo}</p>
+                                <div className="flex items-center gap-2 text-xs">
+                                    <span className={`px-2 py-1 rounded-full ${deviceStatus === "Online" ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                                        {deviceStatus}
+                                    </span>
+                                    <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                        {networkType}
                                     </span>
                                 </div>
-
-                                <div className="grid grid-cols-2 gap-4 text-sm">
-                                    <div>
-                                        <span className="text-slate-500">Duration</span>
-                                        <p className="font-bold text-slate-900 text-lg">{formatDuration(duration)}</p>
-                                    </div>
-                                    <div>
-                                        <span className="text-slate-500">Last Update</span>
-                                        <p className="font-bold text-slate-900 text-lg">
-                                            {lastUpdateTime ? lastUpdateTime.toLocaleTimeString() : 'N/A'}
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* LIVE DATA WIDGET (MOVED HERE) */}
-                            {vehiclePosition && (
-                                <LiveDataWidget speed={speed} position={vehiclePosition} heading={heading} />
-                            )}
-
-                            <h3 className="font-bold text-slate-900 mb-4 mt-6 flex items-center gap-2 border-t border-slate-200 pt-6">
-                                <Activity className="w-5 h-5 text-indigo-500" />
-                                Key Metrics
-                            </h3>
-
-                            {/* Key Metrics Grid */}
-                            <div className="grid grid-cols-2 gap-4 mb-6">
-                                <StatCard
-                                    icon={Battery}
-                                    label="Battery"
-                                    value={parseFloat(batteryVoltage).toFixed(2)}
-                                    unit="V"
-                                    color="green"
-                                    subtitle={batteryInfo.text}
-                                />
-                                <StatCard
-                                    icon={Signal}
-                                    label="GSM Signal"
-                                    value={gsmSignal}
-                                    unit="RSSI"
-                                    color="green"
-                                    subtitle={signalInfo.text}
-                                />
-                                <StatCard
-                                    icon={Satellite}
-                                    label="Satellites"
-                                    value={satellites}
-                                    color="indigo"
-                                    subtitle="GPS Fix"
-                                />
-                                <StatCard
-                                    icon={Gauge}
-                                    label="Altitude"
-                                    value={altitude.toFixed(0)}
-                                    unit="m"
-                                    color="indigo"
-                                    subtitle="Above sea level"
-                                />
                             </div>
                         </div>
-                    ) : activeTab === "playback" ? (
-                        <div className="p-6">
-                            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                                <History className="w-5 h-5 text-indigo-500" />
-                                Route Selection
-                            </h3>
+                    </div>
+                </div>
 
-                            <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm mb-6">
-                                <div className="space-y-3">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">
-                                            Start Time
-                                        </label>
-                                        <input
-                                            type="datetime-local"
-                                            value={playbackStartTime}
-                                            onChange={(e) => setPlaybackStartTime(e.target.value)}
-                                            className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        />
-                                    </div>
+                {/* Tabs */}
+                <div className="flex border-b border-slate-200 bg-white">
+                    {[
+                        { id: 'overview', label: 'Overview', icon: Activity },
+                        { id: 'playback', label: 'Playback', icon: History },
+                        { id: 'details', label: 'Details', icon: Database }
+                    ].map(tab => (
+                        <button 
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex-1 py-4 text-sm font-semibold capitalize flex items-center justify-center gap-2 transition-all ${activeTab === tab.id 
+                                ? "text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50" 
+                                : "text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+                            }`}
+                        >
+                            <tab.icon className="w-4 h-4" />
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
 
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-1">
-                                            End Time
-                                        </label>
-                                        <input
-                                            type="datetime-local"
-                                            value={playbackEndTime}
-                                            onChange={(e) => setPlaybackEndTime(e.target.value)}
-                                            className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        />
-                                    </div>
-
-                                    <button
-                                        onClick={fetchRoutePlayback}
-                                        disabled={isLoadingPlayback}
-                                        className={`w-full py-2 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 text-white transition-colors ${isLoadingPlayback ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700'}`}
-                                    >
-                                        {isLoadingPlayback ? (
-                                            <>
-                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                                Loading...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <History className="w-4 h-4" />
-                                                Load Route Playback
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </div>
-
-                            {playbackRoute.length > 0 && (
-                                <>
-                                    <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm mb-6">
-                                        <h4 className="font-bold text-slate-900 mb-3">Playback Information</h4>
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between">
-                                                <span className="text-sm text-slate-600">Total Points:</span>
-                                                <span className="text-sm font-bold text-slate-900">{totalPlaybackPoints}</span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-sm text-slate-600">Time Range:</span>
-                                                <span className="text-xs text-slate-900 text-right">
-                                                    {new Date(playbackStartTime).toLocaleDateString()} - {new Date(playbackEndTime).toLocaleDateString()}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between">
-                                                <span className="text-sm text-slate-600">Status:</span>
-                                                <span className={`text-sm font-bold ${isPlaybackMode ? 'text-red-600' : 'text-slate-900'}`}>{isPlaybackMode ? 'Active' : 'Loaded'}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* PLAYBACK CONTROLS (MOVED HERE) */}
-                                    {isPlaybackMode && <PlaybackControls />}
-                                </>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="p-6">
-                            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-                                <Info className="w-5 h-5 text-indigo-500" />
-                                Raw Device Data
-                            </h3>
-
-                            <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-                                {rawData ? (
-                                    <div className="space-y-1">
-                                        {/* Added checks for rawData properties before access */}
-                                        {rawData.alertId && <RawDataItem label="Alert ID" value={rawData.alertId} color="red" />}
-                                        {rawData.batteryVoltage && <RawDataItem label="Battery Voltage" value={rawData.batteryVoltage} color="green" />}
-                                        {rawData.date && <RawDataItem label="Date" value={rawData.date} color="indigo" />}
-                                        {rawData.deviceId && <RawDataItem label="Device ID" value={rawData.deviceId} color="slate" />}
-                                        {rawData.firmware && <RawDataItem label="Firmware" value={rawData.firmware} color="slate" />}
-                                        {rawData.gpsFix && <RawDataItem label="GPS Fix" value={rawData.gpsFix} color={rawData.gpsFix === "1" ? "green" : "red"} />}
-                                        {rawData.gsmSignal && <RawDataItem label="GSM Signal" value={rawData.gsmSignal} color="indigo" />}
-                                        {rawData.imei && <RawDataItem label="IMEI" value={rawData.imei} color="slate" />}
-                                        {rawData.lastUpdate && <RawDataItem label="Last Update" value={new Date(rawData.lastUpdate).toLocaleString()} color="indigo" />}
-                                        {rawData.lat && <RawDataItem label="Latitude" value={rawData.lat} color="green" />}
-                                        {rawData.lng && <RawDataItem label="Longitude" value={rawData.lng} color="green" />}
-                                        {rawData.packetStatus && <RawDataItem label="Packet Status" value={rawData.packetStatus} color={rawData.packetStatus === "H" ? "green" : "yellow"} />}
-                                        {rawData.satellites && <RawDataItem label="Satellites" value={rawData.satellites} color="indigo" />}
-                                        {rawData.speed && <RawDataItem label="Speed" value={rawData.speed} color="indigo" />}
-
-                                        <div className="mt-4 pt-4 border-t border-slate-100">
-                                            <RawDataItem label="Raw Packet Dump" value={JSON.stringify(rawData).slice(0, 50) + "..."} color="slate" />
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-center py-8 text-slate-500">
-                                        <AlertCircle className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                                        <p>No raw data available</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                {/* Tab Content */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {activeTab === 'overview' && renderOverviewTab()}
+                    {activeTab === 'playback' && renderPlaybackTab()}
+                    {activeTab === 'details' && renderDetailsTab()}
                 </div>
 
                 {/* Footer */}
                 <div className="p-4 border-t border-slate-200 bg-slate-50">
-                    <div className="text-center text-xs text-slate-500">
-                        <p>Sentinel Track System</p>
-                        <p>v1.0 · {new Date().getFullYear()}</p>
+                    <div className="text-xs text-slate-500 text-center">
+                        <p>Last Updated: {lastUpdateTime ? formatDateTime(lastUpdateTime) : 'Never'}</p>
+                        <p className="mt-1">Connection: {status} • Duration: {formatDuration(duration)}</p>
                     </div>
                 </div>
             </div>
 
-            {/* Map Area */}
+            {/* Map Container */}
             <div className="flex-1 relative">
-                <div ref={mapRef} className="w-full h-full"></div>
-
-                {/* Loader */}
-                <div
-                    ref={loaderRef}
-                    className="absolute inset-0 flex flex-col items-center justify-center bg-white bg-opacity-80 z-30 transition-opacity duration-500"
-                >
-                    <div className="relative">
-                        <div className="w-20 h-20 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                        <Navigation className="w-8 h-8 text-indigo-500 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                <div ref={mapRef} className="w-full h-full" />
+                
+                {/* Map Controls */}
+                <div className="absolute top-4 right-4 flex flex-col gap-3 z-30">
+                    <div className="bg-white/90 backdrop-blur-sm p-2 rounded-xl shadow-lg border border-slate-200 flex flex-col gap-1">
+                        <button 
+                            onClick={() => changeMapType("roadmap")} 
+                            className={`p-2 rounded-lg hover:bg-slate-100 transition-all ${mapType === 'roadmap' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-600'}`} 
+                            title="Road Map"
+                        >
+                            <MapIcon className="w-5 h-5" />
+                        </button>
+                        <button 
+                            onClick={() => changeMapType("satellite")} 
+                            className={`p-2 rounded-lg hover:bg-slate-100 transition-all ${mapType === 'satellite' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-600'}`} 
+                            title="Satellite"
+                        >
+                            <Satellite className="w-5 h-5" />
+                        </button>
+                        <button 
+                            onClick={() => changeMapType("hybrid")} 
+                            className={`p-2 rounded-lg hover:bg-slate-100 transition-all ${mapType === 'hybrid' ? 'text-indigo-600 bg-indigo-50' : 'text-slate-600'}`} 
+                            title="Hybrid"
+                        >
+                            <Layers className="w-5 h-5" />
+                        </button>
                     </div>
-                    <p className="mt-6 text-xl font-bold text-slate-700">Connecting to GPS...</p>
-                    <p className="text-sm text-slate-500 mt-2">Initializing live tracker</p>
+                    <button 
+                        onClick={centerMap} 
+                        className="bg-white/90 backdrop-blur-sm p-3 rounded-xl shadow-lg text-slate-600 hover:text-indigo-600 hover:bg-white border border-slate-200 transition-all"
+                        title="Center Map"
+                    >
+                        <Target className="w-5 h-5" />
+                    </button>
+                    <button 
+                        onClick={toggleFullscreen} 
+                        className="bg-white/90 backdrop-blur-sm p-3 rounded-xl shadow-lg text-slate-600 hover:text-indigo-600 hover:bg-white border border-slate-200 transition-all"
+                        title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                    >
+                        {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                    </button>
                 </div>
 
-                {/* Geolocation Error */}
-                <div
-                    ref={geoErrorRef}
-                    className="hidden absolute top-4 left-1/2 transform -translate-x-1/2 px-5 py-3 bg-white border-l-4 border-indigo-500 rounded-lg shadow-2xl z-40 transition-all duration-300 opacity-100"
-                >
-                    <div className="flex items-center gap-3">
-                        <span className="text-2xl text-indigo-500">⚠️</span>
-                        <p ref={geoErrorMessageRef} className="text-sm font-semibold text-slate-800"></p>
+                {/* Overlay Loader */}
+                {status === "Initializing" && (
+                    <div className="absolute inset-0 bg-white/90 z-40 flex flex-col items-center justify-center">
+                        <div className="relative">
+                            <div className="w-20 h-20 border-4 border-indigo-200 rounded-full"></div>
+                            <div className="absolute top-0 left-0 w-20 h-20 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                        </div>
+                        <p className="mt-6 font-bold text-indigo-900 text-lg">Connecting to Vehicle...</p>
+                        <p className="mt-2 text-slate-600 text-sm">Initializing GPS and sensor data</p>
                     </div>
-                </div>
+                )}
+
+                <style>{`
+                    @keyframes pulse { 
+                        0% { opacity: 1; } 
+                        50% { opacity: 0.5; } 
+                        100% { opacity: 1; } 
+                    }
+                    .leaflet-control-zoom { margin-bottom: 20px !important; }
+                    .vehicle-marker { z-index: 1000 !important; }
+                    .playback-marker { z-index: 9999 !important; }
+                `}</style>
             </div>
         </div>
     );
 };
 
-
+// Helper component for Code icon
+const Code = ({ className }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+    </svg>
+);
 
 export default Livetracking;
