@@ -59,6 +59,7 @@ const VehicleDataTable = () => {
         } catch (e) {
             localStorage.removeItem(STORAGE_KEY);
         }
+       
     };
 
     // Set up cache cleanup interval

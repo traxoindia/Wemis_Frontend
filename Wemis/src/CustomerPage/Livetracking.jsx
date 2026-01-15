@@ -6,7 +6,8 @@ import {
     Play, Pause, Square, History, Calendar,
     MapPin, StopCircle, FileText, Download, Filter, X,
     Power, Activity, ParkingCircle, Fuel, BarChart3,
-    ChevronDown, ChevronUp, TrendingUp, Layers
+    ChevronDown, ChevronUp, TrendingUp, Layers, Printer,
+    Move, BatteryCharging, Map, Gauge, Compass
 } from "lucide-react";
 
 // --- Map Imports ---
@@ -14,10 +15,15 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
+// Import jsPDF for PDF generation
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
+
 // Import your car logo image
 import vehicleLogo from '../Images/car.png';
 import Navbar from './Navbar';
 import VehicleDataTable from './VehicleDataTable';
+import SocketClient from './SocketClient';
 
 // --- Sub-component: Reverse Geocoding ---
 const MapAddress = ({ lat, lng }) => {
@@ -48,8 +54,8 @@ const RecenterMap = ({ position }) => {
 const ReportModal = ({ isOpen, onClose, deviceNo, reportType, onFetchReport }) => {
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
-        startTime: '08:00:00',
-        endTime: '11:00:00'
+        startTime: '08:00',
+        endTime: '11:00'
     });
     const [loading, setLoading] = useState(false);
 
@@ -57,37 +63,27 @@ const ReportModal = ({ isOpen, onClose, deviceNo, reportType, onFetchReport }) =
         stoppage: {
             name: "Stoppage Report",
             icon: <StopCircle className="w-6 h-6 text-amber-600" />,
-            bg: "bg-amber-100",
-            endpoint: "fetchStoppageReport",
-            fields: ['date', 'startTime', 'endTime']
+            bg: "bg-amber-100"
         },
         ignition: {
             name: "Ignition Report",
             icon: <Power className="w-6 h-6 text-blue-600" />,
-            bg: "bg-blue-100",
-            endpoint: "fetchIgnitionReport",
-            fields: ['date', 'startTime', 'endTime']
+            bg: "bg-blue-100"
         },
         moving: {
             name: "Moving Time Report",
             icon: <Activity className="w-6 h-6 text-green-600" />,
-            bg: "bg-green-100",
-            endpoint: "fetchMovingTimeReport",
-            fields: ['date', 'startTime', 'endTime']
+            bg: "bg-green-100"
         },
         idle: {
             name: "Idle Time Report",
             icon: <Clock className="w-6 h-6 text-yellow-600" />,
-            bg: "bg-yellow-100",
-            endpoint: "fetchIdleTimeReport",
-            fields: ['date', 'startTime', 'endTime']
+            bg: "bg-yellow-100"
         },
         parking: {
             name: "Parking Time Report",
             icon: <ParkingCircle className="w-6 h-6 text-purple-600" />,
-            bg: "bg-purple-100",
-            endpoint: "fetchParkingTimeReport",
-            fields: ['date', 'startTime', 'endTime']
+            bg: "bg-purple-100"
         }
     };
 
@@ -96,7 +92,21 @@ const ReportModal = ({ isOpen, onClose, deviceNo, reportType, onFetchReport }) =
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        await onFetchReport(reportType, { deviceNo, ...formData });
+        
+        // Helper to ensure HH:mm:ss format (adds :00 if seconds missing)
+        const formatTime = (timeStr) => {
+            return timeStr.split(':').length === 2 ? `${timeStr}:00` : timeStr;
+        };
+
+        // Construct payload exactly as requested
+        const payload = {
+            deviceNo,
+            date: formData.date,
+            startTime: formatTime(formData.startTime),
+            endTime: formatTime(formData.endTime)
+        };
+
+        await onFetchReport(reportType, payload);
         setLoading(false);
     };
 
@@ -137,6 +147,7 @@ const ReportModal = ({ isOpen, onClose, deviceNo, reportType, onFetchReport }) =
                             <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-2 block">Start Time</label>
                             <input
                                 type="time"
+                                step="1"
                                 className="w-full p-3 bg-slate-50 border rounded-xl text-sm outline-none focus:ring-2 ring-indigo-500"
                                 value={formData.startTime}
                                 onChange={e => setFormData({...formData, startTime: e.target.value})}
@@ -147,6 +158,7 @@ const ReportModal = ({ isOpen, onClose, deviceNo, reportType, onFetchReport }) =
                             <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-2 block">End Time</label>
                             <input
                                 type="time"
+                                step="1"
                                 className="w-full p-3 bg-slate-50 border rounded-xl text-sm outline-none focus:ring-2 ring-indigo-500"
                                 value={formData.endTime}
                                 onChange={e => setFormData({...formData, endTime: e.target.value})}
@@ -173,7 +185,7 @@ const ReportModal = ({ isOpen, onClose, deviceNo, reportType, onFetchReport }) =
                             ) : (
                                 <Filter className="w-4 h-4" />
                             )}
-                            Generate Report
+                            Generate
                         </button>
                     </div>
                 </form>
@@ -213,6 +225,13 @@ const Livetracking = () => {
         idle: null,
         parking: null
     });
+    const [reportMetadata, setReportMetadata] = useState({
+        stoppage: null,
+        ignition: null,
+        moving: null,
+        idle: null,
+        parking: null
+    });
     const [loadingReports, setLoadingReports] = useState({
         stoppage: false,
         ignition: false,
@@ -222,7 +241,7 @@ const Livetracking = () => {
     });
     const [selectedReportItem, setSelectedReportItem] = useState(null);
     const [expandedReports, setExpandedReports] = useState({
-        stoppage: true,
+        stoppage: false,
         ignition: false,
         moving: false,
         idle: false,
@@ -240,7 +259,6 @@ const Livetracking = () => {
         iconAnchor: [25, 25]
     });
 
-    // Report marker icons
     const reportIcon = (type) => L.divIcon({
         className: 'report-marker',
         html: `
@@ -253,25 +271,443 @@ const Livetracking = () => {
     });
 
     const getMarkerColor = (type) => {
-        const colors = {
-            stoppage: '#ef4444',
-            ignition: '#3b82f6',
-            moving: '#10b981',
-            idle: '#f59e0b',
-            parking: '#8b5cf6'
+        const colors = { 
+            stoppage: '#ef4444', 
+            ignition: '#3b82f6', 
+            moving: '#10b981', 
+            idle: '#f59e0b', 
+            parking: '#8b5cf6' 
         };
         return colors[type] || '#6b7280';
     };
 
     const getMarkerLabel = (type) => {
-        const labels = {
-            stoppage: 'S',
-            ignition: 'I',
-            moving: 'M',
-            idle: 'D',
-            parking: 'P'
+        const labels = { 
+            stoppage: 'S', 
+            ignition: 'I', 
+            moving: 'M', 
+            idle: 'D', 
+            parking: 'P' 
         };
         return labels[type] || 'R';
+    };
+
+    // --- Helper function to format date/time ---
+    const formatDateTime = (isoString) => {
+        if (!isoString) return 'N/A';
+        const date = new Date(isoString);
+        return date.toLocaleString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    };
+
+    const formatTimeOnly = (isoString) => {
+        if (!isoString) return 'N/A';
+        const date = new Date(isoString);
+        return date.toLocaleTimeString('en-IN', {
+            timeZone: 'Asia/Kolkata',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+    };
+
+    // --- Format duration ---
+    const formatDuration = (seconds) => {
+        if (!seconds) return '0s';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor(seconds % 60);
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes}m ${secs}s`;
+        } else if (minutes > 0) {
+            return `${minutes}m ${secs}s`;
+        } else {
+            return `${secs}s`;
+        }
+    };
+
+    // --- Format short duration ---
+    const formatShortDuration = (seconds) => {
+        if (!seconds) return '0s';
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        
+        if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        } else if (minutes > 0) {
+            return `${minutes}m`;
+        } else {
+            return `${seconds}s`;
+        }
+    };
+
+    // --- Generate PDF Report ---
+    const generatePDFReport = (reportType) => {
+        const report = reports[reportType];
+        const metadata = reportMetadata[reportType];
+        
+        if (!report) {
+            alert('No report data available to generate PDF');
+            return;
+        }
+
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.width;
+        
+        // Add header
+        doc.setFillColor(41, 41, 41);
+        doc.rect(0, 0, pageWidth, 30, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report`, pageWidth / 2, 15, { align: 'center' });
+        
+        doc.setFontSize(10);
+        doc.text(`Device: ${deviceInfo.deviceNo}`, 14, 25);
+        doc.text(`Vehicle: ${deviceInfo.vehicleNo}`, pageWidth - 14, 25, { align: 'right' });
+        
+        // Reset text color
+        doc.setTextColor(0, 0, 0);
+        
+        let yPos = 40;
+        
+        // Add report period
+        if (metadata) {
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Report Period', 14, yPos);
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            yPos += 8;
+            
+            if (metadata.reportDate) {
+                doc.text(`Date: ${metadata.reportDate}`, 14, yPos);
+                yPos += 6;
+            }
+            
+            if (metadata.reportPeriod) {
+                const start = formatDateTime(metadata.reportPeriod.startTime);
+                const end = formatDateTime(metadata.reportPeriod.endTime);
+                doc.text(`From: ${start}`, 14, yPos);
+                yPos += 6;
+                doc.text(`To: ${end}`, 14, yPos);
+                yPos += 10;
+            }
+        }
+
+        // Add report data based on type
+        if (reportType === 'stoppage' && Array.isArray(report)) {
+            // Stoppage report table
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Stoppage Details', 14, yPos);
+            yPos += 10;
+            
+            const tableData = report.map((item, index) => [
+                index + 1,
+                formatTimeOnly(item.startTime),
+                formatTimeOnly(item.endTime),
+                formatDuration(item.duration?.seconds || 0),
+                item.location?.latitude?.toFixed(6) || 'N/A',
+                item.location?.longitude?.toFixed(6) || 'N/A'
+            ]);
+            
+            doc.autoTable({
+                startY: yPos,
+                head: [['#', 'Start Time', 'End Time', 'Duration', 'Latitude', 'Longitude']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [239, 68, 68] },
+                margin: { left: 14, right: 14 }
+            });
+            
+            yPos = doc.lastAutoTable.finalY + 10;
+            
+            // Add summary
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Summary', 14, yPos);
+            yPos += 8;
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Total Stoppages: ${report.length}`, 14, yPos);
+            yPos += 6;
+            
+            const totalSeconds = report.reduce((sum, item) => sum + (item.duration?.seconds || 0), 0);
+            doc.text(`Total Stoppage Time: ${formatDuration(totalSeconds)}`, 14, yPos);
+            
+        } else if (reportType === 'ignition' && Array.isArray(report)) {
+            // Ignition report table
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Ignition Sessions', 14, yPos);
+            yPos += 10;
+            
+            const tableData = report.map((item, index) => [
+                index + 1,
+                formatTimeOnly(item.ignitionOnTime),
+                formatTimeOnly(item.ignitionOffTime),
+                formatDuration(item.duration?.seconds || 0),
+                item.startLocation?.latitude?.toFixed(6) || 'N/A',
+                item.startLocation?.longitude?.toFixed(6) || 'N/A',
+                item.status || 'OFF'
+            ]);
+            
+            doc.autoTable({
+                startY: yPos,
+                head: [['#', 'Ignition ON', 'Ignition OFF', 'Duration', 'Latitude', 'Longitude', 'Status']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [59, 130, 246] },
+                margin: { left: 14, right: 14 }
+            });
+            
+            yPos = doc.lastAutoTable.finalY + 10;
+            
+            // Add summary
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Summary', 14, yPos);
+            yPos += 8;
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Total Ignition Sessions: ${report.length}`, 14, yPos);
+            yPos += 6;
+            
+            const totalSeconds = report.reduce((sum, item) => sum + (item.duration?.seconds || 0), 0);
+            doc.text(`Total Ignition Time: ${formatDuration(totalSeconds)}`, 14, yPos);
+            
+        } else if (reportType === 'idle' && Array.isArray(report)) {
+            // Idle report table
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Idle Sessions', 14, yPos);
+            yPos += 10;
+            
+            const tableData = report.map((item, index) => [
+                index + 1,
+                formatTimeOnly(item.startTime),
+                formatTimeOnly(item.endTime),
+                formatDuration(item.duration?.seconds || 0),
+                item.location?.latitude?.toFixed(6) || 'N/A',
+                item.location?.longitude?.toFixed(6) || 'N/A'
+            ]);
+            
+            doc.autoTable({
+                startY: yPos,
+                head: [['#', 'Start Time', 'End Time', 'Duration', 'Latitude', 'Longitude']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [245, 158, 11] },
+                margin: { left: 14, right: 14 }
+            });
+            
+            yPos = doc.lastAutoTable.finalY + 10;
+            
+            // Add summary
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Summary', 14, yPos);
+            yPos += 8;
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Total Idle Sessions: ${report.length}`, 14, yPos);
+            yPos += 6;
+            
+            if (metadata.totalIdleTime) {
+                doc.text(`Total Idle Time: ${formatDuration(metadata.totalIdleTime.seconds)}`, 14, yPos);
+            }
+            
+        } else if (reportType === 'parking' && Array.isArray(report)) {
+            // Parking report table
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Parking Locations', 14, yPos);
+            yPos += 10;
+            
+            const tableData = report.map((item, index) => [
+                index + 1,
+                formatTimeOnly(item.startTime),
+                formatTimeOnly(item.endTime),
+                formatDuration(item.duration?.seconds || 0),
+                item.location?.latitude?.toFixed(6) || 'N/A',
+                item.location?.longitude?.toFixed(6) || 'N/A'
+            ]);
+            
+            doc.autoTable({
+                startY: yPos,
+                head: [['#', 'Start Time', 'End Time', 'Duration', 'Latitude', 'Longitude']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [139, 92, 246] },
+                margin: { left: 14, right: 14 }
+            });
+            
+            yPos = doc.lastAutoTable.finalY + 10;
+            
+            // Add summary
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Summary', 14, yPos);
+            yPos += 8;
+            
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Total Parking Locations: ${report.length}`, 14, yPos);
+            yPos += 6;
+            
+            if (metadata.totalParkingTime) {
+                doc.text(`Total Parking Time: ${formatDuration(metadata.totalParkingTime.seconds)}`, 14, yPos);
+            }
+            
+        } else if (reportType === 'moving' && typeof report === 'object' && report.seconds !== undefined) {
+            // Moving time report (single object)
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Moving Time Summary', 14, yPos);
+            yPos += 10;
+            
+            const tableData = [
+                ['Total Moving Time', formatDuration(report.seconds || 0)],
+                ['Minutes', report.minutes || 0],
+                ['Seconds', (report.seconds || 0).toFixed(2)]
+            ];
+            
+            doc.autoTable({
+                startY: yPos,
+                head: [['Metric', 'Value']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [16, 185, 129] },
+                margin: { left: 14, right: 14 }
+            });
+        } else if (typeof report === 'object' && !Array.isArray(report)) {
+            // Other report types (object format)
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Report Summary', 14, yPos);
+            yPos += 10;
+            
+            const tableData = Object.entries(report).map(([key, value]) => [
+                key.replace(/([A-Z])/g, ' $1').trim(),
+                typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)
+            ]);
+            
+            doc.autoTable({
+                startY: yPos,
+                head: [['Metric', 'Value']],
+                body: tableData,
+                theme: 'grid',
+                headStyles: { fillColor: [59, 130, 246] },
+                margin: { left: 14, right: 14 }
+            });
+        }
+        
+        // Add footer
+        const totalPages = doc.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, doc.internal.pageSize.height - 10, { align: 'center' });
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, pageWidth - 14, doc.internal.pageSize.height - 10, { align: 'right' });
+        }
+        
+        // Save the PDF
+        doc.save(`${reportType}_Report_${deviceInfo.deviceNo}_${new Date().toISOString().split('T')[0]}.pdf`);
+    };
+
+    // --- Export Report to CSV ---
+    const exportReport = (reportType) => {
+        const report = reports[reportType];
+        if (!report || (Array.isArray(report) && report.length === 0)) {
+            alert('No data to export');
+            return;
+        }
+
+        let headers = [];
+        let rows = [];
+
+        if (reportType === 'stoppage' && Array.isArray(report)) {
+            headers = ['Sr.No', 'Start Time', 'End Time', 'Duration', 'Latitude', 'Longitude'];
+            rows = report.map((item, index) => [
+                index + 1,
+                formatTimeOnly(item.startTime),
+                formatTimeOnly(item.endTime),
+                formatDuration(item.duration?.seconds || 0),
+                item.location?.latitude || '',
+                item.location?.longitude || ''
+            ]);
+        } else if (reportType === 'ignition' && Array.isArray(report)) {
+            headers = ['Sr.No', 'Ignition ON', 'Ignition OFF', 'Duration', 'Latitude', 'Longitude', 'Status'];
+            rows = report.map((item, index) => [
+                index + 1,
+                formatTimeOnly(item.ignitionOnTime),
+                formatTimeOnly(item.ignitionOffTime),
+                formatDuration(item.duration?.seconds || 0),
+                item.startLocation?.latitude || '',
+                item.startLocation?.longitude || '',
+                item.status || 'OFF'
+            ]);
+        } else if (reportType === 'idle' && Array.isArray(report)) {
+            headers = ['Sr.No', 'Start Time', 'End Time', 'Duration', 'Latitude', 'Longitude'];
+            rows = report.map((item, index) => [
+                index + 1,
+                formatTimeOnly(item.startTime),
+                formatTimeOnly(item.endTime),
+                formatDuration(item.duration?.seconds || 0),
+                item.location?.latitude || '',
+                item.location?.longitude || ''
+            ]);
+        } else if (reportType === 'parking' && Array.isArray(report)) {
+            headers = ['Sr.No', 'Start Time', 'End Time', 'Duration', 'Latitude', 'Longitude'];
+            rows = report.map((item, index) => [
+                index + 1,
+                formatTimeOnly(item.startTime),
+                formatTimeOnly(item.endTime),
+                formatDuration(item.duration?.seconds || 0),
+                item.location?.latitude || '',
+                item.location?.longitude || ''
+            ]);
+        } else if (reportType === 'moving' && typeof report === 'object' && report.seconds !== undefined) {
+            headers = ['Metric', 'Value'];
+            rows = [
+                ['Total Moving Time', formatDuration(report.seconds || 0)],
+                ['Minutes', report.minutes || 0],
+                ['Seconds', (report.seconds || 0).toFixed(2)]
+            ];
+        } else {
+            // For other report types
+            headers = ['Metric', 'Value'];
+            rows = Object.entries(report).map(([key, value]) => [
+                key.replace(/([A-Z])/g, ' $1').trim(),
+                typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value)
+            ]);
+        }
+        
+        const csvContent = [headers.join(','), ...rows.map(row => row.map(cell => `"${cell}"`).join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${reportType}_Report_${deviceInfo.deviceNo}_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
     };
 
     // --- Fetch Live Data ---
@@ -287,7 +723,7 @@ const Livetracking = () => {
             const data = await res.json();
             const loc = data.location || data.rawData || {};
             const raw = data.rawData || data;
-            console.log(raw)
+            
             setRawData(raw);
             setDeviceInfo({ deviceNo: trackedDeviceNo, vehicleNo: data.deviceInfo?.vehicleName || 'Vehicle' });
 
@@ -320,12 +756,15 @@ const Livetracking = () => {
             const res = await fetch('https://api.websave.in/api/manufactur/fetchSingleRoutePlayback', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                body: JSON.stringify({ deviceNo: trackedDeviceNo, startTime, endTime }),
+                body: JSON.stringify({ 
+                    deviceNo: trackedDeviceNo, 
+                    startTime: new Date(startTime).toISOString(), 
+                    endTime: new Date(endTime).toISOString() 
+                }),
             });
              
             const data = await res.json();
-            console.log(data)
-         
+            
             if (data.route && data.route.length > 0) {
                 const formattedPath = data.route.map(p => ({
                     lat: parseFloat(p.latitude),
@@ -345,8 +784,8 @@ const Livetracking = () => {
         finally { setLoadingPlayback(false); }
     };
 
-    // --- Generic Report Fetch Function ---
-    const fetchReport = async (reportType, filters) => {
+    // --- Report Fetch Function (Updated) ---
+    const fetchReport = async (reportType, payload) => {
         setLoadingReports(prev => ({ ...prev, [reportType]: true }));
         
         const token = localStorage.getItem('token');
@@ -359,130 +798,92 @@ const Livetracking = () => {
                 parking: 'fetchParkingTimeReport'
             };
 
+            console.log(`Sending ${reportType} request:`, payload);
+
             const response = await fetch(`https://api.websave.in/api/manufactur/${endpoints[reportType]}`, {
                 method: 'POST',
                 headers: { 
                     'Content-Type': 'application/json', 
                     'Authorization': `Bearer ${token}` 
                 },
-                body: JSON.stringify({
-                    deviceNo: filters.deviceNo,
-                    date: filters.date,
-                    startTime: filters.startTime,
-                    endTime: filters.endTime
-                }),
+                body: JSON.stringify(payload),
             });
 
             const data = await response.json();
-            console.log(`${reportType} Report:`, data);
+            console.log(`${reportType} Response:`, data);
             
-            if (data.success || data.data) {
+            if (data.success) {
+                // Extract report data based on type
+                let reportData, metadata = {};
+                
+                switch(reportType) {
+                    case 'stoppage':
+                        reportData = data.stoppages || [];
+                        metadata = {
+                            reportDate: data.reportDate,
+                            reportPeriod: data.reportPeriod,
+                            totalStoppages: data.totalStoppages
+                        };
+                        break;
+                    case 'ignition':
+                        reportData = data.ignitionSessions || [];
+                        metadata = {
+                            reportDate: data.reportDate,
+                            reportPeriod: data.reportPeriod
+                        };
+                        break;
+                    case 'moving':
+                        reportData = data.movingTime || {};
+                        metadata = {
+                            reportDate: data.reportDate,
+                            reportPeriod: data.reportPeriod
+                        };
+                        break;
+                    case 'idle':
+                        reportData = data.idleSessions || [];
+                        metadata = {
+                            reportDate: data.reportDate,
+                            reportPeriod: data.reportPeriod,
+                            totalIdleTime: data.totalIdleTime
+                        };
+                        break;
+                    case 'parking':
+                        reportData = data.parkingLocations || [];
+                        metadata = {
+                            reportDate: data.reportDate,
+                            reportPeriod: data.reportPeriod,
+                            totalParkingTime: data.totalParkingTime
+                        };
+                        break;
+                    default:
+                        reportData = data.data || data;
+                        metadata = {
+                            reportDate: data.reportDate,
+                            reportPeriod: data.reportPeriod
+                        };
+                }
+                
                 setReports(prev => ({
                     ...prev,
-                    [reportType]: data.data || data
+                    [reportType]: reportData
                 }));
+                
+                setReportMetadata(prev => ({
+                    ...prev,
+                    [reportType]: metadata
+                }));
+                
                 setShowReportModal(false);
             } else {
                 alert(data.message || `No ${reportType} data found`);
-                // Set mock data for demonstration
-                setReports(prev => ({
-                    ...prev,
-                    [reportType]: getMockData(reportType)
-                }));
+                setReports(prev => ({ ...prev, [reportType]: null }));
             }
         } catch (error) {
             console.error(`Error fetching ${reportType} report:`, error);
             alert(`Failed to fetch ${reportType} report`);
-            // Set mock data for demonstration
-            setReports(prev => ({
-                ...prev,
-                [reportType]: getMockData(reportType)
-            }));
         } finally {
             setLoadingReports(prev => ({ ...prev, [reportType]: false }));
         }
-    };
-
-    // Mock data for demonstration
-    const getMockData = (reportType) => {
-        const mockData = {
-            stoppage: [
-                { startTime: "08:15:00", endTime: "08:30:00", duration: "15m", latitude: 19.0760, longitude: 72.8777, address: "Mumbai Central" },
-                { startTime: "09:45:00", endTime: "10:00:00", duration: "15m", latitude: 19.0760, longitude: 72.8777, address: "Bandra" }
-            ],
-            ignition: {
-                ignitionCount: 5,
-                totalOnTime: "2h 30m",
-                averageDuration: "30m",
-                firstIgnition: "08:10:00",
-                lastIgnition: "10:45:00"
-            },
-            moving: {
-                totalMovingTime: "1h 45m",
-                movingPercentage: "70%",
-                averageSpeed: "45 km/h",
-                maxSpeed: "80 km/h"
-            },
-            idle: {
-                totalIdleTime: "45m",
-                idlePercentage: "30%",
-                idleCount: 6,
-                averageIdleDuration: "7.5m"
-            },
-            parking: {
-                totalParkingTime: "1h 15m",
-                parkingCount: 3,
-                longestPark: "40m",
-                overnightParking: false
-            }
-        };
-        return mockData[reportType];
-    };
-
-    // --- Export Report to CSV ---
-    const exportReport = (reportType) => {
-        const report = reports[reportType];
-        if (!report || (Array.isArray(report) && report.length === 0)) {
-            alert('No data to export');
-            return;
-        }
-
-        const reportNames = {
-            stoppage: "Stoppage",
-            ignition: "Ignition",
-            moving: "Moving_Time",
-            idle: "Idle_Time",
-            parking: "Parking_Time"
-        };
-
-        let headers = [];
-        let rows = [];
-
-        if (Array.isArray(report)) {
-            headers = Object.keys(report[0] || {});
-            rows = report.map(item => headers.map(header => `"${item[header] || ''}"`));
-        } else {
-            headers = ['Metric', 'Value'];
-            rows = Object.entries(report).map(([key, value]) => [
-                key,
-                typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value
-            ]);
-        }
-
-        const csvContent = [
-            headers.join(','),
-            ...rows.map(row => row.join(','))
-        ].join('\n');
-
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${reportNames[reportType]}_Report_${deviceInfo.deviceNo}_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
     };
 
     // --- Playback Animation Loop ---
@@ -512,34 +913,29 @@ const Livetracking = () => {
         setStatus("Live");
     };
 
-    // Toggle report section
     const toggleReportSection = (section) => {
-        setExpandedReports(prev => ({
-            ...prev,
-            [section]: !prev[section]
-        }));
+        setExpandedReports(prev => ({ ...prev, [section]: !prev[section] }));
     };
 
-    // Open report modal
     const openReportModal = (reportType) => {
         setActiveReportType(reportType);
         setShowReportModal(true);
     };
 
-    // Render report content
+    // --- Render report content based on type ---
     const renderReportContent = (reportType) => {
         const report = reports[reportType];
         const loading = loadingReports[reportType];
 
         if (loading) {
             return (
-                <div className="p-4 flex items-center justify-center">
+                <div className="p-4 flex justify-center">
                     <RefreshCw className="w-6 h-6 animate-spin text-indigo-400" />
                 </div>
             );
         }
 
-        if (!report) {
+        if (!report || (Array.isArray(report) && report.length === 0)) {
             return (
                 <div className="p-4 text-center">
                     <FileText className="w-10 h-10 text-slate-200 mx-auto mb-2" />
@@ -554,10 +950,10 @@ const Livetracking = () => {
             );
         }
 
-        if (Array.isArray(report)) {
+        if (reportType === 'stoppage' && Array.isArray(report)) {
             return (
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
-                    {report.map((item, index) => (
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {report.slice(0, 3).map((item, index) => (
                         <div 
                             key={index}
                             className={`p-2 rounded-lg border cursor-pointer hover:bg-slate-50 ${
@@ -566,31 +962,213 @@ const Livetracking = () => {
                             onClick={() => setSelectedReportItem(item)}
                         >
                             <div className="flex justify-between items-center">
-                                <span className="text-[9px] font-bold text-slate-700">{item.startTime} - {item.endTime}</span>
+                                <div className="flex items-center gap-2">
+                                    <StopCircle className="w-3 h-3 text-red-500" />
+                                    <span className="text-[9px] font-bold text-slate-700">
+                                        Stoppage #{index + 1}
+                                    </span>
+                                </div>
                                 <span className="text-[8px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded">
-                                    {item.duration}
+                                    {formatShortDuration(item.duration?.seconds || 0)}
                                 </span>
                             </div>
-                            {item.address && (
-                                <p className="text-[8px] text-slate-500 truncate mt-1">{item.address}</p>
-                            )}
+                            <div className="text-[8px] text-slate-600 mt-1">
+                                <div className="flex justify-between">
+                                    <span>Start: {formatTimeOnly(item.startTime)}</span>
+                                    <span>End: {formatTimeOnly(item.endTime)}</span>
+                                </div>
+                            </div>
                         </div>
                     ))}
+                    {report.length > 3 && (
+                        <p className="text-[8px] text-slate-500 text-center">+ {report.length - 3} more stoppages</p>
+                    )}
+                </div>
+            );
+        } else if (reportType === 'ignition' && Array.isArray(report)) {
+            return (
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {report.slice(0, 3).map((item, index) => (
+                        <div 
+                            key={index}
+                            className={`p-2 rounded-lg border cursor-pointer hover:bg-slate-50 ${
+                                selectedReportItem === item ? 'bg-indigo-50 border-indigo-300' : 'bg-slate-50 border-slate-100'
+                            }`}
+                            onClick={() => setSelectedReportItem(item)}
+                        >
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <Power className="w-3 h-3 text-blue-500" />
+                                    <span className="text-[9px] font-bold text-slate-700">
+                                        Session #{index + 1}
+                                    </span>
+                                </div>
+                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                                    item.status === 'Still ON' 
+                                        ? 'bg-green-100 text-green-600'
+                                        : 'bg-blue-100 text-blue-600'
+                                }`}>
+                                    {formatShortDuration(item.duration?.seconds || 0)}
+                                </span>
+                            </div>
+                            <div className="text-[8px] text-slate-600 mt-1">
+                                <div className="flex justify-between">
+                                    <span>ON: {formatTimeOnly(item.ignitionOnTime)}</span>
+                                    <span>OFF: {item.status === 'Still ON' ? 'Still ON' : formatTimeOnly(item.ignitionOffTime)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {report.length > 3 && (
+                        <p className="text-[8px] text-slate-500 text-center">+ {report.length - 3} more sessions</p>
+                    )}
+                </div>
+            );
+        } else if (reportType === 'idle' && Array.isArray(report)) {
+            return (
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {report.slice(0, 3).map((item, index) => (
+                        <div 
+                            key={index}
+                            className={`p-2 rounded-lg border cursor-pointer hover:bg-slate-50 ${
+                                selectedReportItem === item ? 'bg-indigo-50 border-indigo-300' : 'bg-slate-50 border-slate-100'
+                            }`}
+                            onClick={() => setSelectedReportItem(item)}
+                        >
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <Clock className="w-3 h-3 text-yellow-500" />
+                                    <span className="text-[9px] font-bold text-slate-700">
+                                        Idle #{index + 1}
+                                    </span>
+                                </div>
+                                <span className="text-[8px] font-bold bg-yellow-100 text-yellow-600 px-1.5 py-0.5 rounded">
+                                    {formatShortDuration(item.duration?.seconds || 0)}
+                                </span>
+                            </div>
+                            <div className="text-[8px] text-slate-600 mt-1">
+                                <div className="flex justify-between">
+                                    <span>Start: {formatTimeOnly(item.startTime)}</span>
+                                    <span>End: {formatTimeOnly(item.endTime)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {report.length > 3 && (
+                        <p className="text-[8px] text-slate-500 text-center">+ {report.length - 3} more idle sessions</p>
+                    )}
+                </div>
+            );
+        } else if (reportType === 'parking' && Array.isArray(report)) {
+            return (
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                    {report.slice(0, 3).map((item, index) => (
+                        <div 
+                            key={index}
+                            className={`p-2 rounded-lg border cursor-pointer hover:bg-slate-50 ${
+                                selectedReportItem === item ? 'bg-indigo-50 border-indigo-300' : 'bg-slate-50 border-slate-100'
+                            }`}
+                            onClick={() => setSelectedReportItem(item)}
+                        >
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <ParkingCircle className="w-3 h-3 text-purple-500" />
+                                    <span className="text-[9px] font-bold text-slate-700">
+                                        Parking #{index + 1}
+                                    </span>
+                                </div>
+                                <span className="text-[8px] font-bold bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">
+                                    {formatShortDuration(item.duration?.seconds || 0)}
+                                </span>
+                            </div>
+                            <div className="text-[8px] text-slate-600 mt-1">
+                                <div className="flex justify-between">
+                                    <span>Start: {formatTimeOnly(item.startTime)}</span>
+                                    <span>End: {formatTimeOnly(item.endTime)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                    {report.length > 3 && (
+                        <p className="text-[8px] text-slate-500 text-center">+ {report.length - 3} more parking locations</p>
+                    )}
+                </div>
+            );
+        } else if (reportType === 'moving' && typeof report === 'object' && report.seconds !== undefined) {
+            return (
+                <div className="grid grid-cols-2 gap-2 p-2">
+                    <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+                        <p className="text-[8px] font-bold text-slate-500 uppercase">Moving Time</p>
+                        <p className="text-[10px] font-bold text-slate-900">{formatShortDuration(report.seconds || 0)}</p>
+                    </div>
+                    <div className="bg-slate-50 rounded-lg p-2 border border-slate-100">
+                        <p className="text-[8px] font-bold text-slate-500 uppercase">Minutes</p>
+                        <p className="text-[10px] font-bold text-slate-900">{report.minutes || 0}</p>
+                    </div>
                 </div>
             );
         }
 
-        // For object reports
         return (
             <div className="grid grid-cols-2 gap-2 p-2">
-                {Object.entries(report).map(([key, value]) => (
+                {Object.entries(report).slice(0, 4).map(([key, value]) => (
                     <div key={key} className="bg-slate-50 rounded-lg p-2 border border-slate-100">
-                        <p className="text-[8px] font-bold text-slate-500 uppercase">{key}</p>
-                        <p className="text-[10px] font-bold text-slate-900">
-                            {typeof value === 'boolean' ? (value ? 'Yes' : 'No') : value}
-                        </p>
+                        <p className="text-[8px] font-bold text-slate-500 uppercase">{key.replace(/([A-Z])/g, ' $1').trim().slice(0, 15)}</p>
+                        <p className="text-[10px] font-bold text-slate-900">{typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value).slice(0, 10)}</p>
                     </div>
                 ))}
+            </div>
+        );
+    };
+
+    // --- Render report summary (compact view) ---
+    const renderReportSummary = (reportType) => {
+        const report = reports[reportType];
+        const metadata = reportMetadata[reportType];
+
+        if (!report) return null;
+
+        if (reportType === 'stoppage' && Array.isArray(report)) {
+            const totalSeconds = report.reduce((sum, item) => sum + (item.duration?.seconds || 0), 0);
+            return (
+                <div className="text-[8px] text-slate-500">
+                    {report.length} stops • {formatShortDuration(totalSeconds)}
+                </div>
+            );
+        } else if (reportType === 'ignition' && Array.isArray(report)) {
+            const totalSeconds = report.reduce((sum, item) => sum + (item.duration?.seconds || 0), 0);
+            return (
+                <div className="text-[8px] text-slate-500">
+                    {report.length} sessions • {formatShortDuration(totalSeconds)}
+                </div>
+            );
+        } else if (reportType === 'idle' && Array.isArray(report)) {
+            const totalSeconds = metadata?.totalIdleTime?.seconds || 
+                               report.reduce((sum, item) => sum + (item.duration?.seconds || 0), 0);
+            return (
+                <div className="text-[8px] text-slate-500">
+                    {report.length} sessions • {formatShortDuration(totalSeconds)}
+                </div>
+            );
+        } else if (reportType === 'parking' && Array.isArray(report)) {
+            const totalSeconds = metadata?.totalParkingTime?.seconds || 
+                               report.reduce((sum, item) => sum + (item.duration?.seconds || 0), 0);
+            return (
+                <div className="text-[8px] text-slate-500">
+                    {report.length} locations • {formatShortDuration(totalSeconds)}
+                </div>
+            );
+        } else if (reportType === 'moving' && typeof report === 'object' && report.seconds !== undefined) {
+            return (
+                <div className="text-[8px] text-slate-500">
+                    {formatShortDuration(report.seconds || 0)} total
+                </div>
+            );
+        }
+
+        return (
+            <div className="text-[8px] text-slate-500">
+                Data loaded
             </div>
         );
     };
@@ -608,7 +1186,6 @@ const Livetracking = () => {
             <Navbar/>
             <div className="min-h-screen bg-[#f8fafc] p-4 lg:p-8 font-sans">
                 <div className="max-w-[1600px] mx-auto space-y-6">
-                    
                     {/* TOP HEADER */}
                     <div className="bg-slate-900 rounded-[2rem] p-6 text-white shadow-2xl flex flex-col md:flex-row justify-between items-center border border-white/10">
                         <div className="flex items-center gap-6">
@@ -623,10 +1200,7 @@ const Livetracking = () => {
                                 </div>
                             </div>
                         </div>
-
-                        {/* Status and Controls */}
                         <div className="flex flex-wrap items-center gap-3 mt-6 md:mt-0">
-                            {/* Report Buttons */}
                             <div className="flex flex-wrap gap-2">
                                 {['stoppage', 'ignition', 'moving', 'idle', 'parking'].map((type) => (
                                     <button 
@@ -643,13 +1217,11 @@ const Livetracking = () => {
                                     </button>
                                 ))}
                             </div>
-                            
                             {isPlaybackMode && (
                                 <button onClick={exitPlayback} className="bg-rose-500 hover:bg-rose-600 px-4 py-2 rounded-xl text-xs font-bold transition-all">
                                     Exit Playback
                                 </button>
                             )}
-                            
                             <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase border ${status === 'Live' ? 'border-emerald-500 text-emerald-500' : 'border-indigo-500 text-indigo-500'}`}>
                                 <span className={`w-2 h-2 rounded-full bg-current ${status === 'Live' ? 'animate-pulse' : ''}`}></span>
                                 {status}
@@ -661,21 +1233,43 @@ const Livetracking = () => {
                     <div className="bg-white rounded-3xl p-6 shadow-xl border border-slate-200 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                         <div>
                             <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-2 block">Start Time</label>
-                            <input type="datetime-local" className="w-full p-3 bg-slate-50 border rounded-xl text-xs outline-none focus:ring-2 ring-indigo-500" value={startTime} onChange={e => setStartTime(e.target.value)} />
+                            <input 
+                                type="datetime-local" 
+                                className="w-full p-3 bg-slate-50 border rounded-xl text-xs outline-none focus:ring-2 ring-indigo-500" 
+                                value={startTime} 
+                                onChange={e => setStartTime(e.target.value)} 
+                            />
                         </div>
                         <div>
                             <label className="text-[10px] font-black text-slate-400 uppercase ml-1 mb-2 block">End Time</label>
-                            <input type="datetime-local" className="w-full p-3 bg-slate-50 border rounded-xl text-xs outline-none focus:ring-2 ring-indigo-500" value={endTime} onChange={e => setEndTime(e.target.value)} />
+                            <input 
+                                type="datetime-local" 
+                                className="w-full p-3 bg-slate-50 border rounded-xl text-xs outline-none focus:ring-2 ring-indigo-500" 
+                                value={endTime} 
+                                onChange={e => setEndTime(e.target.value)} 
+                            />
                         </div>
-                        <button onClick={handleFetchPlayback} disabled={loadingPlayback} className="bg-slate-900 text-white p-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-800 transition-all">
-                            {loadingPlayback ? <RefreshCw className="animate-spin" size={16}/> : <History size={16}/>} Load Route
+                        <button 
+                            onClick={handleFetchPlayback} 
+                            disabled={loadingPlayback} 
+                            className="bg-slate-900 text-white p-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-800 transition-all"
+                        >
+                            {loadingPlayback ? <RefreshCw className="animate-spin" size={16}/> : <History size={16}/>} 
+                            Load Route
                         </button>
                         {isPlaybackMode && (
                             <div className="flex gap-2">
-                                <button onClick={() => setIsPlaying(!isPlaying)} className="flex-1 bg-indigo-600 text-white p-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2">
-                                    {isPlaying ? <Pause size={16}/> : <Play size={16}/>} {isPlaying ? 'Pause' : 'Play'}
+                                <button 
+                                    onClick={() => setIsPlaying(!isPlaying)} 
+                                    className="flex-1 bg-indigo-600 text-white p-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2"
+                                >
+                                    {isPlaying ? <Pause size={16}/> : <Play size={16}/>} 
+                                    {isPlaying ? 'Pause' : 'Play'}
                                 </button>
-                                <button onClick={() => {setIsPlaying(false); setPlaybackIndex(0);}} className="bg-slate-100 text-slate-600 p-3 rounded-xl hover:bg-slate-200">
+                                <button 
+                                    onClick={() => {setIsPlaying(false); setPlaybackIndex(0);}} 
+                                    className="bg-slate-100 text-slate-600 p-3 rounded-xl hover:bg-slate-200"
+                                >
                                     <Square size={16} fill="currentColor"/>
                                 </button>
                             </div>
@@ -684,44 +1278,14 @@ const Livetracking = () => {
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-350px)] min-h-[500px]">
                         {/* LEFT: MAP */}
-                        <div className="lg:col-span-8 bg-white rounded-[2.5rem] p-3 shadow-xl border border-slate-200 relative overflow-hidden flex flex-col">
+                        <div className="lg:col-span-7 bg-white rounded-[2.5rem] p-3 shadow-xl border border-slate-200 relative overflow-hidden flex flex-col">
                             <div className="flex-1 rounded-[2rem] overflow-hidden z-20">
                                 {displayData ? (
                                     <MapContainer center={[displayData.lat || displayData.position?.lat, displayData.lng || displayData.position?.lng]} zoom={16} zoomControl={false} style={{ height: "100%", width: "100%" }}>
                                         <TileLayer url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png" />
-                                        
-                                        {/* Playback Route Line */}
                                         {isPlaybackMode && playbackPath.length > 0 && (
                                             <Polyline positions={playbackPath.map(p => [p.lat, p.lng])} color="#6366f1" weight={5} opacity={0.6} />
                                         )}
-
-                                        {/* Report Markers */}
-                                        {reports.stoppage && Array.isArray(reports.stoppage) && reports.stoppage.map((stoppage, index) => (
-                                            <Marker 
-                                                key={`stoppage-${index}`}
-                                                position={[stoppage.latitude, stoppage.longitude]}
-                                                icon={reportIcon('stoppage')}
-                                                eventHandlers={{
-                                                    click: () => setSelectedReportItem(stoppage)
-                                                }}
-                                            >
-                                                <Popup>
-                                                    <div className="p-2 min-w-[200px]">
-                                                        <div className="flex items-center gap-2 mb-2">
-                                                            <StopCircle className="w-4 h-4 text-red-500" />
-                                                            <h3 className="font-bold text-sm">Stoppage #{index + 1}</h3>
-                                                        </div>
-                                                        <div className="space-y-1 text-xs">
-                                                            <p><span className="font-bold">From:</span> {stoppage.startTime}</p>
-                                                            <p><span className="font-bold">To:</span> {stoppage.endTime}</p>
-                                                            <p><span className="font-bold">Duration:</span> {stoppage.duration}</p>
-                                                            <p className="text-slate-500 text-[10px] mt-2">{stoppage.address || 'Address not available'}</p>
-                                                        </div>
-                                                    </div>
-                                                </Popup>
-                                            </Marker>
-                                        ))}
-
                                         <Marker 
                                             position={[displayData.lat || displayData.position?.lat, displayData.lng || displayData.position?.lng]} 
                                             icon={carIcon(displayData.heading, isPlaybackMode)}
@@ -730,7 +1294,11 @@ const Livetracking = () => {
                                                 <div className="p-1">
                                                     <p className="font-black text-xs uppercase">{deviceInfo.vehicleNo}</p>
                                                     <p className="font-bold text-indigo-600 text-[10px]">{displayData.speed} KM/H</p>
-                                                    {isPlaybackMode && <p className="text-[9px] text-slate-400 mt-1">{new Date(displayData.timestamp).toLocaleString()}</p>}
+                                                    {isPlaybackMode && (
+                                                        <p className="text-[9px] text-slate-400 mt-1">
+                                                            {new Date(displayData.timestamp).toLocaleString()}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </Popup>
                                         </Marker>
@@ -746,25 +1314,81 @@ const Livetracking = () => {
                         </div>
 
                         {/* RIGHT SIDE: STATS AND REPORTS */}
-                        <div className="lg:col-span-4 flex flex-col gap-4">
-                            {/* Stats Cards */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <StatCard icon={<Zap size={16}/>} label="Speed" val={displayData?.speed} unit="KM/H" color="text-amber-500" bg="bg-amber-50" />
-                                {!isPlaybackMode && vehicleData && (
-                                    <>
-                                        <StatCard icon={<Satellite size={16}/>} label="Sats" val={vehicleData?.satellites} unit="SATS" color="text-blue-500" bg="bg-blue-50" />
-                                    </>
-                                )}
+                        <div className="lg:col-span-5 flex flex-col gap-4">
+                            {/* Vehicle Stats Row */}
+                            <div className="grid grid-cols-4 gap-3">
+                                <StatCard 
+                                    icon={<Gauge size={14} className="text-amber-500"/>} 
+                                    label="Speed" 
+                                    val={displayData?.speed || 0} 
+                                    unit="km/h" 
+                                    color="text-amber-500" 
+                                    bg="bg-amber-50" 
+                                />
+                                <StatCard 
+                                    icon={<Compass size={14} className="text-blue-500"/>} 
+                                    label="Heading" 
+                                    val={displayData?.heading || 0} 
+                                    unit="°" 
+                                    color="text-blue-500" 
+                                    bg="bg-blue-50" 
+                                />
+                                <StatCard 
+                                    icon={<BatteryCharging size={14} className="text-green-500"/>} 
+                                    label="Battery" 
+                                    val={vehicleData?.battery || 0} 
+                                    unit="V" 
+                                    color="text-green-500" 
+                                    bg="bg-green-50" 
+                                />
+                                <StatCard 
+                                    icon={<Signal size={14} className="text-purple-500"/>} 
+                                    label="Signal" 
+                                    val={vehicleData?.signal || 0} 
+                                    unit="%" 
+                                    color="text-purple-500" 
+                                    bg="bg-purple-50" 
+                                />
                             </div>
 
-                            {/* Reports Panel */}
+                            {/* Location Info Card */}
+                            <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <MapPin className="w-4 h-4 text-indigo-500" />
+                                    <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Location</h4>
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[9px] font-bold text-slate-500">Latitude:</span>
+                                        <span className="text-[10px] font-bold text-slate-900">
+                                            {displayData?.lat || displayData?.position?.lat || 'N/A'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[9px] font-bold text-slate-500">Longitude:</span>
+                                        <span className="text-[10px] font-bold text-slate-900">
+                                            {displayData?.lng || displayData?.position?.lng || 'N/A'}
+                                        </span>
+                                    </div>
+                                    {displayData?.lat && displayData?.lng && (
+                                        <MapAddress 
+                                            lat={displayData.lat || displayData.position?.lat} 
+                                            lng={displayData.lng || displayData.position?.lng} 
+                                        />
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Reports Dashboard */}
                             <div className="flex-1 bg-white rounded-[2rem] p-4 border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
                                         <div className="p-1.5 bg-indigo-100 rounded-lg">
                                             <BarChart3 className="w-4 h-4 text-indigo-600" />
                                         </div>
-                                        <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">Reports Dashboard</h4>
+                                        <h4 className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                                            Reports Dashboard
+                                        </h4>
                                     </div>
                                     <span className="text-[8px] font-bold bg-indigo-100 text-indigo-600 px-2 py-1 rounded-full">
                                         {Object.values(reports).filter(r => r !== null).length}/5
@@ -792,24 +1416,37 @@ const Livetracking = () => {
                                                         {type === 'idle' && <Clock className="w-3 h-3 text-yellow-600" />}
                                                         {type === 'parking' && <ParkingCircle className="w-3 h-3 text-purple-600" />}
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-bold text-slate-900 capitalize">{type} Report</p>
-                                                        <p className="text-[8px] text-slate-500">
-                                                            {reports[type] ? 'Data loaded' : 'No data'}
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-[10px] font-bold text-slate-900 capitalize truncate">
+                                                            {type.charAt(0).toUpperCase() + type.slice(1)} Report
                                                         </p>
+                                                        {renderReportSummary(type)}
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1">
                                                     {reports[type] && (
-                                                        <button
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                exportReport(type);
-                                                            }}
-                                                            className="p-1 bg-slate-200 hover:bg-slate-300 rounded-lg"
-                                                        >
-                                                            <Download className="w-3 h-3 text-slate-600" />
-                                                        </button>
+                                                        <>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    exportReport(type);
+                                                                }}
+                                                                className="p-1 bg-slate-200 hover:bg-slate-300 rounded-lg"
+                                                                title="Download CSV"
+                                                            >
+                                                                <Download className="w-3 h-3 text-slate-600" />
+                                                            </button>
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    generatePDFReport(type);
+                                                                }}
+                                                                className="p-1 bg-rose-100 hover:bg-rose-200 rounded-lg"
+                                                                title="Download PDF"
+                                                            >
+                                                                <Printer className="w-3 h-3 text-rose-600" />
+                                                            </button>
+                                                        </>
                                                     )}
                                                     {expandedReports[type] ? 
                                                         <ChevronUp className="w-4 h-4 text-slate-400" /> : 
@@ -843,7 +1480,9 @@ const Livetracking = () => {
                                             {Object.entries(selectedReportItem).map(([key, value]) => (
                                                 <div key={key} className="flex justify-between">
                                                     <span className="font-bold">{key}:</span>
-                                                    <span>{value}</span>
+                                                    <span className="text-right">
+                                                        {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                                                    </span>
                                                 </div>
                                             ))}
                                         </div>
@@ -853,14 +1492,21 @@ const Livetracking = () => {
 
                             {/* Playback Progress */}
                             {isPlaybackMode && (
-                                <div className="bg-indigo-600 text-white p-4 rounded-[2rem] shadow-lg">
+                                <div className="bg-indigo-600 text-white p-4 rounded-2xl shadow-lg">
                                     <div className="flex items-center gap-2 mb-3">
                                         <History className="w-4 h-4 opacity-50"/>
-                                        <p className="text-[10px] font-black uppercase tracking-widest opacity-70">Playback Progress</p>
+                                        <p className="text-[10px] font-black uppercase tracking-widest opacity-70">
+                                            Playback Progress
+                                        </p>
                                     </div>
-                                    <p className="text-xl font-black">{playbackIndex + 1} / {playbackPath.length}</p>
+                                    <p className="text-xl font-black">
+                                        {playbackIndex + 1} / {playbackPath.length}
+                                    </p>
                                     <div className="w-full bg-white/20 h-1.5 rounded-full mt-2 overflow-hidden">
-                                        <div className="bg-white h-full" style={{ width: `${((playbackIndex + 1) / playbackPath.length) * 100}%` }}></div>
+                                        <div 
+                                            className="bg-white h-full" 
+                                            style={{ width: `${((playbackIndex + 1) / playbackPath.length) * 100}%` }}
+                                        ></div>
                                     </div>
                                 </div>
                             )}
@@ -878,27 +1524,21 @@ const Livetracking = () => {
                 onFetchReport={fetchReport}
             />
 
-            <div className='z-40'>
-                <VehicleDataTable/>
+            <div className='z-40 mt-52'>
+                {/* <VehicleDataTable/> */}
+                <SocketClient/>
             </div>
         </>
     );
 };
 
 const StatCard = ({ icon, label, val, unit, color, bg }) => (
-    <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-3">
+    <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2">
         <div className={`p-2 rounded-xl ${bg} ${color}`}>{icon}</div>
-        <div>
-            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{label}</p>
-            <p className="text-lg font-black text-slate-900 leading-none">{val ?? '--'} <span className="text-[9px] font-bold text-slate-400">{unit}</span></p>
+        <div className="min-w-0 flex-1">
+            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 truncate">{label}</p>
+            <p className="text-lg font-black text-slate-900 leading-none truncate">{val ?? '--'} <span className="text-[9px] font-bold text-slate-400">{unit}</span></p>
         </div>
-    </div>
-);
-
-const LogItem = ({ label, val }) => (
-    <div className="flex justify-between items-center px-4 py-2 bg-slate-50 rounded-xl border border-slate-100">
-        <span className="text-[9px] font-black text-slate-400 uppercase">{label}</span>
-        <span className="text-[10px] font-black text-slate-700 uppercase tracking-tighter">{val}</span>
     </div>
 );
 
