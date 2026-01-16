@@ -65,10 +65,11 @@ import TechnicianDealer from "./Dealer_Distributor/TechnicianDealer";
 import MapManageDevice from "./Dealer_Distributor/MapManageDevice";
 import LiveTracking from "./Dealer_Distributor/LiveTracking";
 import Dashboard from "./CustomerPage/Dashboard";
-import LiveTracking1 from "./CustomerPage/Livetracking";
+// import LiveTracking1 from "./CustomerPage/Livetracking";
 import WalletSystem from "./ManufacturePage/WalletSystem";
 import WalletDropdown from "./ManufacturePage/WalletDropdown";
 import Renewal from "./ManufacturePage/Renewal";
+import Reports1 from "./CustomerPage/Reports";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -235,7 +236,8 @@ function App() {
             {/* Customer Routes */}
 
             <Route path="/customer/dashboard" element={<Dashboard />} />
-            <Route path="/customer/tracking" element={<LiveTracking1 />} />
+             <Route path="/customer/reports" element={<Reports1/>} />
+            {/* <Route path="/customer/tracking" element={<LiveTracking1 />} /> */}
 
             {/* Wallet */}
             <Route path="/wallet/renewal" element={<Renewal />} />

@@ -38,6 +38,13 @@ function Navbar() {
               <FaMapMarkedAlt className="text-base" />
               Dashboard
             </Link>
+            <Link
+              to="/customer/reports"
+              className="flex items-center gap-2 text-yellow-200 hover:text-white transition-all duration-200 border-b-2 border-transparent hover:border-yellow-400 pb-1"
+            >
+              <FaMapMarkedAlt className="text-base" />
+              Reports
+            </Link>
           </nav>
         </div>
 

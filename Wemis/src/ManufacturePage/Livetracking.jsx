@@ -73,7 +73,7 @@ import {
     SatelliteDish,
     Rotate3D
 } from "lucide-react";
-import { useLocation } from "react-router-dom";
+import { data, useLocation } from "react-router-dom";
 
 // Logo import
 import vehicleLogo from '../Images/car.png';
@@ -517,6 +517,7 @@ const Livetracking = () => {
             setStatus("Network Error");
         }
     }, [device]);
+    console.log(data)
 
     const processLiveTrackingData = (data) => {
         if (isPlaybackMode) return;
