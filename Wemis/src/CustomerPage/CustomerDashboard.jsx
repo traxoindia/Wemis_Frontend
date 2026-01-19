@@ -3,7 +3,6 @@ import { io } from "socket.io-client";
 import "leaflet/dist/leaflet.css";
 
 // --- CUSTOM IMAGE ---
-// Make sure this path is correct in your project
 import vehicleLogo from '../Images/car.png'; 
 
 // --- ICONS ---
@@ -11,12 +10,12 @@ import {
   Car, MapPin, Gauge, Power, RefreshCw, Search, 
   Wifi, Package, Clock, Navigation, XCircle, 
   ArrowLeft, BatteryCharging, Signal, Compass,
-  BarChart3, Download, ChevronUp, ChevronDown,
-  StopCircle, Activity, Play, Pause, History, Calendar, MoreHorizontal
+  Download, Play, Pause, History, Calendar, MoreHorizontal
 } from "lucide-react";
 
 // --- CONFIG ---
 const SOCKET_SERVER_URL = "https://api.websave.in";
+const ANIMATION_DURATION = 2000; // 2 Seconds per movement
 
 // --- HELPER: Create Rotatable Map Icon ---
 const createVehicleIcon = (heading) => {
@@ -28,14 +27,14 @@ const createVehicleIcon = (heading) => {
       display: flex; 
       align-items: center; 
       justify-content: center;
-      transition: transform 0.1s linear; 
+      transition: transform 0.5s linear; /* Smooth rotation via CSS */
     ">
       <img src="${vehicleLogo}" style="width: 40px; height: 40px; object-fit: contain; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));" />
     </div>
   `;
 };
 
-// --- COMPONENT: Stat Card (Enhanced UI) ---
+// --- COMPONENT: Stat Card ---
 const StatCard = ({ icon, label, val, color, bg, border }) => (
   <div className={`bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between transition-all duration-300 hover:shadow-md hover:-translate-y-1 relative overflow-hidden group`}>
     <div className={`absolute left-0 top-0 bottom-0 w-1 ${border}`}></div>
@@ -83,12 +82,18 @@ const CustomerDashboard = () => {
   // --- Leaflet Refs ---
   const mapContainerRef = useRef(null);
   const leafletMapRef = useRef(null);
-  const vehicleMarkerRef = useRef(null); // Live Marker
-  const livePathRef = useRef(null); // Live tracking path polyline
-  const playbackMarkerRef = useRef(null); // History Marker
-  const playbackPathRef = useRef(null);   // History Line
-  const animationFrameRef = useRef(null); // Animation Loop
-  const previousPositionsRef = useRef([]); // Store previous positions for smooth path
+  const vehicleMarkerRef = useRef(null); 
+  const livePathRef = useRef(null); 
+  const playbackMarkerRef = useRef(null); 
+  const playbackPathRef = useRef(null);   
+  const previousPositionsRef = useRef([]); 
+  
+  // --- Animation Refs ---
+  const moveAnimationRef = useRef(null);    
+  const animationFrameRef = useRef(null);
+  
+  // --- State Logic Refs (Crucial for Animation Stability) ---
+  const selectedDeviceIdRef = useRef(null); // Keeps track of ID without re-rendering socket
 
   // --- Main State ---
   const [devices, setDevices] = useState({});
@@ -107,15 +112,14 @@ const CustomerDashboard = () => {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isLoadingPlayback, setIsLoadingPlayback] = useState(false);
 
-  // --- Reports State ---
-  const [expandedReports, setExpandedReports] = useState({ stoppage: true });
-  const [reportData, setReportData] = useState({});
+  // --- Sync Ref with State ---
+  useEffect(() => {
+    selectedDeviceIdRef.current = selectedDevice ? selectedDevice.deviceNo : null;
+  }, [selectedDevice]);
 
-  // --- Helper: Extract data from socket object ---
+  // --- Helper: Extract data ---
   const extractSocketData = (data) => {
-    // Handle both formats: direct object or nested liveTracking
     const liveData = data.liveTracking || data;
-    
     return {
       deviceNo: data.deviceNo || liveData.deviceNo || liveData.deviceId,
       lat: Number(liveData.lat),
@@ -130,16 +134,70 @@ const CustomerDashboard = () => {
       vechileNo: liveData.vehicleNo || liveData.vechileNo || "Unknown",
       status: data.status || (liveData.gpsFix === "1" ? "online" : "offline"),
       lastUpdate: liveData.lastUpdate || liveData.timestamp || new Date().toISOString(),
-      rawData: liveData // Store all raw data for reference
     };
+  };
+
+  // --- ANIMATION FUNCTION (Live Movement) ---
+  const animateMarkerTo = (endLat, endLng, heading) => {
+    if (!vehicleMarkerRef.current) return;
+
+    const startLatLng = vehicleMarkerRef.current.getLatLng();
+    const startLat = startLatLng.lat;
+    const startLng = startLatLng.lng;
+
+    // If distance is huge (e.g., initial load or teleport), just jump
+    const dist = Math.sqrt(Math.pow(endLat - startLat, 2) + Math.pow(endLng - startLng, 2));
+    if (dist > 0.05) { 
+        vehicleMarkerRef.current.setLatLng([endLat, endLng]);
+        return;
+    }
+
+    const deltaLat = endLat - startLat;
+    const deltaLng = endLng - startLng;
+    const startTime = performance.now();
+
+    // Kill existing animation
+    if (moveAnimationRef.current) {
+        cancelAnimationFrame(moveAnimationRef.current);
+    }
+
+    const animate = (currentTime) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+
+        // Calculate new position
+        const currentLat = startLat + (deltaLat * progress);
+        const currentLng = startLng + (deltaLng * progress);
+
+        vehicleMarkerRef.current.setLatLng([currentLat, currentLng]);
+
+        if (progress < 1) {
+            moveAnimationRef.current = requestAnimationFrame(animate);
+        } else {
+            // Finish exactly at target
+            vehicleMarkerRef.current.setLatLng([endLat, endLng]);
+            
+            // Update Rotation Icon
+            const iconHtml = createVehicleIcon(heading);
+            const newIcon = window.L.divIcon({ 
+                className: 'vehicle-marker', 
+                html: iconHtml, 
+                iconSize: [40, 40], 
+                iconAnchor: [20, 20] 
+            });
+            vehicleMarkerRef.current.setIcon(newIcon);
+        }
+    };
+
+    moveAnimationRef.current = requestAnimationFrame(animate);
   };
 
   // --- 1. SOCKET & LIVE DATA ---
   useEffect(() => {
+    // Only connect once
     if (socketRef.current) return;
-    const storedUser = localStorage.getItem("user");
-    if (!storedUser) return;
     
+    const storedUser = localStorage.getItem("user");
     let myUserId;
     try { myUserId = JSON.parse(storedUser)?._id || JSON.parse(storedUser)?.id; } catch(e) {}
 
@@ -152,10 +210,9 @@ const CustomerDashboard = () => {
     socketRef.current = socket;
 
     socket.on("gps-update", (data) => {
-      console.log("🔥 LIVE SOCKET DATA:", data); 
-      
       const extractedData = extractSocketData(data);
       
+      // 1. Update List Data (Always)
       setDevices(prev => {
         const updated = {
           ...prev,
@@ -166,70 +223,41 @@ const CustomerDashboard = () => {
           }
         };
         updateSummary(Object.values(updated));
-        
-        // Live Map Update (Only if NOT in playback mode)
-        if (selectedDevice && selectedDevice.deviceNo === extractedData.deviceNo && !isPlaybackMode) {
-          const newSelectedDevice = { ...selectedDevice, ...extractedData };
-          setSelectedDevice(newSelectedDevice);
-
-          if (leafletMapRef.current) {
-            const newLatLng = [extractedData.lat, extractedData.lng];
-            const newHeading = extractedData.heading;
-            
-            // Add to previous positions for path
-            previousPositionsRef.current.push(newLatLng);
-            // Keep only last 100 positions to avoid memory issues
-            if (previousPositionsRef.current.length > 100) {
-              previousPositionsRef.current = previousPositionsRef.current.slice(-100);
-            }
-            
-            // Update marker
-            if (vehicleMarkerRef.current) {
-              vehicleMarkerRef.current.setLatLng(newLatLng);
-              const iconHtml = createVehicleIcon(newHeading);
-              const newIcon = window.L.divIcon({ 
-                className: 'vehicle-marker', 
-                html: iconHtml, 
-                iconSize: [40, 40], 
-                iconAnchor: [20, 20] 
-              });
-              vehicleMarkerRef.current.setIcon(newIcon);
-            }
-            
-            // Update or create live path
-            if (livePathRef.current) {
-              livePathRef.current.setLatLngs(previousPositionsRef.current);
-            } else if (previousPositionsRef.current.length > 1) {
-              livePathRef.current = window.L.polyline(previousPositionsRef.current, {
-                color: '#3B82F6',
-                weight: 3,
-                opacity: 0.7,
-                lineJoin: 'round',
-                dashArray: '5, 10'
-              }).addTo(leafletMapRef.current);
-            }
-            
-            // Smooth pan to new position
-            leafletMapRef.current.panTo(newLatLng, {
-              animate: true,
-              duration: 0.5
-            });
-          }
-        }
         return updated;
       });
-    });
 
-    socket.on("connect", () => {
-      console.log("✅ Socket connected");
-    });
+      // 2. Update Map Animation (Only if matches currently selected ID)
+      // WE USE THE REF HERE TO AVOID RE-RENDERING THE SOCKET EFFECT
+      if (selectedDeviceIdRef.current === extractedData.deviceNo && !isPlaybackMode) {
+          
+          // Update State for Stats Panel
+          setSelectedDevice(prev => ({ ...prev, ...extractedData }));
 
-    socket.on("disconnect", () => {
-      console.log("❌ Socket disconnected");
-    });
+          // Update Map Visuals
+          if (leafletMapRef.current && vehicleMarkerRef.current) {
+             const newLatLng = [extractedData.lat, extractedData.lng];
 
-    socket.on("error", (error) => {
-      console.error("Socket error:", error);
+             // Path Logic
+             previousPositionsRef.current.push(newLatLng);
+             if (previousPositionsRef.current.length > 100) {
+               previousPositionsRef.current = previousPositionsRef.current.slice(-100);
+             }
+
+             if (livePathRef.current) {
+                livePathRef.current.setLatLngs(previousPositionsRef.current);
+             } else if (previousPositionsRef.current.length > 1) {
+                livePathRef.current = window.L.polyline(previousPositionsRef.current, {
+                    color: '#3B82F6', weight: 3, opacity: 0.7, lineJoin: 'round', dashArray: '5, 10'
+                }).addTo(leafletMapRef.current);
+             }
+
+             // TRIGGER SMOOTH ANIMATION
+             animateMarkerTo(extractedData.lat, extractedData.lng, extractedData.heading);
+             
+             // Smooth Camera Pan
+             leafletMapRef.current.panTo(newLatLng, { animate: true, duration: 2.0 });
+          }
+      }
     });
 
     return () => { 
@@ -237,30 +265,10 @@ const CustomerDashboard = () => {
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      if (moveAnimationRef.current) cancelAnimationFrame(moveAnimationRef.current);
+      if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [selectedDevice, isPlaybackMode]); 
-
-  // --- 2. REPORTS LOGIC (Mock Data) ---
-  useEffect(() => {
-    if (selectedDevice) {
-        const mockReports = {
-            stoppage: [
-                { time: '10:30 AM', duration: '15m', location: 'Market Sector 4' },
-                { time: '01:15 PM', duration: '45m', location: 'Warehouse Dist 9' },
-            ],
-            ignition: [
-                { time: '08:00 AM', status: 'ON' },
-                { time: '10:30 AM', status: 'OFF' },
-                { time: '10:45 AM', status: 'ON' },
-            ],
-            moving: [
-                { start: '08:05 AM', end: '10:30 AM', dist: '45 KM' }
-            ],
-            idle: []
-        };
-        setReportData(mockReports);
-    }
-  }, [selectedDevice]);
+  }, []); // EMPTY DEPENDENCY ARRAY - CRITICAL FOR ANIMATION
 
   // --- 3. PLAYBACK API & SETUP ---
   const fetchRoutePlayback = async () => {
@@ -275,10 +283,7 @@ const CustomerDashboard = () => {
     try {
         const response = await fetch('https://api.websave.in/api/manufactur/fetchSingleRoutePlayback', {
             method: 'POST',
-            headers: { 
-              'Content-Type': 'application/json', 
-              'Authorization': `Bearer ${token}` 
-            },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
             body: JSON.stringify({ 
                 deviceNo: selectedDevice.deviceNo, 
                 startTime: new Date(playbackStartTime).toISOString(),
@@ -304,49 +309,25 @@ const CustomerDashboard = () => {
         } else {
             alert("No route data found for this period.");
         }
-    } catch(e) { 
-      console.error("Playback fetch error:", e); 
-      alert("Failed to fetch history"); 
-    } 
-    finally { 
-      setIsLoadingPlayback(false); 
-    }
+    } catch(e) { console.error("Playback fetch error:", e); alert("Failed to fetch history"); } 
+    finally { setIsLoadingPlayback(false); }
   };
 
   const setupPlaybackVisualization = (route) => {
     const L = window.L;
     if (!L || !leafletMapRef.current || route.length === 0) return;
 
-    // Hide live marker and path
-    if (vehicleMarkerRef.current) {
-      vehicleMarkerRef.current.setOpacity(0);
-    }
-    if (livePathRef.current) {
-      leafletMapRef.current.removeLayer(livePathRef.current);
-      livePathRef.current = null;
-    }
+    if (vehicleMarkerRef.current) vehicleMarkerRef.current.setOpacity(0);
+    if (livePathRef.current) { leafletMapRef.current.removeLayer(livePathRef.current); livePathRef.current = null; }
+    if (moveAnimationRef.current) cancelAnimationFrame(moveAnimationRef.current);
 
-    // Remove old playback layers
-    if (playbackMarkerRef.current) {
-      leafletMapRef.current.removeLayer(playbackMarkerRef.current);
-    }
-    if (playbackPathRef.current) {
-      leafletMapRef.current.removeLayer(playbackPathRef.current);
-    }
+    if (playbackMarkerRef.current) leafletMapRef.current.removeLayer(playbackMarkerRef.current);
+    if (playbackPathRef.current) leafletMapRef.current.removeLayer(playbackPathRef.current);
 
-    // Create playback path
     const points = route.map(p => [p.lat, p.lng]);
-    playbackPathRef.current = L.polyline(points, { 
-      color: '#DC2626', 
-      weight: 4, 
-      opacity: 0.8,
-      lineJoin: 'round'
-    }).addTo(leafletMapRef.current);
-    
-    // Fit map to route bounds
+    playbackPathRef.current = L.polyline(points, { color: '#DC2626', weight: 4, opacity: 0.8 }).addTo(leafletMapRef.current);
     leafletMapRef.current.fitBounds(L.latLngBounds(points), { padding: [50, 50] });
 
-    // Create playback marker
     const startPoint = route[0];
     const pbIcon = L.divIcon({
         className: 'playback-marker',
@@ -354,11 +335,7 @@ const CustomerDashboard = () => {
         iconSize: [40, 40],
         iconAnchor: [20, 20],
     });
-    playbackMarkerRef.current = L.marker([startPoint.lat, startPoint.lng], { 
-      icon: pbIcon, 
-      zIndexOffset: 9999 
-    }).addTo(leafletMapRef.current);
-    
+    playbackMarkerRef.current = L.marker([startPoint.lat, startPoint.lng], { icon: pbIcon, zIndexOffset: 9999 }).addTo(leafletMapRef.current);
     setPlaybackIndex(0);
   };
 
@@ -371,19 +348,12 @@ const CustomerDashboard = () => {
 
         if (timestamp - lastFrameTime > interval) {
             setPlaybackIndex(prev => {
-                if (prev >= playbackRoute.length - 1) {
-                    setIsPlaying(false);
-                    return prev;
-                }
+                if (prev >= playbackRoute.length - 1) { setIsPlaying(false); return prev; }
                 return prev + 1;
             });
             lastFrameTime = timestamp;
         }
-        if (isPlaying && isPlaybackMode && playbackRoute.length > 0) {
-            animationFrameRef.current = requestAnimationFrame(animate);
-        } else {
-            cancelAnimationFrame(animationFrameRef.current);
-        }
+        if (isPlaying && isPlaybackMode) animationFrameRef.current = requestAnimationFrame(animate);
     };
 
     if (isPlaying && isPlaybackMode && playbackRoute.length > 0) {
@@ -391,7 +361,6 @@ const CustomerDashboard = () => {
     } else {
         cancelAnimationFrame(animationFrameRef.current);
     }
-    
     return () => cancelAnimationFrame(animationFrameRef.current);
   }, [isPlaying, isPlaybackMode, playbackRoute, playbackSpeed]);
 
@@ -400,14 +369,8 @@ const CustomerDashboard = () => {
     if (isPlaybackMode && playbackRoute[playbackIndex] && playbackMarkerRef.current) {
         const point = playbackRoute[playbackIndex];
         playbackMarkerRef.current.setLatLng([point.lat, point.lng]);
-        
         const iconHtml = createVehicleIcon(point.heading);
-        const newIcon = window.L.divIcon({ 
-          className: 'playback-marker', 
-          html: iconHtml, 
-          iconSize: [40, 40], 
-          iconAnchor: [20, 20] 
-        });
+        const newIcon = window.L.divIcon({ className: 'playback-marker', html: iconHtml, iconSize: [40, 40], iconAnchor: [20, 20] });
         playbackMarkerRef.current.setIcon(newIcon);
     }
   }, [playbackIndex, isPlaybackMode, playbackRoute]);
@@ -419,33 +382,17 @@ const CustomerDashboard = () => {
     setPlaybackIndex(0);
     
     if (leafletMapRef.current) {
-        // Remove playback layers
-        if (playbackMarkerRef.current) {
-          leafletMapRef.current.removeLayer(playbackMarkerRef.current);
-          playbackMarkerRef.current = null;
-        }
-        if (playbackPathRef.current) {
-          leafletMapRef.current.removeLayer(playbackPathRef.current);
-          playbackPathRef.current = null;
-        }
+        if (playbackMarkerRef.current) { leafletMapRef.current.removeLayer(playbackMarkerRef.current); playbackMarkerRef.current = null; }
+        if (playbackPathRef.current) { leafletMapRef.current.removeLayer(playbackPathRef.current); playbackPathRef.current = null; }
         
-        // Restore live tracking
         if (vehicleMarkerRef.current && selectedDevice) {
             vehicleMarkerRef.current.setOpacity(1);
             const livePos = [selectedDevice.lat, selectedDevice.lng];
-            vehicleMarkerRef.current.setLatLng(livePos);
+            vehicleMarkerRef.current.setLatLng(livePos); 
             
-            // Restore live path if there are previous positions
             if (previousPositionsRef.current.length > 1 && !livePathRef.current) {
-              livePathRef.current = window.L.polyline(previousPositionsRef.current, {
-                color: '#3B82F6',
-                weight: 3,
-                opacity: 0.7,
-                lineJoin: 'round',
-                dashArray: '5, 10'
-              }).addTo(leafletMapRef.current);
+              livePathRef.current = window.L.polyline(previousPositionsRef.current, { color: '#3B82F6', weight: 3, opacity: 0.7, dashArray: '5, 10' }).addTo(leafletMapRef.current);
             }
-            
             leafletMapRef.current.panTo(livePos);
         }
     }
@@ -470,12 +417,6 @@ const CustomerDashboard = () => {
         scrollWheelZoom: true,
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 20,
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    // Add custom tile layer option (Google Maps style)
     L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
         maxZoom: 20,
         subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
@@ -484,7 +425,6 @@ const CustomerDashboard = () => {
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     leafletMapRef.current = map;
 
-    // Initialize marker
     const initialIcon = L.divIcon({
         className: 'vehicle-marker',
         html: createVehicleIcon(startHeading),
@@ -492,13 +432,8 @@ const CustomerDashboard = () => {
         iconAnchor: [20, 20],
     });
 
-    const marker = L.marker([startLat, startLng], { 
-      icon: initialIcon, 
-      zIndexOffset: 1000 
-    }).addTo(map);
+    const marker = L.marker([startLat, startLng], { icon: initialIcon, zIndexOffset: 1000 }).addTo(map);
     vehicleMarkerRef.current = marker;
-
-    // Initialize previous positions for live path
     previousPositionsRef.current = [[startLat, startLng]];
   };
 
@@ -515,7 +450,6 @@ const CustomerDashboard = () => {
         return;
     }
 
-    // Load Leaflet CSS if not loaded
     if (!document.getElementById('leaflet-css')) {
         const link = document.createElement("link");
         link.id = 'leaflet-css';
@@ -524,24 +458,18 @@ const CustomerDashboard = () => {
         document.head.appendChild(link);
     }
     
-    // Load Leaflet JS if not loaded
     if (!window.L) {
         const script = document.createElement("script");
         script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
         script.async = true;
-        script.onload = () => {
-          setTimeout(() => initMap(), 100);
-        };
+        script.onload = () => { setTimeout(() => initMap(), 100); };
         document.body.appendChild(script);
     } else {
         setTimeout(() => initMap(), 100);
     }
     
-    // Cleanup
-    return () => {
-      previousPositionsRef.current = [];
-    };
-  }, [selectedDevice]);
+    return () => { previousPositionsRef.current = []; };
+  }, [selectedDevice?.deviceNo]); // Only Init on Device Change
 
   // --- DATA FETCHING ---
   const updateSummary = (list) => {
@@ -579,11 +507,7 @@ const CustomerDashboard = () => {
     }
   };
 
-  useEffect(() => { 
-    fetchData(); 
-  }, []);
-  
-  const toggleReportSection = (type) => setExpandedReports(prev => ({ ...prev, [type]: !prev[type] }));
+  useEffect(() => { fetchData(); }, []);
   
   // Define filtered list only once
   const filteredDevices = Object.values(devices).filter(d => 
@@ -594,7 +518,7 @@ const CustomerDashboard = () => {
   const displayData = isPlaybackMode && playbackRoute.length > 0 ? playbackRoute[playbackIndex] : selectedDevice;
 
   // =========================================================
-  // VIEW 1: SINGLE DEVICE (LIVE + HISTORY + REPORTS)
+  // VIEW 1: SINGLE DEVICE (LIVE + HISTORY)
   // =========================================================
   if (selectedDevice) {
     return (
@@ -603,10 +527,7 @@ const CustomerDashboard = () => {
         <div className="mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
                 <button 
-                    onClick={() => { 
-                      setSelectedDevice(null); 
-                      exitPlaybackMode(); 
-                    }} 
+                    onClick={() => { setSelectedDevice(null); exitPlaybackMode(); }} 
                     className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all hover:scale-105"
                 >
                     <ArrowLeft size={16} /> Back to Fleet
@@ -614,24 +535,13 @@ const CustomerDashboard = () => {
                 
                 {isPlaybackMode && (
                     <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl shadow-sm border border-slate-200 animate-in fade-in slide-in-from-top-4">
-                        <button 
-                          onClick={() => setIsPlaying(!isPlaying)} 
-                          className="p-2 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
-                        >
+                        <button onClick={() => setIsPlaying(!isPlaying)} className="p-2 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors">
                             {isPlaying ? <Pause size={14} fill="currentColor"/> : <Play size={14} fill="currentColor"/>}
                         </button>
                         <div className="flex items-center gap-2 px-2 border-l border-slate-100 ml-2">
                             <span className="text-[10px] font-bold text-slate-400">SPEED:</span>
                             {[1, 5, 10].map(s => (
-                                <button 
-                                  key={s} 
-                                  onClick={() => setPlaybackSpeed(s)}
-                                  className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors ${
-                                    playbackSpeed === s ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                                  }`}
-                                >
-                                  {s}x
-                                </button>
+                                <button key={s} onClick={() => setPlaybackSpeed(s)} className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-colors ${playbackSpeed === s ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>{s}x</button>
                             ))}
                         </div>
                     </div>
@@ -641,19 +551,9 @@ const CustomerDashboard = () => {
             <div className="flex flex-wrap items-center gap-2 bg-white p-2 rounded-xl shadow-sm border border-slate-200">
                 <div className="flex items-center gap-2 px-2 bg-slate-50 rounded-lg p-1.5">
                     <Calendar size={14} className="text-slate-400"/>
-                    <input 
-                      type="datetime-local" 
-                      className="text-xs border-none outline-none text-slate-600 font-bold bg-transparent" 
-                      value={playbackStartTime} 
-                      onChange={(e) => setPlaybackStartTime(e.target.value)} 
-                    />
+                    <input type="datetime-local" className="text-xs border-none outline-none text-slate-600 font-bold bg-transparent" value={playbackStartTime} onChange={(e) => setPlaybackStartTime(e.target.value)} />
                     <span className="text-slate-300 text-[10px] font-bold px-1">TO</span>
-                    <input 
-                      type="datetime-local" 
-                      className="text-xs border-none outline-none text-slate-600 font-bold bg-transparent" 
-                      value={playbackEndTime} 
-                      onChange={(e) => setPlaybackEndTime(e.target.value)} 
-                    />
+                    <input type="datetime-local" className="text-xs border-none outline-none text-slate-600 font-bold bg-transparent" value={playbackEndTime} onChange={(e) => setPlaybackEndTime(e.target.value)} />
                 </div>
                 <button 
                     onClick={isPlaybackMode ? exitPlaybackMode : fetchRoutePlayback}
@@ -669,7 +569,6 @@ const CustomerDashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-150px)] min-h-[600px]">
-            
             {/* LEFT: MAP (70%) */}
             <div className="lg:col-span-8 bg-white rounded-[2.5rem] p-3 shadow-xl border border-slate-200 relative overflow-hidden flex flex-col group">
                 <div ref={mapContainerRef} className="flex-1 rounded-[2rem] overflow-hidden z-0 relative h-full w-full bg-slate-100" />
@@ -677,40 +576,22 @@ const CustomerDashboard = () => {
                 {/* Overlay Info Card */}
                 <div className="absolute top-6 left-6 z-[1001] bg-white/95 backdrop-blur-md p-5 rounded-3xl shadow-2xl border border-white/50 max-w-xs transition-transform hover:scale-[1.02]">
                     <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
-                          <Car size={20} />
-                        </div>
+                        <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><Car size={20} /></div>
                         <div>
-                            <h2 className="text-lg font-black text-slate-800 leading-none">
-                              {selectedDevice.vechileNo || "Unknown"}
-                            </h2>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                              IMEI: {selectedDevice.deviceNo}
-                            </p>
+                            <h2 className="text-lg font-black text-slate-800 leading-none">{selectedDevice.vechileNo || "Unknown"}</h2>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">IMEI: {selectedDevice.deviceNo}</p>
                         </div>
                     </div>
                     <div className="flex gap-2">
                         {isPlaybackMode ? (
-                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-100 flex items-center gap-1">
-                                <History size={10} /> Playback Mode
-                            </span>
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-100 flex items-center gap-1"><History size={10} /> Playback Mode</span>
                         ) : (
                             <>
-                                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border flex items-center gap-1 ${
-                                  selectedDevice.status === 'online' 
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                                    : 'bg-slate-50 text-slate-600 border-slate-200'
-                                }`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full ${
-                                      selectedDevice.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'
-                                    }`}></span>
+                                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border flex items-center gap-1 ${selectedDevice.status === 'online' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-50 text-slate-600 border-slate-200'}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${selectedDevice.status === 'online' ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
                                     {selectedDevice.status}
                                 </span>
-                                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border flex items-center gap-1 ${
-                                  selectedDevice.ignition === '1' 
-                                    ? 'bg-blue-50 text-blue-700 border-blue-100' 
-                                    : 'bg-slate-50 text-slate-500 border-slate-200'
-                                }`}>
+                                <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border flex items-center gap-1 ${selectedDevice.ignition === '1' ? 'bg-blue-50 text-blue-700 border-blue-100' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
                                     <Power size={10} />
                                     {selectedDevice.ignition === '1' ? 'ON' : 'OFF'}
                                 </span>
@@ -726,26 +607,9 @@ const CustomerDashboard = () => {
 
                 {isPlaybackMode && playbackRoute.length > 0 && (
                     <div className="absolute bottom-6 left-6 right-6 z-[1001] bg-white/90 backdrop-blur-md p-4 rounded-3xl shadow-xl border border-white/50">
-                        <input 
-                            type="range" 
-                            min="0" 
-                            max={playbackRoute.length - 1} 
-                            value={playbackIndex}
-                            onChange={(e) => { 
-                              setPlaybackIndex(Number(e.target.value)); 
-                              setIsPlaying(false); 
-                            }}
-                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-500 transition-all"
-                        />
-                        <div className="flex justify-between text-[10px] text-slate-500 mt-1">
-                          <span>Start</span>
-                          <span>Progress: {Math.round((playbackIndex / (playbackRoute.length - 1)) * 100)}%</span>
-                          <span>End</span>
-                        </div>
+                        <input type="range" min="0" max={playbackRoute.length - 1} value={playbackIndex} onChange={(e) => { setPlaybackIndex(Number(e.target.value)); setIsPlaying(false); }} className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600 hover:accent-indigo-500 transition-all" />
                     </div>
                 )}
-
-                {/* Live tracking indicator */}
                 {!isPlaybackMode && (
                   <div className="absolute top-6 right-6 z-[1001] bg-white/90 backdrop-blur-md px-3 py-2 rounded-2xl shadow-lg border border-emerald-200 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -754,136 +618,28 @@ const CustomerDashboard = () => {
                 )}
             </div>
 
-            {/* RIGHT: STATS & REPORTS (30%) */}
+            {/* RIGHT: STATS (30%) */}
             <div className="lg:col-span-4 flex flex-col gap-4 overflow-y-auto pr-1">
                 <div className="grid grid-cols-2 gap-3">
-                    <StatCard 
-                      icon={<Gauge size={18} />} 
-                      label="Speed" 
-                      val={displayData?.speed || 0} 
-                      color="text-amber-500" 
-                      bg="bg-amber-50" 
-                      border="bg-amber-500"
-                    />
-                    <StatCard 
-                      icon={<Compass size={18} />} 
-                      label="Heading" 
-                      val={displayData?.heading || 0} 
-                      color="text-blue-500" 
-                      bg="bg-blue-50" 
-                      border="bg-blue-500"
-                    />
-                    <StatCard 
-                      icon={<BatteryCharging size={18} />} 
-                      label="Battery" 
-                      val={selectedDevice.externalBattery || 12.4} 
-                      color="text-green-500" 
-                      bg="bg-green-50" 
-                      border="bg-green-500"
-                    />
-                    <StatCard 
-                      icon={<Signal size={18} />} 
-                      label="Signal" 
-                      val={selectedDevice.gsmSignal || selectedDevice.rssi || 0} 
-                      color="text-purple-500" 
-                      bg="bg-purple-50" 
-                      border="bg-purple-500"
-                    />
+                    <StatCard icon={<Gauge size={18} />} label="Speed" val={displayData?.speed || 0} color="text-amber-500" bg="bg-amber-50" border="bg-amber-500"/>
+                    <StatCard icon={<Compass size={18} />} label="Heading" val={displayData?.heading || 0} color="text-blue-500" bg="bg-blue-50" border="bg-blue-500"/>
+                    <StatCard icon={<BatteryCharging size={18} />} label="Battery" val={selectedDevice.externalBattery || 12.4} color="text-green-500" bg="bg-green-50" border="bg-green-500"/>
+                    <StatCard icon={<Signal size={18} />} label="Signal" val={selectedDevice.gsmSignal || selectedDevice.rssi || 0} color="text-purple-500" bg="bg-purple-50" border="bg-purple-500"/>
                 </div>
 
                 <div className="bg-white rounded-[2rem] p-6 border border-slate-200 shadow-sm transition-all hover:shadow-md">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600">
-                          <MapPin className="w-5 h-5" />
-                        </div>
+                        <div className="p-2 bg-indigo-50 rounded-xl text-indigo-600"><MapPin className="w-5 h-5" /></div>
                         <div>
-                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">
-                              {isPlaybackMode ? "History Loc" : "Live Loc"}
-                            </h4>
+                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{isPlaybackMode ? "History Loc" : "Live Loc"}</h4>
                             <p className="text-[10px] text-slate-400">Coordinates & Address</p>
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4 mb-2">
-                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Lat</p>
-                          <p className="font-mono text-xs font-bold text-slate-700">
-                            {displayData?.lat?.toFixed(6)}
-                          </p>
-                        </div>
-                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Lng</p>
-                          <p className="font-mono text-xs font-bold text-slate-700">
-                            {displayData?.lng?.toFixed(6)}
-                          </p>
-                        </div>
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Lat</p><p className="font-mono text-xs font-bold text-slate-700">{displayData?.lat?.toFixed(6)}</p></div>
+                        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100"><p className="text-[9px] font-bold text-slate-400 uppercase mb-1">Lng</p><p className="font-mono text-xs font-bold text-slate-700">{displayData?.lng?.toFixed(6)}</p></div>
                     </div>
                     <MapAddress lat={displayData?.lat} lng={displayData?.lng} />
-                </div>
-
-                {/* REPORTS ACCORDION */}
-                <div className="flex-1 bg-white rounded-[2rem] p-5 border border-slate-200 shadow-sm flex flex-col">
-                    <div className="flex items-center gap-3 mb-5">
-                        <div className="p-2 bg-rose-50 rounded-xl text-rose-600">
-                          <BarChart3 className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Reports</h4>
-                            <p className="text-[10px] text-slate-400">Daily Activity Log</p>
-                        </div>
-                    </div>
-                    
-                    <div className="space-y-3 overflow-y-auto pr-1 flex-1 custom-scrollbar">
-                        {['stoppage', 'ignition', 'moving'].map((type) => {
-                            const data = reportData[type] || [];
-                            return (
-                                <div key={type} className="bg-slate-50 rounded-xl border border-slate-100 overflow-hidden transition-all duration-200">
-                                    <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-slate-100" onClick={() => toggleReportSection(type)}>
-                                        <div className="flex items-center gap-3">
-                                            <div className="p-1.5 bg-white rounded-lg border border-slate-100 shadow-sm">
-                                                {type === 'stoppage' && <StopCircle size={14} className="text-red-500"/>}
-                                                {type === 'ignition' && <Power size={14} className="text-blue-500"/>}
-                                                {type === 'moving' && <Activity size={14} className="text-emerald-500"/>}
-                                            </div>
-                                            <div>
-                                                <p className="text-[11px] font-bold text-slate-800 capitalize">{type}</p>
-                                                <span className="text-[9px] text-slate-500 font-medium">{data.length} events</span>
-                                            </div>
-                                        </div>
-                                        {expandedReports[type] ? <ChevronUp size={14} className="text-slate-400"/> : <ChevronDown size={14} className="text-slate-400"/>}
-                                    </div>
-                                    
-                                    {expandedReports[type] && (
-                                        <div className="px-3 pb-3 pt-0 animate-in slide-in-from-top-2 duration-200">
-                                            <div className="flex flex-col gap-2 mt-2">
-                                                {data.map((item, idx) => (
-                                                    <div key={idx} className="bg-white p-2.5 rounded-lg border border-slate-100 text-[10px] shadow-sm flex flex-col gap-1">
-                                                        <div className="flex justify-between font-bold text-slate-700">
-                                                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
-                                                              {item.time || item.start}
-                                                            </span>
-                                                            <span className="text-indigo-600">
-                                                              {item.duration || item.status || item.dist}
-                                                            </span>
-                                                        </div>
-                                                        {item.location && (
-                                                          <div className="text-slate-400 truncate flex items-center gap-1">
-                                                            <MapPin size={8}/> {item.location}
-                                                          </div>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                                {data.length === 0 && (
-                                                  <div className="text-[10px] text-slate-400 text-center italic py-2">
-                                                    No recorded events today.
-                                                  </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
                 </div>
             </div>
         </div>
@@ -898,18 +654,10 @@ const CustomerDashboard = () => {
     <div className="min-h-screen bg-slate-50/50 p-6 md:p-10 font-sans">
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 tracking-tighter">
-            Fleet Command Center
-          </h1>
-          <p className="text-slate-500 font-medium text-sm mt-2 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> 
-            Real-time Monitoring Dashboard
-          </p>
+          <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-slate-800 to-slate-600 tracking-tighter">Fleet Command Center</h1>
+          <p className="text-slate-500 font-medium text-sm mt-2 flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div> Real-time Monitoring Dashboard</p>
         </div>
-        <button 
-          onClick={fetchData} 
-          className="px-6 py-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 flex items-center gap-3 shadow-sm hover:shadow-md transition-all active:scale-95 group"
-        >
+        <button onClick={fetchData} className="px-6 py-3 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 flex items-center gap-3 shadow-sm hover:shadow-md transition-all active:scale-95 group">
            <RefreshCw className={`w-4 h-4 text-indigo-600 group-hover:rotate-180 transition-transform duration-500 ${loading ? "animate-spin" : ""}`} />
            <span className="font-bold text-xs text-slate-700 uppercase tracking-widest">Sync Fleet</span>
         </button>
@@ -940,12 +688,8 @@ const CustomerDashboard = () => {
                 />
             </div>
             <div className="hidden md:flex gap-2">
-                <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
-                  <Download size={18}/>
-                </button>
-                <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors">
-                  <MoreHorizontal size={18}/>
-                </button>
+                <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"><Download size={18}/></button>
+                <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"><MoreHorizontal size={18}/></button>
             </div>
         </div>
 
@@ -969,20 +713,14 @@ const CustomerDashboard = () => {
                                         <Car size={20} />
                                     </div>
                                     <div>
-                                        <div className="font-bold text-slate-800 text-sm mb-0.5">
-                                          {d.vechileNo || d.RegistrationNo || "Unknown"}
-                                        </div>
-                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded w-fit">
-                                          IMEI: {d.deviceNo}
-                                        </div>
+                                        <div className="font-bold text-slate-800 text-sm mb-0.5">{d.vechileNo || d.RegistrationNo || "Unknown"}</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded w-fit">IMEI: {d.deviceNo}</div>
                                     </div>
                                 </div>
                             </td>
                             <td className="p-6">
                                 <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border shadow-sm ${
-                                    d.status === 'online' 
-                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
-                                    : 'bg-rose-50 text-rose-700 border-rose-100'
+                                    d.status === 'online' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'
                                 }`}>
                                     <span className={`w-1.5 h-1.5 rounded-full ${d.status === 'online' ? 'bg-emerald-500' : 'bg-rose-500'} animate-pulse`}></span>
                                     {d.status}
@@ -996,34 +734,22 @@ const CustomerDashboard = () => {
                             </td>
                             <td className="p-6">
                                 <div className="text-xs font-semibold text-slate-500 tabular-nums">
-                                    {new Date(d.lastUpdate || Date.now()).toLocaleTimeString([], { 
-                                      hour: '2-digit', 
-                                      minute: '2-digit', 
-                                      second: '2-digit' 
-                                    })}
+                                    {new Date(d.lastUpdate || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                                 </div>
                             </td>
                             <td className="p-6 pr-8 text-right">
-                                <button 
-                                    onClick={() => setSelectedDevice(d)}
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all duration-300 shadow-sm hover:shadow-indigo-200"
-                                >
+                                <button onClick={() => setSelectedDevice(d)} className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-50 text-indigo-600 text-xs font-bold rounded-xl border border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all duration-300 shadow-sm hover:shadow-indigo-200">
                                     <Navigation size={14} className="transition-transform group-hover:rotate-45"/> Track
                                 </button>
                             </td>
                         </tr>
                     ))}
-                    
                     {filteredDevices.length === 0 && (
                         <tr>
                             <td colSpan="5" className="p-16 text-center">
                                 <div className="flex flex-col items-center gap-3">
-                                    <div className="p-4 bg-slate-50 rounded-full text-slate-300">
-                                      <Search size={32}/>
-                                    </div>
-                                    <p className="text-slate-400 font-medium text-sm">
-                                      No vehicles found matching your search.
-                                    </p>
+                                    <div className="p-4 bg-slate-50 rounded-full text-slate-300"><Search size={32}/></div>
+                                    <p className="text-slate-400 font-medium text-sm">No vehicles found matching your search.</p>
                                 </div>
                             </td>
                         </tr>
