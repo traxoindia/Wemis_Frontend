@@ -70,6 +70,9 @@ import WalletSystem from "./ManufacturePage/WalletSystem";
 import WalletDropdown from "./ManufacturePage/WalletDropdown";
 import Renewal from "./ManufacturePage/Renewal";
 import Reports1 from "./CustomerPage/Reports";
+import WalletPage from "./WlpPage/WalletPage";
+import SubscriptionsPage from "./WlpPage/ActivationPage";
+import ActivationPage from "./WlpPage/ActivationPage";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -141,6 +144,14 @@ function App() {
             <Route
               path="/wlp/createmanufacture"
               element={<CreateManufacture />}
+            />
+            <Route
+              path="/wlp/wallet"
+              element={<WalletPage />}
+            />
+             <Route
+              path="/wlp/Activation"
+              element={<ActivationPage />}
             />
 
             {/* Manufacture Routes */}
@@ -241,7 +252,7 @@ function App() {
 
             {/* Wallet */}
             <Route path="/wallet/renewal" element={<Renewal />} />
-            <Route path="/wallet/activation" element={<WalletSystem />} />
+            <Route path="/wallet/vtspackages" element={<WalletSystem />} />
 
 
           </>

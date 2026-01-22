@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -8,17 +8,37 @@ import {
   MdPeople,
   MdPersonAdd,
   MdAssignmentTurnedIn,
+  MdSubscriptions,
+  MdMenu,
+  MdClose,
 } from "react-icons/md";
 import { UserAppContext } from "../contexts/UserAppProvider";
+import { Wallet } from "lucide-react";
 
 const WlpNavbar = () => {
   const [isClientDropdownOpen, setIsClientDropdownOpen] = useState(false);
   const [isDealerDropdownOpen, setIsDealerDropdownOpen] = useState(false);
+  
+  // Mobile states
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [mobileActiveDropdown, setMobileActiveDropdown] = useState(null);
+
   const location = useLocation();
   const { logout } = useContext(UserAppContext);
 
+  // Close mobile menu on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  const toggleMobileDropdown = (menu) => {
+    setMobileActiveDropdown(mobileActiveDropdown === menu ? null : menu);
+  };
+
   const navLinks = [
     { name: "Dashboard", icon: <MdDashboard />, path: "/wlp/dashboard" },
+    // { name: "Wallet", icon: <Wallet size={18} />, path: "/wlp/wallet" },
+    { name: "Activation Wallet", icon: <MdSubscriptions />, path: "/wlp/Activation" },
   ];
 
   const clientLinks = [
@@ -39,43 +59,51 @@ const WlpNavbar = () => {
 
   return (
     <div className="w-full bg-black/90 backdrop-blur-md shadow-lg fixed top-0 left-0 z-50 border-b border-yellow-500/30">
-      {/* Header */}
-      <header className="flex items-center justify-between px-8 py-4">
+      {/* Header Row */}
+      <header className="flex items-center justify-between px-4 md:px-8 py-4">
+        {/* Logo */}
         <motion.div
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          className="text-3xl font-extrabold text-yellow-400 tracking-widest"
+          className="text-2xl md:text-3xl font-extrabold text-yellow-400 tracking-widest truncate"
         >
-          Traxo 
+          Traxo
         </motion.div>
 
-        {/* Profile Section */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="flex items-center space-x-4"
-        >
-          <div className="flex items-center gap-4 bg-gray-800/70 px-5 py-2 rounded-full border border-yellow-500/40 shadow-md hover:shadow-yellow-400/20 transition duration-300">
-            {/* Profile Image */}
-            <img
-              src="https://via.placeholder.com/40"
-              alt="Profile"
-              className="w-10 h-10 rounded-full border-2 border-yellow-400 hover:scale-110 transition duration-300"
-            />
+        <div className="flex items-center gap-4">
+          {/* Profile Section (Visible on all screens, compact on mobile) */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex items-center space-x-4"
+          >
+            <div className="flex items-center gap-2 md:gap-4 bg-gray-800/70 px-3 py-1.5 md:px-5 md:py-2 rounded-full border border-yellow-500/40 shadow-md">
+              <img
+                src="https://via.placeholder.com/40"
+                alt="Profile"
+                className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-yellow-400"
+              />
+              <button
+                onClick={logout}
+                className="hidden md:block px-5 py-1.5 text-sm font-semibold text-black bg-yellow-400 rounded-full hover:bg-yellow-300 transition-all duration-300 shadow-md"
+              >
+                Logout
+              </button>
+            </div>
+          </motion.div>
 
-            {/* Logout Button */}
-            <button
-              onClick={logout}
-              className="px-5 py-1.5 text-sm font-semibold text-black bg-yellow-400 rounded-full hover:bg-yellow-300 transition-all duration-300 shadow-md hover:shadow-yellow-400/30"
-            >
-              Logout
-            </button>
-          </div>
-        </motion.div>
+          {/* Mobile Menu Toggle Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(true)}
+            className="lg:hidden text-yellow-400 text-3xl hover:text-white transition"
+          >
+            <MdMenu />
+          </button>
+        </div>
       </header>
 
-      {/* Navigation */}
-      <nav className="flex justify-center space-x-10 py-3 text-gray-300 font-medium">
+      {/* Desktop Navigation (Hidden on Mobile) */}
+      <nav className="hidden lg:flex justify-center space-x-10 py-3 text-gray-300 font-medium">
         {navLinks.map((link) => (
           <Link
             key={link.name}
@@ -90,7 +118,7 @@ const WlpNavbar = () => {
           </Link>
         ))}
 
-        {/* Clients Dropdown */}
+        {/* Desktop Clients Dropdown */}
         <div
           className="relative"
           onMouseEnter={() => setIsClientDropdownOpen(true)}
@@ -104,7 +132,6 @@ const WlpNavbar = () => {
             <MdPeople className="text-xl" /> Elements
             <MdKeyboardArrowDown className="text-xl" />
           </button>
-
           <AnimatePresence>
             {isClientDropdownOpen && (
               <motion.div
@@ -129,7 +156,7 @@ const WlpNavbar = () => {
           </AnimatePresence>
         </div>
 
-        {/* Dealer Dropdown */}
+        {/* Desktop Dealer Dropdown */}
         <div
           className="relative"
           onMouseEnter={() => setIsDealerDropdownOpen(true)}
@@ -143,7 +170,6 @@ const WlpNavbar = () => {
             <MdPersonAdd className="text-xl" /> Onboard Manufacture
             <MdKeyboardArrowDown className="text-xl" />
           </button>
-
           <AnimatePresence>
             {isDealerDropdownOpen && (
               <motion.div
@@ -168,6 +194,148 @@ const WlpNavbar = () => {
           </AnimatePresence>
         </div>
       </nav>
+
+      {/* Mobile Drawer / Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/80 z-[60] lg:hidden backdrop-blur-sm"
+            />
+
+            {/* Sidebar Drawer */}
+            <motion.div
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="fixed top-0 right-0 bottom-0 w-[280px] bg-black border-l border-yellow-500/30 z-[70] shadow-2xl overflow-y-auto lg:hidden flex flex-col"
+            >
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between p-5 border-b border-gray-800">
+                <span className="text-xl font-bold text-yellow-400 tracking-wider">MENU</span>
+                <button
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <MdClose size={28} />
+                </button>
+              </div>
+
+              {/* Drawer Links */}
+              <div className="flex-1 py-4 space-y-2">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.name}
+                    to={link.path}
+                    className={`flex items-center gap-3 px-6 py-3 text-lg font-medium transition-colors ${
+                      location.pathname === link.path
+                        ? "bg-yellow-500/10 text-yellow-400 border-r-4 border-yellow-400"
+                        : "text-gray-300 hover:text-yellow-400"
+                    }`}
+                  >
+                    <span className="text-xl">{link.icon}</span>
+                    {link.name}
+                  </Link>
+                ))}
+
+                {/* Mobile Elements Dropdown */}
+                <div>
+                  <button
+                    onClick={() => toggleMobileDropdown("elements")}
+                    className={`w-full flex items-center justify-between px-6 py-3 text-lg font-medium transition-colors ${
+                       mobileActiveDropdown === "elements" ? "text-yellow-400" : "text-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <MdPeople className="text-xl" /> Elements
+                    </div>
+                    <MdKeyboardArrowDown
+                      className={`text-2xl transition-transform ${
+                        mobileActiveDropdown === "elements" ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  <AnimatePresence>
+                    {mobileActiveDropdown === "elements" && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden bg-gray-900/50"
+                      >
+                        {clientLinks.map((item, index) => (
+                          <Link
+                            key={index}
+                            to={item.path}
+                            className="flex items-center gap-3 pl-12 py-3 text-gray-400 hover:text-yellow-400 border-l-2 border-transparent hover:border-yellow-400 transition-colors"
+                          >
+                            <span className="text-lg">{item.icon}</span> {item.name}
+                          </Link>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Mobile Manufacture Dropdown */}
+                <div>
+                  <button
+                    onClick={() => toggleMobileDropdown("manufacture")}
+                    className={`w-full flex items-center justify-between px-6 py-3 text-lg font-medium transition-colors ${
+                       mobileActiveDropdown === "manufacture" ? "text-yellow-400" : "text-gray-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <MdPersonAdd className="text-xl" /> Onboard
+                    </div>
+                    <MdKeyboardArrowDown
+                      className={`text-2xl transition-transform ${
+                        mobileActiveDropdown === "manufacture" ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  <AnimatePresence>
+                    {mobileActiveDropdown === "manufacture" && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden bg-gray-900/50"
+                      >
+                        {dealerLinks.map((item, index) => (
+                          <Link
+                            key={index}
+                            to={item.path}
+                            className="flex items-center gap-3 pl-12 py-3 text-gray-400 hover:text-yellow-400 border-l-2 border-transparent hover:border-yellow-400 transition-colors"
+                          >
+                            <span className="text-lg">{item.icon}</span> {item.name}
+                          </Link>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+
+              {/* Mobile Logout Button */}
+              <div className="p-6 border-t border-gray-800">
+                <button
+                  onClick={logout}
+                  className="w-full py-3 font-bold text-black bg-yellow-400 rounded-lg hover:bg-yellow-300 shadow-md transition-all"
+                >
+                  Logout
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

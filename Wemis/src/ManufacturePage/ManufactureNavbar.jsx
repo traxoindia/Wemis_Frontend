@@ -1,5 +1,3 @@
-
-
 // ManufactureNavbar.jsx
 import logo from '../Images/logo.png'
 import React, { useState, useRef, useEffect, useContext } from "react";
@@ -37,7 +35,12 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
   const [isDealerModalOpen, setIsDealerModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchActive, setIsSearchActive] = useState(false);
+  
+  // ✅ New State for Profile Dropdown click toggle
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+
   const navRef = useRef(null);
+  const profileRef = useRef(null); // ✅ New Ref for Profile section
 
   const { logout } = useContext(UserAppContext);
 
@@ -45,21 +48,27 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
   const activeRoute = propActiveRoute !== undefined ? propActiveRoute : localActiveRoute;
   const setActiveRoute = propSetActiveRoute !== undefined ? propSetActiveRoute : setLocalActiveRoute;
 
-  // ✅ Close dropdown on outside click
+  // ✅ Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event) => {
+      // Close Navigation Dropdown
       if (navRef.current && !navRef.current.contains(event.target)) {
         setOpenDropdown(null);
+      }
+      // ✅ Close Profile Dropdown
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setIsProfileDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // ✅ Close mobile menu when route changes
+  // ✅ Close menus when route changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
     setOpenDropdown(null);
+    setIsProfileDropdownOpen(false); // Close profile on route change
   }, [activeRoute]);
 
   // Update active route when location changes
@@ -143,6 +152,7 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
   const handleLogout = () => {
     logout();
     setIsMobileMenuOpen(false);
+    setIsProfileDropdownOpen(false);
   };
 
   const handleNavItemClick = (item) => {
@@ -154,7 +164,6 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
       setActiveRoute(item.route);
       navigate(item.route);
       if (isMobileMenuOpen) setIsMobileMenuOpen(false);
-    
     }
   };
 
@@ -212,42 +221,47 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
             </Link>
 
             <WalletDropdown />
-
-
-            
           </div>
 
-          {/* User Profile */}
-          <div className="flex items-center space-x-3">
+          {/* User Profile - CLICK based instead of HOVER */}
+          <div className="flex items-center space-x-3" ref={profileRef}>
             <div className="hidden md:flex flex-col items-end">
               <span className="font-medium text-sm text-white">MRUTYUNJAY PRADHAN</span>
               <span className="text-xs text-gray-300">Manufacturer</span>
             </div>
-            <div className="relative group">
-              <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-yellow-400 transition-colors">
+            
+            <div className="relative">
+              <button 
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-yellow-400 transition-colors focus:outline-none"
+              >
                 <User className="w-5 h-5 text-black" />
-              </div>
-              {/* User Dropdown */}
-              <div className="absolute right-0 top-full mt-2 hidden group-hover:block bg-gray-900 border border-yellow-500/30 rounded-lg shadow-xl min-w-[180px] z-50">
-                <div className="p-3 border-b border-gray-700">
-                  <p className="font-medium text-white">Mrutyunjay Pradhan</p>
-                  <p className="text-sm text-gray-400">admin@memus.com</p>
+              </button>
+
+              {/* User Dropdown - Controlled by state */}
+              {isProfileDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 bg-gray-900 border border-yellow-500/30 rounded-lg shadow-xl min-w-[180px] z-50">
+                  <div className="p-3 border-b border-gray-700">
+                    <p className="font-medium text-white">Mrutyunjay Pradhan</p>
+                    <p className="text-sm text-gray-400">admin@memus.com</p>
+                  </div>
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-yellow-500 hover:text-black transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    My Profile
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-600 hover:text-white transition-colors rounded-b-lg"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
                 </div>
-                <Link
-                  to="/profile"
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-gray-300 hover:bg-yellow-500 hover:text-black transition-colors"
-                >
-                  <User className="w-4 h-4" />
-                  My Profile
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-400 hover:bg-red-600 hover:text-white transition-colors rounded-b-lg"
-                >
-                  <LogOut className="w-4 h-4" />
-                  Logout
-                </button>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -273,7 +287,7 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
         <div className="flex justify-center gap-8">
           {menuItems.map((item) => (
             <div key={item.name} className="relative group">
-              {/* Main Nav Item - Use Link for direct routes, button for dropdowns */}
+              {/* Main Nav Item */}
               {item.route && !item.dropdown ? (
                 <Link
                   to={item.route}
@@ -409,7 +423,7 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
           <div className="space-y-1">
             {menuItems.map((item) => (
               <div key={item.name} className="border-b border-gray-800 last:border-0">
-                {/* For items with direct routes (Reports, Subscription) */}
+                {/* For items with direct routes */}
                 {item.route && !item.dropdown ? (
                   <Link
                     to={item.route}
@@ -507,7 +521,7 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
         />
       )}
 
-      {/* ✅ Dealer Modal */}
+      {/* Dealer Modal */}
       {isDealerModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div

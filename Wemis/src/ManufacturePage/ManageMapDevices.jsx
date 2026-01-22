@@ -4,27 +4,8 @@ import DeviceMapreport from './DeviceMapreport';
 import ManufactureNavbar from './ManufactureNavbar';
 
 // =========================================================
-// 1. PLACEHOLDER COMPONENTS (Required for single-file mandate)
+// 1. PLACEHOLDER COMPONENTS & UTILITIES
 // =========================================================
-
-// Placeholder for ManufactureNavbar
-const ManufactureNavbarr= () => (
-  <nav className="bg-gray-800 border-b border-gray-700 p-4 text-center text-white">
-    <span className="font-bold">WEMIS Manufacturer Portal</span>
-  </nav>
-);
-
-// Placeholder for DeviceMapreport (Report Section)
-const DeviceMapreporttt = () => (
-  <div className="mt-12 p-8 bg-gray-800/50 rounded-2xl shadow-inner border border-yellow-500/30">
-    <h2 className="text-3xl font-bold text-yellow-400 mb-6">Device Mapping History</h2>
-    <div className="text-gray-400 text-center py-10 border-2 border-dashed border-gray-600 rounded-lg">
-      <p>Data visualization and reporting features would be displayed here.</p>
-      <p className="mt-2 text-sm">Example: Recent Mappings Table, Map View, Status Charts.</p>
-    </div>
-  </div>
-);
-
 
 const ToastNotification = ({ message, type, onClose }) => {
   if (!type || !message) return null;
@@ -366,9 +347,6 @@ function App() {
 
       // Add actual SIM details array
       payload.simDetails = mappedSims || [];
-      // If simDetails was a summary string, we delete it from payload
-      // But since we built the payload from scratch, we only need the array now.
-
 
       const token = localStorage.getItem("token") || 'mock-token';
       if (!token) throw new Error("Authentication token missing");
@@ -537,8 +515,8 @@ function App() {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
         
         {/* Navbar */}
-        <nav className="bg-black/90 backdrop-blur-md border-b-2 border-yellow-500 sticky top-0 z-40 shadow-2xl">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <nav className="bg-black/90 backdrop-blur-md border-b-2 border-yellow-500 sticky top-0 z-40 shadow-2xl w-full">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between h-20">
               <div className="flex items-center">
                 <MapPin className="text-yellow-400" size={32} />
@@ -586,9 +564,9 @@ function App() {
           )}
         </nav>
         
-        {/* Main Content (DeviceMapreport) */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <DeviceMapreport/>
+        {/* Main Content (DeviceMapreport) - Full Width */}
+        <div className="w-full px-4 sm:px-6 lg:px-8 py-12">
+          <DeviceMapreport/>
         </div>
 
         {/* Toast Notification Renderer */}
@@ -598,10 +576,10 @@ function App() {
           onClose={() => setToast({ message: '', type: null })} 
         />
 
-        {/* Modal (Improved UI) */}
+        {/* Modal (Improved UI) - Expanded to allow full view on large screens */}
         {isModalOpen && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-yellow-500 rounded-2xl shadow-2xl max-w-5xl w-full my-8 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-yellow-600 scrollbar-track-gray-800">
+            <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-yellow-500 rounded-2xl shadow-2xl max-w-[95vw] w-full my-8 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-yellow-600 scrollbar-track-gray-800">
               
               {/* Modal Header */}
               <div className="sticky top-0 bg-black/95 backdrop-blur-md border-b-2 border-yellow-500/80 p-6 flex justify-between items-center z-10">

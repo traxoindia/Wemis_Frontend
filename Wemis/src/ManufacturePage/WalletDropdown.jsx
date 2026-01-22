@@ -23,6 +23,12 @@ export default function WalletDropdown() {
       {/* Dropdown */}
       {open && (
         <div className="absolute top-full mt-2 w-40 rounded-lg bg-gray-900 shadow-lg border border-gray-700 z-50">
+         <Link
+            to="/wallet/vtspackages"
+            className="block px-4 py-2 text-sm text-white hover:bg-gray-800 rounded-t-lg"
+          >
+            VTS Packages
+          </Link>
           <Link
             to="/wallet/renewal"
             className="block px-4 py-2 text-sm text-white hover:bg-gray-800 rounded-t-lg"

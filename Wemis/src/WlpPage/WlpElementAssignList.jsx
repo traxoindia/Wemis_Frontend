@@ -148,6 +148,7 @@ function WlpElementAssignList() {
                   <th className="px-6 py-3 text-left">Element Name</th>
                   <th className="px-6 py-3 text-left">Name(Manufacturer)</th>
                   <th className="px-6 py-3 text-left">Business Name(Manufacturer)</th>
+                  <th className="px-6 py-3 text-left">Manufacture Name</th>
 
                 </tr>
               </thead>

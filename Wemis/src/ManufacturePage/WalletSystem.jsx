@@ -1,405 +1,408 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { 
-  Wallet, Plus, History, ArrowUpRight, ArrowDownLeft,
-  CreditCard, Trash2, Filter, Search, RefreshCw
-} from 'lucide-react';
-import ManufactureNavbar from './ManufactureNavbar';
 
-const WalletSystem = () => {
-  const [balance, setBalance] = useState(0);
-  const [transactions, setTransactions] = useState([]);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newAmount, setNewAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [filter, setFilter] = useState('all');
-  const [loading, setLoading] = useState(false);
-  const [fetchingBalance, setFetchingBalance] = useState(false);
-  const [fetchingHistory, setFetchingHistory] = useState(false);
+import React, { useState, useEffect } from "react";
+import { Search, Plus, Pencil, X, CheckCircle, Wallet, MapPin, Building2, User, Loader2 } from "lucide-react";
+import ManufactureNavbar from "./ManufactureNavbar";
 
-  // API URLs
-  const ADD_MONEY_URL = "https://api.websave.in/api/manufactur/addWalletBalance";
-  const FETCH_BALANCE_URL = "https://api.websave.in/api/manufactur/fetchWalletBalance";
-  const FETCH_HISTORY_URL = "https://api.websave.in/api/manufactur/fetchManufacturPaymentHistory";
+// --- CONSTANTS ---
+const INDIAN_STATES = [
+  "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", 
+  "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", 
+  "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", 
+  "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", 
+  "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh", 
+  "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh", 
+  "Lakshadweep", "Puducherry"
+];
 
-  // 🔐 Token from localStorage
-  const token = localStorage.getItem("token");
+const PACKAGES = [
+  { id: 1, name: "1 Month", price: 272, days: 30 },
+  { id: 2, name: "6 Month", price: 980, days: 180 },
+  { id: 3, name: "1 Year", price: 1572, days: 365 },
+  { id: 4, name: "AIS 140 VTS Annual", price: 2832, days: 365 },
+  { id: 5, name: "AIS 140 Odisha State 24 Months", price: 4874, days: 730 },
+  { id: 6, name: "AIS140", price: 590, days: 730 },
+];
 
-  // Format currency in INR
+const WalletManagement = () => {
+  // UI State
+  const [search, setSearch] = useState("");
+  const [showModal, setShowModal] = useState(false);
+  
+  // Form State
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [selectedState, setSelectedState] = useState("");
+  const [selectedDistributor, setSelectedDistributor] = useState("");
+  
+  // Data State
+  const [distributors, setDistributors] = useState([]);
+  const [isLoadingDistributors, setIsLoadingDistributors] = useState(false);
+
+  // Format currency helper
   const formatCurrency = (amount) =>
     new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
+      maximumFractionDigits: 0
     }).format(amount);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return "Date not available";
-    return new Intl.DateTimeFormat('en-IN', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(new Date(dateString));
-  };
-
-  // ✅ 1. FETCH WALLET BALANCE
-  const fetchWalletBalance = async () => {
-    if (!token) return;
-
-    try {
-      setFetchingBalance(true);
-      const response = await axios.get(FETCH_BALANCE_URL, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (response.data && response.data.success) {
-        // Adjust depending on where balance sits in this specific API response
-        // Common patterns: response.data.balance OR response.data.wallet.balance
-        const bal = response.data.balance || response.data.walletData?.balance || 0;
-        setBalance(bal);
-      }
-    } catch (error) {
-      console.error("Error fetching wallet balance:", error);
-    } finally {
-      setFetchingBalance(false);
-    }
-  };
-
-  // ✅ 2. FETCH TRANSACTION HISTORY (Updated for your specific JSON)
-  const fetchTransactionHistory = async () => {
-    if (!token) return;
-
-    try {
-      setFetchingHistory(true);
-      const response = await axios.get(FETCH_HISTORY_URL, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      console.log("History Response:", response.data);
-
-      if (response.data && response.data.success) {
-        // The array is in response.data.transactions based on your snippet
-        const historyData = response.data.transactions || [];
-        
-        const formattedTransactions = historyData.map((tx, index) => ({
-          // Use index as ID since API doesn't provide unique ID in snippet
-          id: index, 
-          amount: tx.amount,
-          // Map 'CREDIT' to 'deposit' for UI logic
-          type: tx.type === 'CREDIT' ? 'deposit' : 'withdrawal', 
-          description: tx.reason || "Transaction",
-          date: tx.createdAt,
-          balanceAfter: tx.balanceAfter, // Store this if you want to show running balance
-          status: "completed" // API implies completed transactions
-        }));
-
-        setTransactions(formattedTransactions);
-      }
-    } catch (error) {
-      console.error("Error fetching transaction history:", error);
-    } finally {
-      setFetchingHistory(false);
-    }
-  };
-
-  // ✅ 3. ADD MONEY
-  const handleAddMoney = async (e) => {
-    e.preventDefault();
-    const amount = Number(newAmount);
-
-    if (!amount || amount <= 0) {
-      alert("Enter valid amount");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      const payload = {
-        amount: amount,
-        reason: description || "Wallet Top-up"
-      };
-
-      const res = await axios.post(ADD_MONEY_URL, payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json"
-        }
-      });
-
-      if (res.data && res.data.success) {
-        alert(res.data.message || "Wallet balance added successfully");
-        setShowAddModal(false);
-        setNewAmount('');
-        setDescription('');
-        handleRefresh(); // Refresh data
-      } else {
-        alert(res.data?.message || "Failed to add balance");
-      }
-
-    } catch (error) {
-      console.error("Error adding money:", error);
-      alert("Failed to add money. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRefresh = () => {
-    fetchWalletBalance();
-    fetchTransactionHistory();
-  };
-
-  // Filter Logic
-  const filteredTransactions = transactions.filter(t => {
-    if (filter === "all") return true;
-    return t.type === filter;
-  });
-
-  // Initial Load
+  // --- API INTEGRATION ---
   useEffect(() => {
-    handleRefresh();
-  }, []);
+    const fetchDistributors = async () => {
+      // Only fetch if a state is actually selected
+      if (!selectedState) {
+        setDistributors([]);
+        return;
+      }
+
+      setIsLoadingDistributors(true);
+      try {
+        // Retrieve token from Local Storage
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+            alert("Authentication token not found. Please log in.");
+            setIsLoadingDistributors(false);
+            return;
+        }
+
+        const response = await fetch("https://api.websave.in/api/manufactur/fetchDistributorOnBasisOfState", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}` // Using the dynamic token
+          },
+          body: JSON.stringify({ state: selectedState })
+        });
+
+        const data = await response.json();
+        console.log(data)
+
+        // Adjust 'data.distributors' based on your actual API response structure
+        if (data && (Array.isArray(data) || Array.isArray(data.result) || Array.isArray(data.distributors))) {
+           setDistributors(data.distributors || data.result || data); 
+        } else {
+           console.warn("Unexpected API response structure", data);
+           setDistributors([]);
+        }
+
+      } catch (error) {
+        console.error("Error fetching distributors:", error);
+        setDistributors([]);
+      } finally {
+        setIsLoadingDistributors(false);
+      }
+    };
+
+    fetchDistributors();
+  }, [selectedState]);
+
+  // Reset form when modal closes
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setSelectedState("");
+    setSelectedDistributor("");
+    setSelectedPackage(null);
+    setDistributors([]);
+  };
 
   return (
-    <div>
+    <div className="flex flex-col min-h-screen bg-gray-50 text-gray-900 font-sans">
       <ManufactureNavbar />
+      
+      {/* Main Content */}
+      <main className="flex-grow w-full p-4 md:p-6 lg:p-8">
+        <div className="w-full space-y-6">
 
-      <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-        <div className="max-w-5xl mx-auto">
-          
-          {/* Header */}
-          <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Manufacture Wallet</h1>
-            
-            <div className="flex items-center gap-3">
+          {/* HEADER SECTION */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Wallet Management</h1>
+              <p className="text-gray-500 mt-1">Configure and manage wallet packages for dealers.</p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+               {/* Search Bar */}
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search wallets..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-12 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-gray-400"
+                />
+              </div>
+
               <button
-                onClick={handleRefresh}
-                disabled={fetchingBalance || fetchingHistory}
-                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                onClick={() => setShowModal(true)}
+                className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-xl font-semibold transition-all shadow-sm hover:shadow-md active:scale-95 whitespace-nowrap"
               >
-                <RefreshCw size={18} className={(fetchingBalance || fetchingHistory) ? "animate-spin" : ""} />
-                {(fetchingBalance || fetchingHistory) ? "Refreshing..." : "Refresh"}
-              </button>
-              
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-sm"
-              >
-                <Plus size={18} /> Add Money
+                <Plus size={20} strokeWidth={2.5} /> Create Wallet
               </button>
             </div>
           </div>
 
-          {/* Balance Card */}
-          <div className="mb-6">
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
-              <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
-              
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 relative z-10">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                    <Wallet size={32} className="text-white" />
-                  </div>
-                  <div>
-                    <p className="text-blue-100 text-sm font-medium">Available Balance</p>
-                    <h2 className="text-4xl font-bold tracking-tight">{formatCurrency(balance)}</h2>
-                  </div>
-                </div>
-                <div className="mt-4 md:mt-0 text-right">
-                  <p className="text-blue-100 text-xs uppercase tracking-wider">Sync Status</p>
-                  <p className="font-medium font-mono text-sm flex items-center justify-end gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-                    Live
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-6 text-sm relative z-10 border-t border-white/20 pt-4">
-                <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg">
-                  <div className="p-1 bg-green-400/20 rounded-full">
-                    <ArrowUpRight size={14} className="text-green-300" />
-                  </div>
-                  <div>
-                    <span className="block text-blue-100 text-xs">Total Credits</span>
-                    <span className="font-semibold">
-                      {formatCurrency(transactions.filter(t => t.type === 'deposit').reduce((sum, t) => sum + Number(t.amount), 0))}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Transactions Section */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden">
-            <div className="p-4 md:p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="p-2 bg-gray-100 rounded-lg">
-                  <History size={20} className="text-gray-600" />
-                </div>
-                <div>
-                  <h2 className="font-semibold text-lg text-gray-800">Payment History</h2>
-                  <p className="text-xs text-gray-500">{transactions.length} records</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 w-full md:w-auto">
-                <select
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  className="border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-white"
-                >
-                  <option value="all">All Transactions</option>
-                  <option value="deposit">Credits (Deposits)</option>
-                  <option value="withdrawal">Debits (Withdrawals)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Transactions List */}
-            <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
-              {fetchingHistory ? (
-                <div className="p-12 text-center">
-                  <RefreshCw size={32} className="mx-auto text-blue-500 animate-spin mb-3" />
-                  <p className="text-gray-500">Loading history...</p>
-                </div>
-              ) : filteredTransactions.length === 0 ? (
-                <div className="p-12 text-center">
-                  <History size={32} className="mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500 font-medium">No transactions found</p>
-                </div>
-              ) : (
-                filteredTransactions.map((tx, index) => (
-                  <div key={index} className="p-4 hover:bg-gray-50 transition-colors group border-l-4 border-transparent hover:border-blue-500">
-                    <div className="flex justify-between items-center">
+          {/* TABLE SECTION */}
+          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm w-full">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">
+                    <th className="px-6 py-5 font-bold w-1/3">Wallet Name</th>
+                    <th className="px-6 py-5 font-bold">Type</th>
+                    <th className="px-6 py-5 font-bold">Balance</th>
+                    <th className="px-6 py-5 font-bold text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  <tr className="group hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-5">
                       <div className="flex items-center gap-4">
-                        <div className={`p-3 rounded-full flex-shrink-0 ${
-                          tx.type === "deposit" ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-                        }`}>
-                          {tx.type === "deposit" ? <ArrowUpRight size={20} /> : <ArrowDownLeft size={20} />}
+                        <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600 border border-indigo-100 group-hover:bg-white group-hover:border-indigo-200 transition-colors">
+                          <Wallet size={22} />
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900">{tx.description}</p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-xs text-gray-500">{formatDate(tx.date)}</span>
-                            {/* Optional: Show running balance if available */}
-                            {tx.balanceAfter !== undefined && (
-                              <span className="text-xs font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                                Bal: ₹{tx.balanceAfter}
-                              </span>
-                            )}
-                          </div>
+                          <span className="block font-bold text-gray-900 text-lg">ELITE WALLET</span>
+                          <span className="text-xs text-gray-500">ID: WAL-2024-001</span>
                         </div>
                       </div>
-                      
-                      <div className="text-right">
-                        <span className={`text-lg font-bold block ${
-                          tx.type === "deposit" ? "text-green-600" : "text-gray-800"
-                        }`}>
-                          {tx.type === "deposit" ? "+" : "-"}{formatCurrency(tx.amount)}
-                        </span>
-                        <span className={`text-[10px] uppercase font-bold tracking-wider ${
-                          tx.type === "deposit" ? "text-green-500" : "text-red-400"
-                        }`}>
-                          {tx.type === "deposit" ? "CREDIT" : "DEBIT"}
-                        </span>
+                    </td>
+                    <td className="px-6 py-5 text-gray-600">
+                      <span className="px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-bold text-gray-600 border border-gray-200 uppercase tracking-wide">
+                        Tracker
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-emerald-600 font-black text-xl tracking-tight">₹2,000</span>
+                        <span className="text-gray-400 text-sm">.00</span>
                       </div>
-                    </div>
-                  </div>
-                ))
-              )}
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <button className="p-2.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 rounded-xl transition-all">
+                        <Pencil size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                  
+                  {/* Additional Dummy Row */}
+                   <tr className="group hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-5">
+                      <div className="flex items-center gap-4">
+                        <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600 border border-indigo-100 group-hover:bg-white group-hover:border-indigo-200 transition-colors">
+                          <Wallet size={22} />
+                        </div>
+                        <div>
+                          <span className="block font-bold text-gray-900 text-lg">STANDARD WALLET</span>
+                          <span className="text-xs text-gray-500">ID: WAL-2024-002</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-gray-600">
+                      <span className="px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-bold text-gray-600 border border-gray-200 uppercase tracking-wide">
+                        Tracker
+                      </span>
+                    </td>
+                    <td className="px-6 py-5">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-emerald-600 font-black text-xl tracking-tight">₹5,400</span>
+                        <span className="text-gray-400 text-sm">.00</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <button className="p-2.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 rounded-xl transition-all">
+                        <Pencil size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
+      </main>
 
-        {/* ADD MONEY MODAL */}
-        {showAddModal && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <form
-              onSubmit={handleAddMoney}
-              className="bg-white p-6 rounded-2xl w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-6 flex justify-between items-center">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">Add Balance</h2>
-                  <p className="text-gray-500 text-sm">Add funds to your wallet</p>
+      {/* ================= CREATE MODAL ================= */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl relative flex flex-col max-h-[95vh] animate-in zoom-in-95 duration-200">
+            
+            {/* Modal Header */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Create New Wallet</h2>
+                <p className="text-gray-500 text-sm mt-1">Assign dealer details and select a subscription plan.</p>
+              </div>
+              <button
+                onClick={handleCloseModal}
+                className="text-gray-400 hover:text-gray-900 p-2 hover:bg-gray-200 rounded-full transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Body - Scrollable */}
+            <div className="p-6 overflow-y-auto custom-scrollbar space-y-8 flex-1">
+
+              {/* SECTION 1: Details */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* State Dropdown */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase text-gray-500 tracking-wider flex items-center gap-2">
+                    <MapPin size={14} /> State
+                  </label>
+                  <div className="relative group">
+                    <select 
+                      className="w-full p-3.5 bg-white border border-gray-200 rounded-xl text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer shadow-sm group-hover:border-gray-300"
+                      value={selectedState}
+                      onChange={(e) => {
+                        setSelectedState(e.target.value);
+                        setSelectedDistributor(""); // Reset distributor when state changes
+                      }}
+                    >
+                      <option value="">Select State</option>
+                      {INDIAN_STATES.map((state) => (
+                        <option key={state} value={state}>{state}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">▼</div>
+                  </div>
                 </div>
-                <div className="p-2 bg-blue-50 rounded-full">
-                  <CreditCard size={20} className="text-blue-600" />
+
+                {/* Organization / Distributor Dropdown (Dynamic) */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase text-gray-500 tracking-wider flex items-center gap-2">
+                    <Building2 size={14} /> Organization
+                  </label>
+                  <div className="relative group">
+                    <select 
+                      className="w-full p-3.5 bg-white border border-gray-200 rounded-xl text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer shadow-sm group-hover:border-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                      value={selectedDistributor}
+                      onChange={(e) => setSelectedDistributor(e.target.value)}
+                      disabled={!selectedState || isLoadingDistributors}
+                    >
+                      <option value="">
+                        {isLoadingDistributors ? "Fetching Distributors..." : !selectedState ? "Select State First" : "Select Organization"}
+                      </option>
+                      
+                      {!isLoadingDistributors && distributors.map((dist, index) => (
+                        <option key={dist._id || index} value={dist._id || dist.name}>
+                          {dist.business_Name || dist.name || "Unknown Org"}
+                        </option>
+                      ))}
+                    </select>
+                    
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                      {isLoadingDistributors ? <Loader2 size={18} className="animate-spin" /> : "▼"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Dealer Select */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase text-gray-500 tracking-wider flex items-center gap-2">
+                    <User size={14} /> Dealer Name
+                  </label>
+                  <div className="relative group">
+                    <select className="w-full p-3.5 bg-white border border-gray-200 rounded-xl text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer shadow-sm group-hover:border-gray-300">
+                      <option>Select Dealer</option>
+                      <option>John Doe</option>
+                      <option>Jane Smith</option>
+                    </select>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">▼</div>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Amount</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-bold text-lg">₹</span>
-                    <input
-                      type="number"
-                      placeholder="0.00"
-                      value={newAmount}
-                      onChange={(e) => setNewAmount(e.target.value)}
-                      className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg font-medium"
-                      required
-                      min="1"
-                      autoFocus
-                    />
-                  </div>
-                  <div className="flex gap-2 mt-3">
-                    {[500, 1000, 2000, 5000].map(amt => (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => setNewAmount(amt)}
-                        className="px-3 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-blue-50 hover:text-blue-600 transition-colors"
+              {/* SECTION 2: Packages */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 mb-2">
+                  <h3 className="text-lg font-bold text-gray-800">Select Subscription Package</h3>
+                  <div className="h-px flex-grow bg-gray-200"></div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {PACKAGES.map((pkg) => {
+                    const isSelected = selectedPackage === pkg.id;
+                    return (
+                      <div
+                        key={pkg.id}
+                        onClick={() => setSelectedPackage(pkg.id)}
+                        className={`
+                          relative p-6 rounded-2xl border-2 cursor-pointer transition-all duration-200 group flex flex-col justify-between h-full
+                          ${isSelected 
+                            ? "bg-indigo-50 border-indigo-500 shadow-md ring-1 ring-indigo-500 scale-[1.02]" 
+                            : "bg-white border-gray-100 hover:border-indigo-200 hover:shadow-lg"
+                          }
+                        `}
                       >
-                        +₹{amt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                        {isSelected && (
+                          <div className="absolute -top-3 -right-3 bg-indigo-600 text-white rounded-full p-1 shadow-md animate-in zoom-in duration-200">
+                            <CheckCircle size={18} fill="currentColor" strokeWidth={0} /> 
+                          </div>
+                        )}
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., Monthly Top-up"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                        <div>
+                          <h4 className={`font-bold text-lg mb-1 ${isSelected ? "text-indigo-900" : "text-gray-800"}`}>
+                            {pkg.name}
+                          </h4>
+                          <p className="text-xs text-gray-500 font-medium">Auto-renewal available</p>
+                        </div>
+
+                        <div className="mt-4">
+                          <div className="flex items-baseline gap-1">
+                            <span className={`text-3xl font-black ${isSelected ? "text-indigo-700" : "text-gray-900"}`}>
+                              {formatCurrency(pkg.price)}
+                            </span>
+                            <span className="text-xs text-gray-500 font-semibold">+ 18% GST</span>
+                          </div>
+
+                          <div className="mt-4 pt-4 border-t border-dashed border-gray-200 space-y-2">
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <CheckCircle size={12} className="text-emerald-500" /> SIM & Support Included
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <CheckCircle size={12} className="text-blue-500" /> Valid for <span className="text-gray-900 font-bold">{pkg.days} Days</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-8">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="flex-1 border border-gray-300 text-gray-700 py-3 rounded-xl hover:bg-gray-50 font-medium transition-colors"
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading || !newAmount}
-                  className="flex-1 bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50"
-                >
-                  {loading ? "Processing..." : "Proceed to Pay"}
-                </button>
-              </div>
-            </form>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
+              <button
+                onClick={handleCloseModal}
+                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-white hover:border-gray-400 font-semibold transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (!selectedPackage) return alert("Please select a package.");
+                  if (!selectedState) return alert("Please select a state.");
+                  if (!selectedDistributor) return alert("Please select an organization.");
+                  alert("Wallet Created Successfully!");
+                  handleCloseModal();
+                }}
+                className="px-8 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold shadow-lg shadow-gray-900/10 transition-all active:scale-95"
+              >
+                Create Wallet
+              </button>
+            </div>
+
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default WalletSystem;
+export default WalletManagement;
+
