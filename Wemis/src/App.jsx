@@ -252,7 +252,7 @@ function App() {
 
             {/* Wallet */}
             <Route path="/wallet/renewal" element={<Renewal />} />
-            <Route path="/wallet/vtspackages" element={<WalletSystem />} />
+            <Route path="/wallet/activation" element={<WalletSystem />} />
 
 
           </>

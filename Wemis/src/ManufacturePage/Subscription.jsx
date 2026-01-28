@@ -290,7 +290,7 @@ function Subscription() {
                     <tr key={s._id} className="hover:bg-gray-700/50 text-sm">
                       <td className="px-6 py-4 font-medium text-yellow-300 whitespace-nowrap">{s.packageName}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{s.packageType}</td>
-                      <td className="px-6 py-4 text-green-400 font-mono whitespace-nowrap">${(s.price || 0).toFixed(2)}</td>
+                      <td className="px-6 py-4 text-green-400 font-mono whitespace-nowrap">{(s.price || 0).toFixed(2)}</td>
                       <td className="px-6 py-4 whitespace-nowrap">{s.billingCycle}</td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className={s.renewal ? "text-yellow-400" : "text-gray-400"}>
@@ -380,7 +380,7 @@ function Subscription() {
 
                 {/* Price */}
                 <div>
-                  <label htmlFor="price" className="block mb-1 text-gray-300 font-medium">Price ($) *</label>
+                  <label htmlFor="price" className="block mb-1 text-gray-300 font-medium">Price</label>
                   <input
                     id="price"
                     type="number"

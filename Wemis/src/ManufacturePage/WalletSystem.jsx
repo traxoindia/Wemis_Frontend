@@ -1,9 +1,15 @@
-
 import React, { useState, useEffect } from "react";
-import { Search, Plus, Pencil, X, CheckCircle, Wallet, MapPin, Building2, User, Loader2 } from "lucide-react";
+import { 
+  Search, Wallet, Loader2, CheckCircle, 
+  ArrowUpRight, Clock, Send, X, Package, ShieldCheck
+} from "lucide-react";
+import toast, { Toaster } from "react-hot-toast";
 import ManufactureNavbar from "./ManufactureNavbar";
 
-// --- CONSTANTS ---
+const FETCH_WALLET_HISTORY_API = "https://api.websave.in/api/manufactur/fetchManufacturActivatioWallet";
+const FETCH_OEM_API = "https://api.websave.in/api/manufactur/findOemUnderManufactur";
+const FETCH_DISTRIBUTOR_API = "https://api.websave.in/api/manufactur/findDistributorUnderManufactur";
+
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", 
   "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", 
@@ -14,389 +20,340 @@ const INDIAN_STATES = [
   "Lakshadweep", "Puducherry"
 ];
 
-const PACKAGES = [
-  { id: 1, name: "1 Month", price: 272, days: 30 },
-  { id: 2, name: "6 Month", price: 980, days: 180 },
-  { id: 3, name: "1 Year", price: 1572, days: 365 },
-  { id: 4, name: "AIS 140 VTS Annual", price: 2832, days: 365 },
-  { id: 5, name: "AIS 140 Odisha State 24 Months", price: 4874, days: 730 },
-  { id: 6, name: "AIS140", price: 590, days: 730 },
-];
+const WalletSystem = () => {
+  const tkn = localStorage.getItem("token");
 
-const WalletManagement = () => {
-  // UI State
-  const [search, setSearch] = useState("");
+  // --- Main State ---
+  const [walletHistory, setWalletHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  
+  // --- Dynamic Dropdown States (from History API) ---
+  const [elementTypes, setElementTypes] = useState([]);
+  const [elements, setElements] = useState([]);
+
+  // --- Modal State ---
   const [showModal, setShowModal] = useState(false);
-  
-  // Form State
-  const [selectedPackage, setSelectedPackage] = useState(null);
-  const [selectedState, setSelectedState] = useState("");
-  const [selectedDistributor, setSelectedDistributor] = useState("");
-  
-  // Data State
-  const [distributors, setDistributors] = useState([]);
-  const [isLoadingDistributors, setIsLoadingDistributors] = useState(false);
+  const [oemList, setOemList] = useState([]);
+  const [distributorList, setDistributorList] = useState([]);
+  const [fetchingLists, setFetchingLists] = useState(false);
 
-  // Format currency helper
-  const formatCurrency = (amount) =>
-    new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      maximumFractionDigits: 0
-    }).format(amount);
+  // --- Form State ---
+  const [form, setForm] = useState({
+    state: "",
+    oemId: "",
+    distributorId: "",
+    elementType: "",
+    element: "",
+    selectedPackage: null,
+    quantity: 1
+  });
 
-  // --- API INTEGRATION ---
+  // --- Calculations ---
+  const totalPackages = walletHistory.reduce((acc, item) => acc + (item.noOfActivationWallets || 0), 0);
+  const totalAmount = walletHistory.reduce((acc, item) => acc + (item.price * item.noOfActivationWallets || 0), 0);
+  const activePackages = walletHistory.filter(item => item.activationStatus).length;
+  const pendingPackages = walletHistory.filter(item => !item.activationStatus).length;
+
   useEffect(() => {
-    const fetchDistributors = async () => {
-      // Only fetch if a state is actually selected
-      if (!selectedState) {
-        setDistributors([]);
-        return;
+    fetchWalletHistory();
+  }, [tkn]);
+
+  useEffect(() => {
+    if (form.state) {
+      fetchPartners(form.state);
+    } else {
+      setOemList([]);
+      setDistributorList([]);
+    }
+  }, [form.state]);
+
+  const fetchWalletHistory = async () => {
+    if (!tkn) return;
+    setLoading(true);
+    try {
+      const response = await fetch(FETCH_WALLET_HISTORY_API, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${tkn}`, "Content-Type": "application/json" }
+      });
+      const result = await response.json();
+      if (result.success) {
+        const history = result.activationWallets || [];
+        setWalletHistory(history);
+
+        // --- Extract Dynamic Element Types and Elements ---
+        const types = [...new Set(history.map(item => item.packageType))].filter(Boolean);
+        const elms = [...new Set(history.map(item => item.elementName))].filter(Boolean);
+        
+        setElementTypes(types);
+        setElements(elms);
       }
-
-      setIsLoadingDistributors(true);
-      try {
-        // Retrieve token from Local Storage
-        const token = localStorage.getItem("token");
-
-        if (!token) {
-            alert("Authentication token not found. Please log in.");
-            setIsLoadingDistributors(false);
-            return;
-        }
-
-        const response = await fetch("https://api.websave.in/api/manufactur/fetchDistributorOnBasisOfState", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}` // Using the dynamic token
-          },
-          body: JSON.stringify({ state: selectedState })
-        });
-
-        const data = await response.json();
-        console.log(data)
-
-        // Adjust 'data.distributors' based on your actual API response structure
-        if (data && (Array.isArray(data) || Array.isArray(data.result) || Array.isArray(data.distributors))) {
-           setDistributors(data.distributors || data.result || data); 
-        } else {
-           console.warn("Unexpected API response structure", data);
-           setDistributors([]);
-        }
-
-      } catch (error) {
-        console.error("Error fetching distributors:", error);
-        setDistributors([]);
-      } finally {
-        setIsLoadingDistributors(false);
-      }
-    };
-
-    fetchDistributors();
-  }, [selectedState]);
-
-  // Reset form when modal closes
-  const handleCloseModal = () => {
-    setShowModal(false);
-    setSelectedState("");
-    setSelectedDistributor("");
-    setSelectedPackage(null);
-    setDistributors([]);
+    } catch (error) {
+      toast.error("Error fetching wallet history");
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const fetchPartners = async (stateName) => {
+    setFetchingLists(true);
+    try {
+      const headers = { "Authorization": `Bearer ${tkn}`, "Content-Type": "application/json" };
+      const body = JSON.stringify({ state: stateName });
+
+      const [oemRes, distRes] = await Promise.all([
+        fetch(FETCH_OEM_API, { method: "POST", headers, body }),
+        fetch(FETCH_DISTRIBUTOR_API, { method: "POST", headers, body })
+      ]);
+
+      const oemData = await oemRes.json();
+      const distData = await distRes.json();
+
+      setOemList(oemData.oem || []);
+      setDistributorList(distData.dist || []);
+    } catch (error) {
+      toast.error("Failed to fetch partners");
+    } finally {
+      setFetchingLists(false);
+    }
+  };
+
+  const handleSubscriptionSubmit = async (e) => {
+    e.preventDefault();
+    if (!form.selectedPackage) return toast.error("Please select an activation plan");
+    toast.success("Subscription request sent successfully!");
+    setShowModal(false);
+    setForm({ state: "", oemId: "", distributorId: "", elementType: "", element: "", selectedPackage: null, quantity: 1 });
+  };
+
+  const filteredData = walletHistory.filter(item => 
+    item.packageName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.elementName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50 text-gray-900 font-sans">
+    <div className="min-h-screen bg-[#f8f9fa] flex flex-col font-sans">
+      <Toaster position="top-right" />
       <ManufactureNavbar />
-      
-      {/* Main Content */}
-      <main className="flex-grow w-full p-4 md:p-6 lg:p-8">
-        <div className="w-full space-y-6">
 
-          {/* HEADER SECTION */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Wallet Management</h1>
-              <p className="text-gray-500 mt-1">Configure and manage wallet packages for dealers.</p>
-            </div>
+      <main className="p-4 lg:p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-xl font-bold text-gray-800">Wallet Management</h1>
+          <button 
+            onClick={() => setShowModal(true)}
+            className="bg-[#1e88e5] hover:bg-blue-700 text-white px-5 py-2 rounded-md shadow-md flex items-center gap-2 text-sm font-bold transition-all"
+          >
+            <Send size={16} /> Send Subscription
+          </button>
+        </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-               {/* Search Bar */}
-              <div className="relative w-full sm:w-80">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                  type="text"
-                  placeholder="Search wallets..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-12 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-gray-400"
-                />
-              </div>
-
-              <button
-                onClick={() => setShowModal(true)}
-                className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-xl font-semibold transition-all shadow-sm hover:shadow-md active:scale-95 whitespace-nowrap"
-              >
-                <Plus size={20} strokeWidth={2.5} /> Create Wallet
-              </button>
-            </div>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-[#43a047] text-white p-4 rounded shadow-md flex justify-between items-center">
+            <span className="text-sm font-bold uppercase">Package Count</span>
+            <span className="text-3xl font-light">{totalPackages}</span>
           </div>
+          <div className="bg-[#1e88e5] text-white p-4 rounded shadow-md flex justify-between items-center">
+            <span className="text-sm font-bold uppercase">Total Amount</span>
+            <span className="text-3xl font-light">₹{totalAmount.toLocaleString()}</span>
+          </div>
+          <div className="bg-[#fb8c00] text-white p-4 rounded shadow-md flex justify-between items-center">
+            <span className="text-sm font-bold uppercase">Pending</span>
+            <span className="text-3xl font-light">{pendingPackages}</span>
+          </div>
+          <div className="bg-[#e53935] text-white p-4 rounded shadow-md flex justify-between items-center">
+            <span className="text-sm font-bold uppercase">Active</span>
+            <span className="text-3xl font-light">{activePackages}</span>
+          </div>
+        </div>
 
-          {/* TABLE SECTION */}
-          <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm w-full">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+        {/* Search Bar */}
+        <div className="bg-white p-3 rounded shadow-sm border border-gray-200 flex items-center gap-4">
+          <div className="relative flex-1 max-w-xl">
+            <input 
+              type="text" 
+              placeholder="Search package or element name..." 
+              className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded text-sm outline-none focus:border-blue-500"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+          </div>
+        </div>
+
+        {/* Data Table */}
+        <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            {loading ? (
+              <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-blue-600" size={40} /></div>
+            ) : (
+              <table className="w-full text-left text-[13px]">
                 <thead>
-                  <tr className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider border-b border-gray-200">
-                    <th className="px-6 py-5 font-bold w-1/3">Wallet Name</th>
-                    <th className="px-6 py-5 font-bold">Type</th>
-                    <th className="px-6 py-5 font-bold">Balance</th>
-                    <th className="px-6 py-5 font-bold text-center">Action</th>
+                  <tr className="bg-[#64b5f6] text-white font-bold uppercase">
+                    <th className="p-3">Package Name</th>
+                    <th className="p-3">Element</th>
+                    <th className="p-3">Qty</th>
+                    <th className="p-3">Price</th>
+                    <th className="p-3">Total</th>
+                    <th className="p-3">Cycle</th>
+                    <th className="p-3">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  <tr className="group hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600 border border-indigo-100 group-hover:bg-white group-hover:border-indigo-200 transition-colors">
-                          <Wallet size={22} />
-                        </div>
-                        <div>
-                          <span className="block font-bold text-gray-900 text-lg">ELITE WALLET</span>
-                          <span className="text-xs text-gray-500">ID: WAL-2024-001</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-gray-600">
-                      <span className="px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-bold text-gray-600 border border-gray-200 uppercase tracking-wide">
-                        Tracker
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-emerald-600 font-black text-xl tracking-tight">₹2,000</span>
-                        <span className="text-gray-400 text-sm">.00</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-center">
-                      <button className="p-2.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 rounded-xl transition-all">
-                        <Pencil size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                  
-                  {/* Additional Dummy Row */}
-                   <tr className="group hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="p-2.5 bg-indigo-50 rounded-xl text-indigo-600 border border-indigo-100 group-hover:bg-white group-hover:border-indigo-200 transition-colors">
-                          <Wallet size={22} />
-                        </div>
-                        <div>
-                          <span className="block font-bold text-gray-900 text-lg">STANDARD WALLET</span>
-                          <span className="text-xs text-gray-500">ID: WAL-2024-002</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-gray-600">
-                      <span className="px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-bold text-gray-600 border border-gray-200 uppercase tracking-wide">
-                        Tracker
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-emerald-600 font-black text-xl tracking-tight">₹5,400</span>
-                        <span className="text-gray-400 text-sm">.00</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 text-center">
-                      <button className="p-2.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 border border-transparent hover:border-indigo-100 rounded-xl transition-all">
-                        <Pencil size={18} />
-                      </button>
-                    </td>
-                  </tr>
+                <tbody className="divide-y divide-gray-200">
+                  {filteredData.map((item) => (
+                    <tr key={item._id} className="hover:bg-gray-50 transition-all">
+                      <td className="p-3 font-semibold text-blue-700">{item.packageName}</td>
+                      <td className="p-3 text-gray-700 font-medium">{item.elementName}</td>
+                      <td className="p-3 font-bold">{item.noOfActivationWallets}</td>
+                      <td className="p-3 text-gray-600">₹{item.price}</td>
+                      <td className="p-3 font-bold text-indigo-700">₹{(item.price * item.noOfActivationWallets).toLocaleString()}</td>
+                      <td className="p-3 text-gray-500">{item.billingCycle}</td>
+                      <td className="p-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase text-white ${item.activationStatus ? 'bg-green-500' : 'bg-orange-400'}`}>
+                          {item.activationStatus ? 'Success' : 'Pending'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-            </div>
+            )}
           </div>
         </div>
       </main>
 
-      {/* ================= CREATE MODAL ================= */}
+      {/* --- SEND SUBSCRIPTION MODAL --- */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-6xl rounded-2xl shadow-2xl relative flex flex-col max-h-[95vh] animate-in zoom-in-95 duration-200">
-            
-            {/* Modal Header */}
-            <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-gray-50/50 rounded-t-2xl">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Create New Wallet</h2>
-                <p className="text-gray-500 text-sm mt-1">Assign dealer details and select a subscription plan.</p>
-              </div>
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-400 hover:text-gray-900 p-2 hover:bg-gray-200 rounded-full transition-colors"
-              >
-                <X size={24} />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white w-full max-w-4xl rounded-lg shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-[#1a2b3c] p-4 flex justify-between items-center text-white">
+              <h2 className="flex items-center gap-2 font-bold tracking-wide text-sm uppercase">
+                <Package size={20} className="text-blue-400" /> Send Subscription to Distributor & OEM
+              </h2>
+              <button onClick={() => setShowModal(false)} className="hover:rotate-90 transition-all p-1"><X size={24} /></button>
             </div>
 
-            {/* Modal Body - Scrollable */}
-            <div className="p-6 overflow-y-auto custom-scrollbar space-y-8 flex-1">
-
-              {/* SECTION 1: Details */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                
-                {/* State Dropdown */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-gray-500 tracking-wider flex items-center gap-2">
-                    <MapPin size={14} /> State
-                  </label>
-                  <div className="relative group">
-                    <select 
-                      className="w-full p-3.5 bg-white border border-gray-200 rounded-xl text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer shadow-sm group-hover:border-gray-300"
-                      value={selectedState}
-                      onChange={(e) => {
-                        setSelectedState(e.target.value);
-                        setSelectedDistributor(""); // Reset distributor when state changes
-                      }}
-                    >
-                      <option value="">Select State</option>
-                      {INDIAN_STATES.map((state) => (
-                        <option key={state} value={state}>{state}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">▼</div>
-                  </div>
+            <form onSubmit={handleSubscriptionSubmit} className="p-6 space-y-6 overflow-y-auto max-h-[80vh]">
+              {/* Row 1: State & Partners */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">State</label>
+                  <select 
+                    required
+                    className="w-full border p-2.5 rounded bg-gray-50 outline-none focus:border-blue-500 text-sm"
+                    value={form.state}
+                    onChange={(e) => setForm({...form, state: e.target.value, oemId: "", distributorId: ""})}
+                  >
+                    <option value="">Choose State</option>
+                    {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
 
-                {/* Organization / Distributor Dropdown (Dynamic) */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-gray-500 tracking-wider flex items-center gap-2">
-                    <Building2 size={14} /> Organization
-                  </label>
-                  <div className="relative group">
-                    <select 
-                      className="w-full p-3.5 bg-white border border-gray-200 rounded-xl text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer shadow-sm group-hover:border-gray-300 disabled:bg-gray-50 disabled:cursor-not-allowed"
-                      value={selectedDistributor}
-                      onChange={(e) => setSelectedDistributor(e.target.value)}
-                      disabled={!selectedState || isLoadingDistributors}
-                    >
-                      <option value="">
-                        {isLoadingDistributors ? "Fetching Distributors..." : !selectedState ? "Select State First" : "Select Organization"}
-                      </option>
-                      
-                      {!isLoadingDistributors && distributors.map((dist, index) => (
-                        <option key={dist._id || index} value={dist._id || dist.name}>
-                          {dist.business_Name || dist.name || "Unknown Org"}
-                        </option>
-                      ))}
-                    </select>
-                    
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                      {isLoadingDistributors ? <Loader2 size={18} className="animate-spin" /> : "▼"}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dealer Select */}
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase text-gray-500 tracking-wider flex items-center gap-2">
-                    <User size={14} /> Dealer Name
-                  </label>
-                  <div className="relative group">
-                    <select className="w-full p-3.5 bg-white border border-gray-200 rounded-xl text-gray-700 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer shadow-sm group-hover:border-gray-300">
-                      <option>Select Dealer</option>
-                      <option>John Doe</option>
-                      <option>Jane Smith</option>
-                    </select>
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">▼</div>
-                  </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Manufacturer</label>
+                  <select 
+                    disabled={!form.state || !!form.distributorId}
+                    className="w-full border p-2.5 rounded bg-gray-50 outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+                    value={form.oemId}
+                    onChange={(e) => setForm({...form, oemId: e.target.value})}
+                  >
+                    <option value="">{fetchingLists ? "Fetching..." : (form.state ? "Select OEM" : "Select State First")}</option>
+                    {oemList.map(o => <option key={o._id} value={o._id}>{o.business_Name}</option>)}
+                  </select>
                 </div>
               </div>
 
-              {/* SECTION 2: Packages */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 mb-2">
-                  <h3 className="text-lg font-bold text-gray-800">Select Subscription Package</h3>
-                  <div className="h-px flex-grow bg-gray-200"></div>
+              {/* Row 2: Elements (DYNAMIC FROM API) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Element Type</label>
+                  <select 
+                    className="w-full border p-2.5 rounded bg-gray-50 text-sm outline-none"
+                    value={form.elementType}
+                    onChange={(e) => setForm({...form, elementType: e.target.value})}
+                  >
+                    <option value="">Select Element Type</option>
+                    {elementTypes.map(type => <option key={type} value={type}>{type}</option>)}
+                  </select>
                 </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {PACKAGES.map((pkg) => {
-                    const isSelected = selectedPackage === pkg.id;
-                    return (
-                      <div
-                        key={pkg.id}
-                        onClick={() => setSelectedPackage(pkg.id)}
-                        className={`
-                          relative p-6 rounded-2xl border-2 cursor-pointer transition-all duration-200 group flex flex-col justify-between h-full
-                          ${isSelected 
-                            ? "bg-indigo-50 border-indigo-500 shadow-md ring-1 ring-indigo-500 scale-[1.02]" 
-                            : "bg-white border-gray-100 hover:border-indigo-200 hover:shadow-lg"
-                          }
-                        `}
-                      >
-                        {isSelected && (
-                          <div className="absolute -top-3 -right-3 bg-indigo-600 text-white rounded-full p-1 shadow-md animate-in zoom-in duration-200">
-                            <CheckCircle size={18} fill="currentColor" strokeWidth={0} /> 
-                          </div>
-                        )}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase">Element</label>
+                  <select 
+                    className="w-full border p-2.5 rounded bg-gray-50 text-sm outline-none"
+                    value={form.element}
+                    onChange={(e) => setForm({...form, element: e.target.value})}
+                  >
+                    <option value="">Select Element</option>
+                    {elements.map(elm => <option key={elm} value={elm}>{elm}</option>)}
+                  </select>
+                </div>
+              </div>
 
+              {/* Row 3: Distributor Toggle */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase">Distributor</label>
+                <select 
+                  disabled={!form.state || !!form.oemId}
+                  className="w-full border p-2.5 rounded bg-gray-50 outline-none focus:border-blue-500 text-sm disabled:opacity-50"
+                  value={form.distributorId}
+                  onChange={(e) => setForm({...form, distributorId: e.target.value})}
+                >
+                  <option value="">Select Distributor</option>
+                  {distributorList.map(d => <option key={d._id} value={d._id}>{d.business_Name || d.name}</option>)}
+                </select>
+              </div>
+
+              {/* Row 4: Package Cards (DYNAMIC FROM HISTORY) */}
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold text-gray-500 uppercase italic">Click on a card to select activation plan</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {walletHistory.slice(0, 2).map((pkg, i) => ( // Showing first 2 unique packages as example
+                    <div 
+                      key={i}
+                      onClick={() => setForm({...form, selectedPackage: pkg})}
+                      className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all duration-200 ${form.selectedPackage?._id === pkg._id ? 'border-blue-500 bg-blue-50 shadow-inner' : 'border-gray-200 hover:border-blue-300'}`}
+                    >
+                      <div className="flex justify-between items-start">
                         <div>
-                          <h4 className={`font-bold text-lg mb-1 ${isSelected ? "text-indigo-900" : "text-gray-800"}`}>
-                            {pkg.name}
-                          </h4>
-                          <p className="text-xs text-gray-500 font-medium">Auto-renewal available</p>
+                          <h4 className="font-bold text-gray-800 text-sm">{pkg.packageName}</h4>
+                          <p className="text-[10px] text-gray-400 font-medium uppercase tracking-tight">{pkg.elementName}</p>
                         </div>
-
-                        <div className="mt-4">
-                          <div className="flex items-baseline gap-1">
-                            <span className={`text-3xl font-black ${isSelected ? "text-indigo-700" : "text-gray-900"}`}>
-                              {formatCurrency(pkg.price)}
-                            </span>
-                            <span className="text-xs text-gray-500 font-semibold">+ 18% GST</span>
-                          </div>
-
-                          <div className="mt-4 pt-4 border-t border-dashed border-gray-200 space-y-2">
-                            <div className="flex items-center gap-2 text-xs text-gray-600">
-                              <CheckCircle size={12} className="text-emerald-500" /> SIM & Support Included
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-600">
-                              <CheckCircle size={12} className="text-blue-500" /> Valid for <span className="text-gray-900 font-bold">{pkg.days} Days</span>
-                            </div>
-                          </div>
-                        </div>
+                        <span className="text-base font-bold text-blue-700 font-mono">₹{pkg.price}</span>
                       </div>
-                    );
-                  })}
+                      <div className="mt-4 flex justify-between items-center text-[10px] border-t pt-2">
+                        <span className="bg-gray-200 px-2 py-0.5 rounded font-black text-gray-600">{pkg.packageType}</span>
+                        <span className="flex items-center gap-1 text-gray-500 font-bold tracking-widest uppercase"><Clock size={12}/> {pkg.billingCycle}</span>
+                      </div>
+                      {form.selectedPackage?._id === pkg._id && (
+                         <div className="absolute -top-2 -right-2 bg-blue-500 text-white rounded-full p-1 shadow-md">
+                           <ShieldCheck size={16} />
+                         </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
 
-            </div>
+              {/* Row 5: Quantity */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase">No of Activations</label>
+                <input 
+                  type="number" 
+                  min="1"
+                  className="w-full border p-2.5 rounded bg-white outline-none focus:ring-2 focus:ring-blue-500/10 text-sm"
+                  value={form.quantity}
+                  onChange={(e) => setForm({...form, quantity: e.target.value})}
+                />
+              </div>
 
-            {/* Modal Footer */}
-            <div className="p-6 border-t border-gray-100 flex justify-end gap-3 bg-gray-50 rounded-b-2xl">
-              <button
-                onClick={handleCloseModal}
-                className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-white hover:border-gray-400 font-semibold transition-all"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (!selectedPackage) return alert("Please select a package.");
-                  if (!selectedState) return alert("Please select a state.");
-                  if (!selectedDistributor) return alert("Please select an organization.");
-                  alert("Wallet Created Successfully!");
-                  handleCloseModal();
-                }}
-                className="px-8 py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl font-bold shadow-lg shadow-gray-900/10 transition-all active:scale-95"
-              >
-                Create Wallet
-              </button>
-            </div>
-
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t">
+                <button type="button" onClick={() => setShowModal(false)} className="px-6 py-2 rounded font-bold text-gray-500 hover:bg-gray-100 text-xs">Cancel</button>
+                <button type="submit" className="px-8 py-2 bg-[#1a2b3c] hover:bg-slate-800 text-white rounded font-bold shadow-lg flex items-center gap-2 text-xs">
+                  <ArrowUpRight size={18} /> Submit to Distributor & OEM
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -404,5 +361,4 @@ const WalletManagement = () => {
   );
 };
 
-export default WalletManagement;
-
+export default WalletSystem;

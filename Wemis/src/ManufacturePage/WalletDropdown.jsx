@@ -24,10 +24,10 @@ export default function WalletDropdown() {
       {open && (
         <div className="absolute top-full mt-2 w-40 rounded-lg bg-gray-900 shadow-lg border border-gray-700 z-50">
          <Link
-            to="/wallet/vtspackages"
-            className="block px-4 py-2 text-sm text-white hover:bg-gray-800 rounded-t-lg"
+            to="/wallet/activation"
+            className="block px-4 py-2 text-sm text-white hover:bg-gray-800 rounded-b-lg"
           >
-            VTS Packages
+            Activation
           </Link>
           <Link
             to="/wallet/renewal"
@@ -36,12 +36,7 @@ export default function WalletDropdown() {
             Renewal
           </Link>
 
-          <Link
-            to="/wallet/activation"
-            className="block px-4 py-2 text-sm text-white hover:bg-gray-800 rounded-b-lg"
-          >
-            Activation
-          </Link>
+         
         </div>
       )}
     </div>
