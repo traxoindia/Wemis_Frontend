@@ -42,6 +42,7 @@ function Activetabs() {
 
       const dataPlans = await resPlans.json();
       const dataAssigned = await resAssigned.json();
+      
 
       setActivations(dataPlans.data || []);
       setAssignedWallets(dataAssigned.fetchAssignActivation || []);
@@ -148,8 +149,9 @@ function Activetabs() {
                   <th className="p-3">Element Name</th>
                   <th className="p-3">Package Name</th>
                   <th className="p-3">Type</th>
-                  <th className="p-3 text-right">Price</th>
+
                   <th className="p-3">Cycle</th>
+                   <th className="p-3 text-right">Description</th>
                 </tr>
               </thead>
               <tbody className="text-sm divide-y divide-gray-100">
@@ -160,8 +162,9 @@ function Activetabs() {
                     <td className="p-3 font-medium">{s.elementName}</td>
                     <td className="p-3 text-teal-700 font-bold">{s.packageName}</td>
                     <td className="p-3">{s.packageType}</td>
-                    <td className="p-3 text-right font-bold">₹{s.price}</td>
+
                     <td className="p-3">{s.billingCycle}</td>
+                       <td className="p-3 text-right font-bold">{s.description}</td>
                   </tr>
                 ))}
               </tbody>

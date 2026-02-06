@@ -88,9 +88,9 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
       ],
     },
     {
-      name: "Reports",
+      name: "Wallet Requests",
       icon: <FileText className="w-5 h-5" />,
-      route: "/reports"
+      route: "/walletrequests"
     },
     {
       name: "Barcode",

@@ -1,104 +1,108 @@
-import React, { useState, useRef, useEffect, useContext } from "react";
-import { Link, useNavigate } from "react-router-dom";
-// Assuming you use react-icons for icon set
-import { FaBarcode, FaUsers, FaCogs, FaTicketAlt, FaWallet, FaPlus, FaChevronDown, FaChevronUp } from "react-icons/fa";
-import { FiSettings, FiLogOut } from "react-icons/fi"; 
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useContext,
+  useCallback,
+} from "react";
+import { useNavigate, Link } from "react-router-dom";
+import {
+  FaBarcode,
+  FaUsers,
+  FaCogs,
+  FaWallet,
+  FaTools,
+  FaMapMarkedAlt,
+  FaCalendarDay,
+  FaSync,
+  FaCheckCircle,
+  FaChevronDown,
+  FaChartLine,
+  FaTicketAlt,
+  FaPlus,
+} from "react-icons/fa";
+import { FiSettings, FiLogOut } from "react-icons/fi";
+import { UserAppContext } from "../contexts/UserAppProvider";
+import logo from "../Images/logo.png";
+import RaiseTicketModal from "./RaiseTicketModal";
 
-// --- MOCK/PLACEHOLDER DEFINITIONS (Replace with your actual imports) ---
-// Note: These definitions are here to make the component runnable.
-// You should replace them with actual imports in your project.
+// --- Optimized Utility Components ---
 
-// 1. Mock Logo Source (Replace with your actual path)
-import logo from '../Images/logo.png'; 
+const NavDropdown = ({
+  menuKey,
+  title,
+  icon,
+  children,
+  openMenu,
+  toggleMenu,
+}) => {
+  const isOpen = openMenu === menuKey;
+  return (
+    <div className="relative">
+      <button
+        onClick={() => toggleMenu(menuKey)}
+        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 text-base 
+          ${isOpen ? "bg-white text-black shadow-md" : "text-white hover:bg-black/10"}`}
+      >
+        {React.cloneElement(icon, { size: 16 })}
+        <span>{title}</span>
+        <FaChevronDown
+          className={`transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+          size={12}
+        />
+      </button>
+      {isOpen && (
+        <div className="absolute top-full mt-2 left-0 w-56 bg-white border border-gray-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+};
 
-// 2. Mock UserAppContext (Assuming it provides 'user' and 'logout')
-const UserAppContext = React.createContext({
-  user: { name: 'RAHUL PRADHAN (Distributor)' },
-  logout: () => console.log('Mock Logout Called'),
-});
-
-// 3. Mock DropdownLink Component
-const DropdownLink = ({ to, children, ...props }) => (
-  <Link 
-    to={to} 
-    className="block px-4 py-2 text-sm text-gray-200 hover:bg-yellow-500 hover:text-black transition duration-150 whitespace-nowrap"
-    {...props}
+const DropdownLink = ({ to, children }) => (
+  <Link
+    to={to}
+    className="block px-5 py-3 text-sm text-gray-700 hover:bg-yellow-400 hover:text-black transition-colors font-semibold"
   >
     {children}
   </Link>
 );
 
-// 4. Mock NavDropdown Component
-const NavDropdown = ({ menuKey, title, icon, openMenu, toggleMenu, children }) => (
-  <div className="relative">
-    <button
-      onClick={() => toggleMenu(menuKey)}
-      className="flex items-center gap-1.5 text-yellow-400 hover:text-white font-medium p-2 rounded-lg transition duration-200"
-    >
-      {icon} 
-      <span>{title}</span>
-      {menuKey !== 'wallet' && (openMenu === menuKey ? <FaChevronUp size={10} /> : <FaChevronDown size={10} />)}
-    </button>
-    {openMenu === menuKey && (
-      <div className="absolute top-full mt-2 right-0 bg-neutral-900 border border-yellow-500/30 rounded-lg shadow-xl z-40 min-w-[150px]">
-        {children}
-      </div>
-    )}
-  </div>
-);
-
-// --------------------------------------------------------------------------
-
-function DealerNavbar({ setIsModalOpen }) {
+const DealerNavbar = () => {
   const [openMenu, setOpenMenu] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const navRef = useRef(null);
   const navigate = useNavigate();
-  const { user, logout } = useContext(UserAppContext); // Destructure user and logout
+  const { logout, user } = useContext(UserAppContext);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (navRef.current && !navRef.current.contains(event.target)) {
-        setOpenMenu(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    const closeMenu = (e) =>
+      navRef.current && !navRef.current.contains(e.target) && setOpenMenu(null);
+    document.addEventListener("mousedown", closeMenu);
+    return () => document.removeEventListener("mousedown", closeMenu);
   }, []);
 
-  const toggleMenu = (menu) => {
-    setOpenMenu(openMenu === menu ? null : menu);
-  };
-
-  const handleLogout = () => {
-    logout(); 
-    navigate("/"); // Redirect to login page
-  };
-
   return (
-    <div
-      ref={navRef}
-      className="sticky top-0 z-30 bg-gradient-to-r from-yellow-400 via-black to-black shadow-2xl shadow-gray-900/50"
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex justify-between items-center">
-          
-          {/* LOGO */}
-          <img
-            src={logo} 
-            alt="MEMUS Logo"
-            className="w-44 h-20 object-contain"
-          />
+    <div className=" bg-[#F8F9FA] text-gray-800 font-sans">
+      {/* --- Navbar: Yellow to Black Gradient --- */}
+      <nav
+        ref={navRef}
+        className="sticky top-0 z-50 bg-gradient-to-r from-yellow-500 via-black to-black shadow-lg"
+      >
+        <div className="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center">
+          <Link to="/dealer/dashboard">
+            <img src={logo} alt="Logo" className="h-14 w-auto object-contain" />
+          </Link>
 
-          {/* NAV LINKS (Desktop) */}
-          <nav className="hidden md:flex items-center gap-2 text-xs">
-            
+          {/* Desktop Navigation */}
+          <div className="hidden xl:flex items-center gap-2">
             <NavDropdown
               menuKey="barcode"
               title="Barcode"
               icon={<FaBarcode />}
               openMenu={openMenu}
-              toggleMenu={toggleMenu}
+              toggleMenu={setOpenMenu}
             >
               <DropdownLink to="/distributor/dealer/Barcode">
                 Barcode List
@@ -110,7 +114,7 @@ function DealerNavbar({ setIsModalOpen }) {
               title="Members"
               icon={<FaUsers />}
               openMenu={openMenu}
-              toggleMenu={toggleMenu}
+              toggleMenu={setOpenMenu}
             >
               <DropdownLink to="/distributor/dealer/technicians">
                 Technicians
@@ -119,83 +123,75 @@ function DealerNavbar({ setIsModalOpen }) {
 
             <NavDropdown
               menuKey="device"
-              title="Manage Device"
+              title="Devices"
               icon={<FaCogs />}
               openMenu={openMenu}
-              toggleMenu={toggleMenu}
+              toggleMenu={setOpenMenu}
             >
-              <DropdownLink to="/distributor/dealer/map-device">Map Device</DropdownLink>
+              <DropdownLink to="/distributor/dealer/map-device">
+                Map Device
+              </DropdownLink>
             </NavDropdown>
 
-            {/* Ticket Dropdown */}
             <NavDropdown
               menuKey="tickets"
               title="Tickets"
               icon={<FaTicketAlt />}
               openMenu={openMenu}
-              toggleMenu={toggleMenu}
+              toggleMenu={setOpenMenu}
             >
-              <DropdownLink to="/dealer/tickets">Ticket List</DropdownLink>
+              <DropdownLink to="/dealer/tickets">All Tickets</DropdownLink>
             </NavDropdown>
-          </nav>
-
-          {/* Right Side - Actions & Profile */}
-          <div className="flex items-center gap-3">
-            
-            {/* PRIMARY ACTION: Raise Ticket Button */}
+            <NavDropdown menuKey="Wallet" title="Wallet" icon={<FaWallet />} openMenu={openMenu} toggleMenu={setOpenMenu}>
+              <DropdownLink to="/dealer/walletActivation">Activation Wallet</DropdownLink>
+              <DropdownLink to="/dealer/walletRequests">Wallet Requests</DropdownLink>
+            </NavDropdown>
+          </div>
+          {/* User Actions */}  
+          <div className="flex items-center gap-4">
             <button
               onClick={() => setIsModalOpen(true)}
-              className="hidden sm:flex items-center bg-green-600 text-white px-3 py-1 rounded-full font-bold text-xs shadow-lg hover:bg-green-500 transition-colors duration-150"
+              className="hidden md:flex items-center bg-yellow-400 text-black px-6 py-2.5 rounded-full font-black text-sm shadow-md hover:bg-yellow-300 transition-transform hover:scale-105"
             >
-              <FaPlus className="text-xs mr-1" /> Raise Ticket
+              <FaPlus className="mr-2" /> RAISE TICKET
             </button>
 
-            {/* Wallet Dropdown (Icon Only) */}
-            <NavDropdown
-              menuKey="wallet"
-              title=""
-              icon={<FaWallet />}
-              openMenu={openMenu}
-              toggleMenu={toggleMenu}
-            >
-              <DropdownLink to="/dealer/wallet">Balance</DropdownLink>
-              <DropdownLink to="/dealer/wallet-history">History</DropdownLink>
-            </NavDropdown>
-
-            {/* Settings Icon */}
-            <Link
-              to="/dealer/settings"
-              className="text-gray-400 text-xl p-1.5 rounded-full hover:bg-gray-800 hover:text-yellow-500 transition-colors duration-200"
-              aria-label="Settings"
-            >
-              <FiSettings />
-            </Link>
-
-            {/* Profile & Logout */}
-            <div className="flex items-center gap-2">
-              <span className="hidden lg:inline font-medium text-xs text-yellow-400">
-                {user?.name || "Distributor Name"}
-              </span>
-              <div className="relative group">
-                <img
-                  src="https://i.pravatar.cc/32?img=1"
-                  alt="profile"
-                  className="rounded-full w-8 h-8 border-2 border-yellow-500 cursor-pointer object-cover shadow-lg"
-                />
+            <div className="flex items-center gap-3 pl-4 border-l border-gray-700">
+              <div className="hidden lg:text-right lg:block text-white">
+                <p className="text-xs font-black uppercase tracking-wider">
+                  {user?.name || "Rahul Pradhan"}
+                </p>
+                <p className="text-[10px] text-yellow-400 font-bold uppercase">
+                  Dealer Partner
+                </p>
               </div>
+              <img
+                src="https://i.pravatar.cc/44?img=1"
+                alt="Profile"
+                className="w-10 h-10 rounded-full border-2 border-yellow-400"
+              />
               <button
-                onClick={handleLogout}
-                className="bg-red-600 text-white px-2.5 py-1 rounded-lg text-xs font-medium flex items-center gap-1 hover:bg-red-500 transition-colors duration-200 shadow-md"
+                onClick={() => logout()}
+                className="p-2 text-gray-400 hover:text-red-500 transition-colors"
               >
-                <FiLogOut className="text-sm" />
-                <span className="hidden md:inline">Logout</span>
+                <FiLogOut size={22} />
               </button>
             </div>
           </div>
         </div>
-      </div>
+      </nav>
+
+      {/* --- Dashboard Content: White Theme --- */}
+
+      {isModalOpen && (
+        <RaiseTicketModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSubmit={(d) => console.log(d)}
+        />
+      )}
     </div>
   );
-}
+};
 
 export default DealerNavbar;

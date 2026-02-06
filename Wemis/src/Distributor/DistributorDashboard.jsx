@@ -163,11 +163,11 @@ const DistributorDashboard = () => {
 
       {/* Map Device Link (moved from Manage Device) */}
       <Link
-        to="/distributor/map-device"
+        to="/distributor/ActivationRequests"
         className={`flex items-center gap-2 text-yellow-400 hover:text-white font-semibold uppercase tracking-wide ${isMobile ? 'py-2 px-4 border-b border-yellow-400/20' : ''}`}
         onClick={() => setIsMobileMenuOpen(false)}
       >
-        <Map size={18} /> Map Device
+        <Map size={18} /> Activation Requests
       </Link>
     </>
   );
@@ -199,9 +199,11 @@ const DistributorDashboard = () => {
             <button className="flex-grow md:flex-grow-0 px-2 py-1 bg-yellow-400 text-black font-semibold rounded-md hover:bg-yellow-300 transition text-sm">
               Product
             </button>
-            <button className="flex-grow md:flex-grow-0 px-2 py-1 bg-yellow-400 text-black font-semibold rounded-md hover:bg-yellow-300 transition text-sm">
-              Wallet
-            </button>
+            <Link to="/distibutor/ActivationDistributor/">
+                       <button className="px-4 py-1.5 bg-yellow-400 text-black font-semibold rounded-md hover:bg-yellow-300 transition w-full md:w-auto">
+                         Wallet
+                       </button>
+                     </Link>
             <button className="flex-grow md:flex-grow-0 px-2 py-1 bg-neutral-800 text-yellow-400 font-semibold rounded-md hover:bg-yellow-400 hover:text-black transition text-sm flex items-center justify-center">
               <Settings size={14} className="inline mr-1" /> Settings
             </button>

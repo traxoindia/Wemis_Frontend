@@ -28,7 +28,7 @@ import ManufactureDashboard from "./ManufacturePage/ManufactureDashboard";
 import StatusDashboard from "./ManufacturePage/StatusDashboard";
 import CCCDashboard from "./ManufacturePage/CCCDashboard";
 import MonitoringDashboard from "./ManufacturePage/MonitoringDashboard";
-import Reports from "./ManufacturePage/Reports";
+import Reports from "./ManufacturePage/WalletRequests";
 
 // ✅ Barcode Pages
 import ManageBarcode from "./ManufacturePage/ManageBarcode";
@@ -53,7 +53,7 @@ import RollbackBarcodePage from "./Distributor/RollbackBarcodePage";
 import RenewalAllocationPage from "./Distributor/RenewalAllocationPage";
 import DealerPage from "./Distributor/DealerPage";
 
-import MapDevicePage from "./Distributor/MapDevicePage";
+import MapDevicePage from "./Distributor/ActivationRequests";
 import TechnicianPage from "./ManufacturePage/TechnicianPage";
 import Livetracking from "./ManufacturePage/Livetracking";
 import DealerDashboard from "./Dealer_Distributor/DealerDashboard";
@@ -73,6 +73,13 @@ import Reports1 from "./CustomerPage/Reports";
 import WalletPage from "./WlpPage/WalletPage";
 import SubscriptionsPage from "./WlpPage/ActivationPage";
 import ActivationPage from "./WlpPage/ActivationPage";
+import ActivationDistributor from "./Distributor/ActivationDistributor";
+import ActivationRequests from "./Distributor/ActivationRequests";
+import WalletRequests from "./ManufacturePage/WalletRequests";
+import WalletActivation from "./OEM/WalletActivation";
+import DealerRequestsDispatch from "./Distributor/DealerRequestsDispatch";
+import DealerWalletActivation from "./Dealer_Distributor/DealerWalletActivation";
+import DealerWalletRequests from "./Dealer_Distributor/DealerWalletRequests";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -145,14 +152,8 @@ function App() {
               path="/wlp/createmanufacture"
               element={<CreateManufacture />}
             />
-            <Route
-              path="/wlp/wallet"
-              element={<WalletPage />}
-            />
-             <Route
-              path="/wlp/Activation"
-              element={<ActivationPage />}
-            />
+            <Route path="/wlp/wallet" element={<WalletPage />} />
+            <Route path="/wlp/Activation" element={<ActivationPage />} />
 
             {/* Manufacture Routes */}
             <Route
@@ -172,7 +173,7 @@ function App() {
             <Route path="/members/dealer-oem" element={<DealerOem />} />
 
             {/* Reports */}
-            <Route path="/reports" element={<Reports />} />
+            <Route path="/walletrequests" element={<WalletRequests />} />
 
             {/* ✅ Barcode Dropdown Routes */}
             <Route path="/barcode/manage" element={<ManageBarcode />} />
@@ -191,10 +192,7 @@ function App() {
             <Route path="/members/distributors" element={<Distributors />} />
             <Route path="/members/oem" element={<OEM />} />
             <Route path="/members/technicians" element={<Technicians />} />
-            <Route
-              path="/members/technician"
-              element={<TechnicianPage />}
-            />
+            <Route path="/members/technician" element={<TechnicianPage />} />
 
             {/* Devices */}
             <Route path="/manage-device" element={<ManageMapDevices />} />
@@ -206,6 +204,10 @@ function App() {
             <Route
               path="/distibutor/dashboard"
               element={<DistributorDashboard />}
+            />
+            <Route
+              path="/distibutor/ActivationDistributor"
+              element={<ActivationDistributor />}
             />
 
             {/* Main Dashboard */}
@@ -228,33 +230,64 @@ function App() {
             {/* Members Routes */}
             <Route path="/distributor/dealer" element={<DealerPage />} />
 
-
             {/* Manage Device */}
-            <Route path="/distributor/map-device" element={<MapDevicePage />} />
+            <Route
+              path="/distributor/ActivationRequests"
+              element={<ActivationRequests />}
+            />
             <Route path="/live-tracking" element={<Livetracking />} />
 
-
             {/* dealer under distributor & OEM */}
-            <Route path="/distributor/dealer/dashboard" element={<DealerDashboard />} />
-            <Route path="oem/dealer/dashboard" element={<DealerDashboardOem />} />
+            <Route
+              path="/distributor/dealer/dashboard"
+              element={<DealerDashboard />}
+            />
+            <Route
+              path="oem/dealer/dashboard"
+              element={<DealerDashboardOem />}
+            />
             <Route path="/dealer/tickets" element={<TicketListPage />} />
             <Route path="/tickets/all" element={<TicketsApp />} />
-            <Route path="/distributor/dealer/Barcode" element={<Barcodelist />} />
-            <Route path="/distributor/dealer/technicians" element={<TechnicianDealer />} />
-            <Route path="/distributor/dealer/map-device" element={<MapManageDevice />} />
-            <Route path="/dealer/map-device/livetracking" element={<LiveTracking />} />
+            <Route
+              path="/distributor/dealer/Barcode"
+              element={<Barcodelist />}
+            />
+            <Route
+              path="/distributor/dealer/technicians"
+              element={<TechnicianDealer />}
+            />
+            <Route
+              path="/distributor/dealer/map-device"
+              element={<MapManageDevice />}
+            />
+            <Route
+              path="/dealer/map-device/livetracking"
+              element={<LiveTracking />}
+            />
 
             {/* Customer Routes */}
 
             <Route path="/customer/dashboard" element={<Dashboard />} />
-             <Route path="/customer/reports" element={<Reports1/>} />
+            <Route path="/customer/reports" element={<Reports1 />} />
             {/* <Route path="/customer/tracking" element={<LiveTracking1 />} /> */}
 
             {/* Wallet */}
             <Route path="/wallet/renewal" element={<Renewal />} />
             <Route path="/wallet/activation" element={<WalletSystem />} />
-
-
+            <Route path="/oem/Wallet" element={<WalletActivation />} />
+            <Route path="/oem/Wallet" element={<WalletActivation />} />
+            <Route
+              path="/distributor/DealerRequests"
+              element={<DealerRequestsDispatch />}
+            />
+            <Route
+              path="/dealer/walletRequests"
+              element={<DealerWalletRequests />}
+            />
+            <Route
+              path="/dealer/walletActivation"
+              element={<DealerWalletActivation />}
+            />
           </>
         )}
       </Routes>
