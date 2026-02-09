@@ -80,6 +80,7 @@ import WalletActivation from "./OEM/WalletActivation";
 import DealerRequestsDispatch from "./Distributor/DealerRequestsDispatch";
 import DealerWalletActivation from "./Dealer_Distributor/DealerWalletActivation";
 import DealerWalletRequests from "./Dealer_Distributor/DealerWalletRequests";
+import ActivationPLans from "./CustomerPage/ActivationPLans";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -287,6 +288,10 @@ function App() {
             <Route
               path="/dealer/walletActivation"
               element={<DealerWalletActivation />}
+            />
+             <Route
+              path="/customer/ActivationPlans"
+              element={<ActivationPLans />}
             />
           </>
         )}
