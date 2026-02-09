@@ -245,7 +245,7 @@ const CustomerDashboard = () => {
     let myUserId;
     try {
       myUserId = JSON.parse(storedUser)?._id || JSON.parse(storedUser)?.id;
-    } catch (e) {}
+    } catch (e) { }
 
     const socket = io(SOCKET_SERVER_URL, {
       path: "/socket.io",
@@ -721,11 +721,10 @@ const CustomerDashboard = () => {
             <button
               onClick={isPlaybackMode ? exitPlaybackMode : fetchRoutePlayback}
               disabled={isLoadingPlayback}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all ${
-                isPlaybackMode
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-xs transition-all ${isPlaybackMode
                   ? "bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200"
                   : "bg-indigo-600 text-white hover:bg-indigo-700 shadow-md shadow-indigo-200"
-              }`}
+                }`}
             >
               {isLoadingPlayback ? (
                 <RefreshCw className="animate-spin" size={14} />
@@ -1026,11 +1025,10 @@ const CustomerDashboard = () => {
                   </td>
                   <td className="p-6">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border shadow-sm ${
-                        d.status === "online"
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide border shadow-sm ${d.status === "online"
                           ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                           : "bg-rose-50 text-rose-700 border-rose-100"
-                      }`}
+                        }`}
                     >
                       <span
                         className={`w-1.5 h-1.5 rounded-full ${d.status === "online" ? "bg-emerald-500" : "bg-rose-500"} animate-pulse`}
