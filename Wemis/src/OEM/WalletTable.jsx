@@ -28,7 +28,6 @@ const WalletTable = () => {
       });
 
       const result = await response.json();
-      console.log(result)
 
       if (result.success) {
         setOrders(result.requests || []);

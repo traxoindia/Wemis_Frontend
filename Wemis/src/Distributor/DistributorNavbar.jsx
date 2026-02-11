@@ -174,20 +174,21 @@ const DistributorNavbar = () => {
           {openMenu === "requests" && (
             <div className="absolute left-0 mt-2 bg-neutral-900 border border-yellow-400/30 rounded-md shadow-lg z-30 w-52 md:w-60 overflow-auto">
               <ul className="text-sm text-yellow-300">
-                <li>
-                  <Link
-                    to="/distributor/DealerRequests"
-                    className="flex items-center gap-2 px-4 py-3 hover:bg-yellow-400 hover:text-black rounded transition"
-                  >
-                    <UserCheck size={16} /> Dealer Requests
-                  </Link>
-                </li>
+               
                 <li>
                   <Link
                     to="/distributor/ActivationRequests"
                     className="flex items-center gap-2 px-4 py-3 hover:bg-yellow-400 hover:text-black rounded transition"
                   >
                     <ClipboardList size={16} /> Activation Requests
+                  </Link>
+                </li>
+                 <li>
+                  <Link
+                    to="/distributor/DealerRequests"
+                    className="flex items-center gap-2 px-4 py-3 hover:bg-yellow-400 hover:text-black rounded transition"
+                  >
+                    <UserCheck size={16} /> Dealer Requests
                   </Link>
                 </li>
               </ul>

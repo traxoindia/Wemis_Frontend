@@ -3,19 +3,18 @@ import { Link, useNavigate } from "react-router-dom";
 import logo from '../Images/logo.png'
 import {
   LayoutDashboard,
-  Barcode,
   Users,
   Settings,
   ArrowUpRight,
   RotateCcw,
-  Repeat,
   ChevronDown,
   ChevronUp,
   QrCode,
   LogOut,
   Cpu,
   ShieldCheck,
-  Package
+  Package,
+  Send // Added for Create Request
 } from "lucide-react";
 import { UserAppContext } from "../contexts/UserAppProvider";
 
@@ -24,10 +23,8 @@ const OemNavbar = () => {
   const navRef = useRef(null);
   const navigate = useNavigate();
   
-  // Destructuring logout from your UserAppProvider context
   const { logout } = useContext(UserAppContext);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event) {
       if (navRef.current && !navRef.current.contains(event.target)) {
@@ -42,10 +39,9 @@ const OemNavbar = () => {
     setOpenMenu(openMenu === menu ? null : menu);
   };
 
-  // Logout button handler
   const handleLogout = () => {
-    logout(); // Removes user data/tokens from context/storage
-    navigate("/"); // Redirects to login
+    logout();
+    navigate("/");
   };
 
   return (
@@ -173,13 +169,38 @@ const OemNavbar = () => {
           )}
         </div>
 
-        {/* Action Center Link */}
-        <Link
-          to="/oem/activation-requests"
-          className="flex items-center gap-2 text-yellow-400 hover:text-white font-semibold uppercase tracking-wide text-sm"
-        >
-          <ArrowUpRight size={18} /> Activation Requests
-        </Link>
+        {/* Activation Dropdown */}
+        <div className="relative inline-block">
+          <div
+            className="flex items-center gap-2 cursor-pointer text-yellow-400 hover:text-white font-semibold uppercase tracking-wide text-sm"
+            onClick={() => toggleMenu("activation")}
+          >
+            <ArrowUpRight size={18} /> Activation
+            {openMenu === "activation" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
+          {openMenu === "activation" && (
+            <div className="absolute left-0 mt-2 bg-neutral-900 border border-yellow-400/30 rounded-md shadow-xl z-50 w-60 overflow-hidden">
+              <ul className="text-sm text-yellow-300">
+                <li className="border-b border-white/5">
+                  <Link
+                    to="/oem/create-request-manufacturer"
+                    className="flex items-center gap-2 px-4 py-3 hover:bg-yellow-400 hover:text-black transition"
+                  >
+                    <Send size={16} /> Create Request Manufacturer
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/oem/activation-requests-oem"
+                    className="flex items-center gap-2 px-4 py-3 hover:bg-yellow-400 hover:text-black transition"
+                  >
+                    <RotateCcw size={16} />Dealer OEM Requests
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
+        </div>
       </nav>
     </div>
   );

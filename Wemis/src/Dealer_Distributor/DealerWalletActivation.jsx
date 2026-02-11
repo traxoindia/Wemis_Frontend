@@ -15,6 +15,7 @@ const DealerWalletActivation = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [requests, setRequests] = useState([]);
     const [plansLoading, setPlansLoading] = useState(false);
+    const [historyLoading, setHistoryLoading] = useState(false);
     const [submitLoading, setSubmitLoading] = useState(false);
     const [availablePlans, setAvailablePlans] = useState([]);
 
@@ -23,14 +24,36 @@ const DealerWalletActivation = () => {
         requestedWalletCount: 1,
         totalPrice: 0,
         paymentMethod: "UPI",
-        utrNumber: "", // Handled as number in submission
+        utrNumber: "", 
     });
 
     const API_POST_URL = "https://api.websave.in/api/manufactur/distributorAndOemRequestForActivationWallet";
     const API_GET_PLANS = "https://api.websave.in/api/manufactur/fetchDistributorOrOemReceivedActivationWallets";
+    const API_GET_HISTORY = "https://api.websave.in/api/manufactur/distributor_OrOem_OrdelerDistributor_OrdelerOem";
 
     const token = localStorage.getItem("token");
     const config = { headers: { Authorization: `Bearer ${token}` } };
+
+    useEffect(() => {
+        fetchRequests();
+    }, []);
+
+    const fetchRequests = async () => {
+        if (!token) return;
+        setHistoryLoading(true);
+        try {
+            const res = await axios.get(API_GET_HISTORY, config);
+            if (res.data.success) {
+                // Mapping the 'requests' array from your API response
+                setRequests(res.data.requests || []);
+            }
+        } catch (err) {
+            console.error("History fetch error:", err);
+            toast.error("Failed to load transaction history");
+        } finally {
+            setHistoryLoading(false);
+        }
+    };
 
     const fetchPlans = async () => {
         if (!token) {
@@ -73,7 +96,6 @@ const DealerWalletActivation = () => {
     const handleQtyChange = (e) => {
         const val = e.target.value;
         const qty = val === "" ? 0 : parseInt(val);
-
         const plan = availablePlans.find((p) => p._id === formData.activationPlanId);
         const unitPrice = plan ? getUnitPrice(plan) : 0;
 
@@ -86,7 +108,6 @@ const DealerWalletActivation = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         if (!formData.activationPlanId) return toast.error("Please select a plan first");
         if (formData.requestedWalletCount < 1) return toast.error("Quantity must be at least 1");
         if (!formData.utrNumber) return toast.error("UTR/Transaction ID is required");
@@ -95,7 +116,6 @@ const DealerWalletActivation = () => {
         const loadToast = toast.loading("Submitting request...");
 
         try {
-            // payload transformations: utrNumber to Number, pricing to Number
             const submissionData = {
                 activationPlanId: formData.activationPlanId,
                 requestedWalletCount: Number(formData.requestedWalletCount),
@@ -103,23 +123,11 @@ const DealerWalletActivation = () => {
                 paymentMethod: formData.paymentMethod,
                 utrNumber: Number(formData.utrNumber)
             };
-            console.log(submissionData)
+            
             const res = await axios.post(API_POST_URL, submissionData, config);
 
             if (res.data.success) {
                 toast.success("Request Submitted!", { id: loadToast });
-
-                const selectedPlan = availablePlans.find(p => p._id === formData.activationPlanId);
-
-                setRequests((prev) => [
-                    {
-                        ...formData,
-                        planName: selectedPlan?.packageName || "Unknown Plan",
-                        date: new Date().toLocaleDateString()
-                    },
-                    ...prev,
-                ]);
-
                 setIsModalOpen(false);
                 setFormData({
                     activationPlanId: "",
@@ -128,6 +136,7 @@ const DealerWalletActivation = () => {
                     paymentMethod: "UPI",
                     utrNumber: "",
                 });
+                fetchRequests(); 
             }
         } catch (err) {
             toast.error(err.response?.data?.message || "Submission failed", { id: loadToast });
@@ -163,36 +172,61 @@ const DealerWalletActivation = () => {
                         <table className="w-full text-left text-sm">
                             <thead className="bg-gray-100 text-gray-600 border-b uppercase text-[11px]">
                                 <tr>
-                                    <th className="p-4 font-bold">Plan / Date</th>
+                                    <th className="p-4 font-bold">Dealer Name</th>
+                                    <th className="p-4 font-bold">Plan</th>
                                     <th className="p-4 font-bold">Qty</th>
-                                    <th className="p-4 font-bold">Total Price</th>
+                                    <th className="p-4 font-bold">Calculated Price</th>
                                     <th className="p-4 font-bold">Method</th>
-                                    <th className="p-4 font-bold">UTR Reference</th>
+                                    <th className="p-4 font-bold">UTR No</th>
                                     <th className="p-4 font-bold">Status</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y">
-                                {requests.length > 0 ? (
-                                    requests.map((r, i) => (
-                                        <tr key={i} className="hover:bg-gray-50 transition-colors">
+                                {historyLoading ? (
+                                    <tr>
+                                        <td colSpan="7" className="p-10 text-center">
+                                            <FaSpinner className="animate-spin mx-auto text-blue-600" size={24} />
+                                            <p className="text-xs mt-2 text-gray-400 uppercase tracking-tighter">Loading history...</p>
+                                        </td>
+                                    </tr>
+                                ) : requests.length > 0 ? (
+                                    requests.reverse().map((r, i) => (
+                                        <tr key={r._id || i} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-4 font-medium text-gray-700">
+                                                {r.delerDistributorName || "N/A"}
+                                            </td>
                                             <td className="p-4">
-                                                <div className="font-bold text-gray-800">{r.planName}</div>
-                                                <div className="text-[11px] text-gray-400">{r.date}</div>
+                                                <div className="font-bold text-gray-800">
+                                                    {r.activationPlanDetails?.packageName || "Standard Plan"}
+                                                </div>
                                             </td>
                                             <td className="p-4 font-medium">{r.requestedWalletCount}</td>
-                                            <td className="p-4 font-bold text-green-700">₹{r.totalPrice}</td>
-                                            <td className="p-4">{r.paymentMethod}</td>
-                                            <td className="p-4 font-mono text-gray-500">{r.utrNumber}</td>
-                                            <td className="p-4 text-center">
-                                                <span className="text-[10px] bg-amber-50 text-amber-700 px-3 py-1 font-black uppercase border border-amber-200 rounded-full">
-                                                    Pending
+                                            <td className="p-4 font-bold text-green-700">
+                                                {/* Calculated: TotalPrice * Qty */}
+                                                ₹{(parseFloat(r.totalPrice) * parseInt(r.requestedWalletCount)).toFixed(2)}
+                                            </td>
+                                            <td className="p-4">
+                                                <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded text-[10px] font-bold">
+                                                    {r.paymentMethod}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 font-mono text-gray-500 text-xs">
+                                                {r.utrNumber}
+                                            </td>
+                                            <td className="p-4">
+                                                <span className={`text-[10px] px-3 py-1 font-black uppercase border rounded-full ${
+                                                    r.requestStatus === 'approved' ? 'bg-green-50 text-green-700 border-green-200' :
+                                                    r.requestStatus === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                    'bg-amber-50 text-amber-700 border-amber-200'
+                                                }`}>
+                                                    {r.requestStatus || 'Pending'}
                                                 </span>
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" className="p-16 text-center text-gray-400">
+                                        <td colSpan="7" className="p-16 text-center text-gray-400">
                                             <FaWallet className="mx-auto mb-2 opacity-20" size={40} />
                                             <p className="italic uppercase text-xs tracking-widest">No previous requests found</p>
                                         </td>
@@ -204,6 +238,7 @@ const DealerWalletActivation = () => {
                 </div>
             </main>
 
+            {/* Modal for New Request */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-white w-full max-w-4xl rounded-lg shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in duration-300">
@@ -218,7 +253,6 @@ const DealerWalletActivation = () => {
 
                         <form onSubmit={handleSubmit} className="p-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                                {/* Left: Plan Picker */}
                                 <div>
                                     <label className="block text-[11px] font-black uppercase mb-4 text-gray-400 tracking-widest">
                                         1. Choose Activation Plan
@@ -245,7 +279,6 @@ const DealerWalletActivation = () => {
                                                         <div className="flex-1">
                                                             <p className="font-black text-sm text-gray-800 uppercase tracking-tight">{plan.packageName}</p>
                                                             <p className="text-[10px] text-gray-400 font-bold mb-2">{plan.elementName}</p>
-
                                                             <div className="bg-gray-100 inline-block px-2 py-1 rounded text-[10px] font-medium text-gray-600 border">
                                                                 ₹{plan.price} + ₹{plan.distributorAndOemMarginPrice} margin
                                                             </div>
@@ -265,7 +298,6 @@ const DealerWalletActivation = () => {
                                     </div>
                                 </div>
 
-                                {/* Right: Payment Details */}
                                 <div className="space-y-6 bg-blue-50/30 p-6 rounded-xl border border-blue-100">
                                     <label className="block text-[11px] font-black uppercase text-gray-400 tracking-widest">
                                         2. Payment Details
@@ -306,11 +338,11 @@ const DealerWalletActivation = () => {
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 mb-2">UTR / Transaction ID (Number)</label>
+                                        <label className="block text-xs font-bold text-gray-700 mb-2">UTR / Transaction ID</label>
                                         <input
-                                            type="number"
+                                            type="text"
                                             className="w-full border-2 rounded-lg p-3 font-mono text-sm outline-none focus:border-blue-500 bg-white"
-                                            placeholder="Enter Number Only"
+                                            placeholder="Enter Transaction Reference"
                                             value={formData.utrNumber}
                                             onChange={(e) => setFormData({ ...formData, utrNumber: e.target.value })}
                                             required

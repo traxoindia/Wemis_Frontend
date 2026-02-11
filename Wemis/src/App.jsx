@@ -81,6 +81,8 @@ import DealerRequestsDispatch from "./Distributor/DealerRequestsDispatch";
 import DealerWalletActivation from "./Dealer_Distributor/DealerWalletActivation";
 import DealerWalletRequests from "./Dealer_Distributor/DealerWalletRequests";
 import ActivationPLans from "./CustomerPage/ActivationPLans";
+import ManufactureDispatchCreateRequests from "./OEM/ManufactureDispatchCreateRequests";
+import ActivationRequestsOEM from "./OEM/ActivationRequestsOEM";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -293,7 +295,19 @@ function App() {
               path="/customer/ActivationPlans"
               element={<ActivationPLans />}
             />
+
+            <Route
+              path="/oem/create-request-manufacturer"
+              element={<ManufactureDispatchCreateRequests />}
+            />
+            <Route
+              path="/oem/activation-requests-oem"
+              element={<ActivationRequestsOEM />}
+            />
+          
           </>
+
+         
         )}
       </Routes>
     </>

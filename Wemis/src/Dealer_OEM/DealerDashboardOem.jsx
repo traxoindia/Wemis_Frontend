@@ -1,7 +1,11 @@
 import React from 'react'
+import DealerOemNavbar from './DealerOemNavbar'
 
 export default function DealerDashboardOem() {
   return (
+    <>
+      <DealerOemNavbar/>
+
     <div className="min-h-screen flex bg-gray-100">
       {/* Sidebar Navbar */}
       <aside className="w-64 bg-white shadow-md">
@@ -24,6 +28,7 @@ export default function DealerDashboardOem() {
         </div>
       </main>
     </div>
+        </>
   )
 }
 
