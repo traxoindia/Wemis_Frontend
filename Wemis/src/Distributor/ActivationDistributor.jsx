@@ -6,7 +6,7 @@ import DistributorNavbar from "./DistributorNavbar";
 // --- API Endpoint ---
 const FETCH_WALLET_HISTORY_API = "https://api.websave.in/api/manufactur/plansShowOEMandDistributor";
 
-const ActivationDistributor = () => {
+const ActivationDistributor = () => {x
   const tkn = localStorage.getItem("token");
 
   // --- State Management ---

@@ -61,11 +61,7 @@ const DistributorNavbar = () => {
           <button className="px-4 py-1.5 bg-yellow-400 text-black font-semibold rounded-md hover:bg-yellow-300 transition w-full md:w-auto">
             Product
           </button>
-          <Link to="/distibutor/ActivationDistributor/">
-            <button className="px-4 py-1.5 bg-yellow-400 text-black font-semibold rounded-md hover:bg-yellow-300 transition w-full md:w-auto">
-              Wallet
-            </button>
-          </Link>
+         
           <button className="px-4 py-1.5 bg-neutral-800 text-yellow-400 font-semibold rounded-md hover:bg-yellow-400 hover:text-black transition w-full md:w-auto">
             <Settings size={16} className="inline mr-1" /> Settings
           </button>

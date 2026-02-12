@@ -5,10 +5,10 @@ const WalletTable = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [manufacturerName, setManufacturerName] = useState('');
 
-  const API_URL = 'https://api.websave.in/api/manufactur/distributor_OrOem_OrdelerDistributor_OrdelerOem';
+  const API_URL = 'https://api.websave.in/api/manufactur/distributorSendToManufacturORoemSendToManufacturer';
 
-  // Memoized fetch function so it can be reused
   const fetchOrders = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     else setRefreshing(true);
@@ -30,7 +30,8 @@ const WalletTable = () => {
       const result = await response.json();
 
       if (result.success) {
-        setOrders(result.requests || []);
+        setOrders(result.request || []);
+        setManufacturerName(result.manufacturName || 'N/A');
       } else {
         throw new Error(result.message || "Failed to fetch orders");
       }
@@ -51,20 +52,17 @@ const WalletTable = () => {
   return (
     <div className="p-4 bg-white rounded-xl shadow-sm border border-gray-200 mt-6">
       <div className="flex justify-between items-center mb-4 px-2">
-        <h3 className="text-lg font-bold text-gray-800">Order History</h3>
+        <div>
+          <h3 className="text-lg font-bold text-gray-800">Order History</h3>
+          <p className="text-xs text-gray-500">System Logs</p>
+        </div>
         
-        {/* Refresh Button */}
         <button 
           onClick={() => fetchOrders(true)} 
           disabled={refreshing}
           className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-600 text-sm font-semibold rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
         >
-          <svg 
-            className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} 
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
+          <svg className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
           {refreshing ? 'Refreshing...' : 'Refresh'}
@@ -81,6 +79,7 @@ const WalletTable = () => {
         <table className="min-w-full table-auto">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
+              {/* CHANGED: Header from Order ID to Manufacturer */}
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Manufacturer</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Method</th>
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
@@ -93,8 +92,9 @@ const WalletTable = () => {
             {orders.length > 0 ? (
               [...orders].reverse().map((request) => (
                 <tr key={request._id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-700 font-medium">
-                    {request.manufacturerName}
+                  {/* CHANGED: Cell content from request._id to manufacturerName */}
+                  <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-800 font-medium">
+                    {manufacturerName}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
                     {request.paymentMethod}
@@ -114,7 +114,7 @@ const WalletTable = () => {
                         ? 'bg-green-50 text-green-700 border-green-200'
                         : 'bg-yellow-50 text-yellow-700 border-yellow-200'
                     }`}>
-                      {(request.requestStatus || '').toUpperCase()}
+                      {(request.requestStatus || 'PENDING').toUpperCase()}
                     </span>
                   </td>
                 </tr>

@@ -55,6 +55,7 @@ function Reports() {
           headers: { "Authorization": `Bearer ${token}` }
         });
         const data = await res.json();
+    
         setDevices(data.devices || []);
         
         // Default to first device
@@ -99,6 +100,8 @@ function Reports() {
             to: new Date(endDate).toISOString()
         })
       });
+       const resData = await response.json();
+      console.log("Response:", resData);
 
       // --- MOCK DATA FALLBACK (If API isn't ready yet) ---
       // Remove this `if(true)` block once your real API is connected.

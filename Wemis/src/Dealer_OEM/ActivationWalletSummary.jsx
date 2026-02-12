@@ -9,10 +9,11 @@ import {
     FaHistory,
     FaSpinner,
 } from "react-icons/fa";
-import DealerNavbar from "./DealerNavbar";
-import WalletStock from "./WalletStock";
 
-const DealerWalletActivation = () => {
+import WalletStock from "./WalletStock";
+import DealerOemNavbar from "./DealerOemNavbar";
+
+const ActivationWalletSummary = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [requests, setRequests] = useState([]);
     const [plansLoading, setPlansLoading] = useState(false);
@@ -45,8 +46,8 @@ const DealerWalletActivation = () => {
         try {
             const res = await axios.get(API_GET_HISTORY, config);
             if (res.data.success) {
-                console.log(res.data)
                 // Mapping the 'requests' array from your API response
+               
                 setRequests(res.data.requests || []);
             }
         } catch (err) {
@@ -151,7 +152,7 @@ const DealerWalletActivation = () => {
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
 
             <Toaster position="top-right" reverseOrder={false} />
-            <DealerNavbar setIsModalOpen={() => { }} />
+            <DealerOemNavbar/>
             <WalletStock />
             <main className="max-w-full mx-auto p-6">
                 <div className="flex justify-between items-center mb-8 bg-white p-6 border rounded-sm shadow-sm">
@@ -175,7 +176,7 @@ const DealerWalletActivation = () => {
                         <table className="w-full text-left text-sm">
                             <thead className="bg-gray-100 text-gray-600 border-b uppercase text-[11px]">
                                 <tr>
-                                    <th className="p-4 font-bold">Distributor Name</th>
+                                    <th className="p-4 font-bold">OEM Name</th>
                                     <th className="p-4 font-bold">Plan</th>
                                     <th className="p-4 font-bold">Qty</th>
                                     <th className="p-4 font-bold">Calculated Price</th>
@@ -196,7 +197,7 @@ const DealerWalletActivation = () => {
                                     requests.reverse().map((r, i) => (
                                         <tr key={r._id || i} className="hover:bg-gray-50 transition-colors">
                                             <td className="p-4 font-medium text-gray-700">
-                                                {r.distributorName || "N/A"}
+                                                {r.oemName || "N/A"}
                                             </td>
                                             <td className="p-4">
                                                 <div className="font-bold text-gray-800">
@@ -376,4 +377,4 @@ const DealerWalletActivation = () => {
     );
 };
 
-export default DealerWalletActivation;
+export default ActivationWalletSummary;

@@ -4,6 +4,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import { X, Send, History, Package, IndianRupee, Loader2, User, PlusCircle, CheckCircle2, Filter } from 'lucide-react';
 import OemNavbar from './OemNavbar';
 import WalletStock from './WalletStock';
+import WalletTable from './WalletTable';
 
 function ManufactureDispatchCreateRequests() {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,6 +58,7 @@ function ManufactureDispatchCreateRequests() {
             console.error("Error fetching plans", err);
         }
     };
+    
 
     // Update total price whenever count or plan changes
     useEffect(() => {
@@ -121,44 +123,9 @@ console.log(payload)
                 </div>
 
                 {/* Data Table */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    <div className="bg-gray-50/50 p-4 border-b flex items-center gap-2 font-bold text-gray-600">
-                        <History size={18} className="text-yellow-600" />
-                        <span className="text-sm uppercase tracking-wider">Request Transaction Log</span>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gray-50 text-gray-500 uppercase text-[11px] font-bold tracking-widest border-b">
-                                    <th className="p-4">Reference ID</th>
-                                    <th className="p-4 text-center">Method</th>
-                                    <th className="p-4 text-center">Wallet Qty</th>
-                                    <th className="p-4 text-center">Total Price</th>
-                                    <th className="p-4">UTR Number</th>
-                                    <th className="p-4 text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 text-left">
-                                {loading ? (
-                                    <tr><td colSpan="6" className="p-10 text-center"><Loader2 className="animate-spin mx-auto text-gray-400" /></td></tr>
-                                ) : requests.map((item) => (
-                                    <tr key={item._id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="p-4 font-bold text-gray-700">{item._id.slice(-8)}</td>
-                                        <td className="p-4 text-center"><span className="text-[10px] font-bold bg-gray-100 px-2 py-1 rounded">{item.paymentMethod}</span></td>
-                                        <td className="p-4 text-center font-bold">{item.requestedWalletCount}</td>
-                                        <td className="p-4 text-center font-bold text-green-700">₹{item.totalPrice}</td>
-                                        <td className="p-4 font-mono text-xs text-gray-500">{item.utrNumber}</td>
-                                        <td className="p-4 text-center">
-                                            <span className={`text-[10px] px-3 py-1 font-bold uppercase rounded-full border ${item.requestStatus === 'pending' ? 'bg-amber-50 text-amber-600 border-amber-200' : 'bg-green-50 text-green-600 border-green-200'}`}>
-                                                {item.requestStatus}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+              <div className="bg-white -mt-5 border-gray-200">
+                 <WalletTable/>
+              </div>
             </div>
 
             {/* MODAL - As per ScreenShot */}

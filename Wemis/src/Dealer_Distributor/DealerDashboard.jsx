@@ -9,6 +9,7 @@ import { FiSettings, FiLogOut } from "react-icons/fi";
 import { UserAppContext } from "../contexts/UserAppProvider";
 import logo from '../Images/logo.png';
 import RaiseTicketModal from "./RaiseTicketModal";
+import WhiteDashboard from "./WhiteDashboard";
 
 // --- Optimized Utility Components ---
 
@@ -124,7 +125,7 @@ const DealerDashboard = () => {
       </nav>
 
       {/* --- Dashboard Content: White Theme --- */}
-    
+    <WhiteDashboard/>
 
     
 

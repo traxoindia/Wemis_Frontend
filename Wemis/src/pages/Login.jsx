@@ -49,7 +49,7 @@ export default function Login() {
               navigate("/Oem/dashboard");
               break;
             case "dealer-oem":
-              navigate("oem/dealer/dashboard");
+              navigate("/dealer-oem/dashboard");
               break;
             case "dealer-distributor":
               navigate("distributor/dealer/dashboard");

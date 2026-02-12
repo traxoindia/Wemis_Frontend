@@ -83,6 +83,7 @@ import DealerWalletRequests from "./Dealer_Distributor/DealerWalletRequests";
 import ActivationPLans from "./CustomerPage/ActivationPLans";
 import ManufactureDispatchCreateRequests from "./OEM/ManufactureDispatchCreateRequests";
 import ActivationRequestsOEM from "./OEM/ActivationRequestsOEM";
+import ActivationWalletSummary from "./Dealer_OEM/ActivationWalletSummary";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -304,6 +305,16 @@ function App() {
               path="/oem/activation-requests-oem"
               element={<ActivationRequestsOEM />}
             />
+             <Route
+              path="/oem/wallet-summary"
+              element={<ActivationWalletSummary />}
+            />
+             <Route
+              path="/dealer-oem/dashboard"
+              element={<DealerDashboardOem />}
+            />
+
+            
           
           </>
 
