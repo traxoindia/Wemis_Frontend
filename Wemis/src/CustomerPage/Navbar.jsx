@@ -42,7 +42,7 @@ function Navbar() {
           <NavItem
             to="/customer/ActivationPlans"
             icon={<FaClipboardList />}
-            label="Activation Plans"
+            label="Activation Packages"
           />
         </nav>
 
