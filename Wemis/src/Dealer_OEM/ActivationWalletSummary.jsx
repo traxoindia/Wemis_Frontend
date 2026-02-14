@@ -47,7 +47,7 @@ const ActivationWalletSummary = () => {
             const res = await axios.get(API_GET_HISTORY, config);
             if (res.data.success) {
                 // Mapping the 'requests' array from your API response
-               
+
                 setRequests(res.data.requests || []);
             }
         } catch (err) {
@@ -152,7 +152,7 @@ const ActivationWalletSummary = () => {
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
 
             <Toaster position="top-right" reverseOrder={false} />
-            <DealerOemNavbar/>
+            <DealerOemNavbar />
             <WalletStock />
             <main className="max-w-full mx-auto p-6">
                 <div className="flex justify-between items-center mb-8 bg-white p-6 border rounded-sm shadow-sm">
@@ -177,7 +177,10 @@ const ActivationWalletSummary = () => {
                             <thead className="bg-gray-100 text-gray-600 border-b uppercase text-[11px]">
                                 <tr>
                                     <th className="p-4 font-bold">OEM Name</th>
-                                    <th className="p-4 font-bold">Plan</th>
+                                    <th className="p-4 font-bold">Element Name</th>
+                                    <th className="p-4 font-bold">Package Name</th>
+                                    <th className="p-4 font-bold">Billing Cycle</th>
+                                    <th className="p-4 font-bold">Description</th>
                                     <th className="p-4 font-bold">Qty</th>
                                     <th className="p-4 font-bold">Calculated Price</th>
                                     <th className="p-4 font-bold">Method</th>
@@ -201,7 +204,22 @@ const ActivationWalletSummary = () => {
                                             </td>
                                             <td className="p-4">
                                                 <div className="font-bold text-gray-800">
+                                                    {r.activationPlanDetails?.elementName || "Standard Plan"}
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="font-bold text-gray-800">
                                                     {r.activationPlanDetails?.packageName || "Standard Plan"}
+                                                </div>
+                                            </td>
+                                            <td className="p-4">
+                                                <div className="font-bold text-gray-800">
+                                                    {r.activationPlanDetails?.billingCycle || "Standard Plan"}
+                                                </div>
+                                            </td>
+                                             <td className="p-4">
+                                                <div className="font-bold text-gray-800">
+                                                    {r.activationPlanDetails?.description || "Standard Plan"}
                                                 </div>
                                             </td>
                                             <td className="p-4 font-medium">{r.requestedWalletCount}</td>
@@ -219,8 +237,8 @@ const ActivationWalletSummary = () => {
                                             </td>
                                             <td className="p-4">
                                                 <span className={`text-[10px] px-3 py-1 font-black uppercase border rounded-full ${r.requestStatus === 'approved' ? 'bg-green-50 text-green-700 border-green-200' :
-                                                        r.requestStatus === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
-                                                            'bg-amber-50 text-amber-700 border-amber-200'
+                                                    r.requestStatus === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
+                                                        'bg-amber-50 text-green-700 border-amber-200'
                                                     }`}>
                                                     {r.requestStatus || 'Pending'}
                                                 </span>
@@ -360,6 +378,7 @@ const ActivationWalletSummary = () => {
                                             : "bg-blue-600 text-white hover:bg-blue-700 shadow-xl active:scale-95"
                                             }`}
                                     >
+
                                         {submitLoading ? (
                                             <FaSpinner className="animate-spin" />
                                         ) : (

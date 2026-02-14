@@ -123,11 +123,11 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
         },
       ],
     },
-    {
-      name: "Subscription",
-      icon: <CreditCard className="w-5 h-5" />,
-      route: "/subscription"
-    },
+    // {
+    //   name: "Subscription",
+    //   icon: <CreditCard className="w-5 h-5" />,
+    //   route: "/subscription"
+    // },
     {
       name: "Members",
       icon: <Users2 className="w-5 h-5" />,

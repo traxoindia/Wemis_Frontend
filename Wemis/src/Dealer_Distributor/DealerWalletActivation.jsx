@@ -45,7 +45,7 @@ const DealerWalletActivation = () => {
         try {
             const res = await axios.get(API_GET_HISTORY, config);
             if (res.data.success) {
-                console.log(res.data)
+              
                 // Mapping the 'requests' array from your API response
                 setRequests(res.data.requests || []);
             }
@@ -66,6 +66,7 @@ const DealerWalletActivation = () => {
         try {
             const res = await axios.get(API_GET_PLANS, config);
             if (res.data.success) {
+               
                 setAvailablePlans(res.data.data || []);
             }
         } catch (err) {

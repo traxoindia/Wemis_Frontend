@@ -22,6 +22,7 @@ import {
 // 🎯 NEW: Import navigation tools from react-router-dom
 import { useNavigate, useLocation } from "react-router-dom"; 
 import DealerNavbar from "./DealerNavbar";
+import MappedDeviceList from "./MappedDeviceList";
 
 // =========================================================
 // 1. PLACEHOLDER COMPONENTS & UTILITIES
@@ -90,7 +91,7 @@ const PackageDetailItem = ({ label, value }) => (
 
 // --- API Configuration (Included for completeness, values are mock/placeholders) ---
 const FETCH_PLANS_API =
-  "https://api.websave.in/api/manufactur/fetchdelerSubscriptionPlans";
+  "https://api.websave.in/api/manufactur/fetchDistributorOrOemReceivedActivationWallets";
 const SUBMIT_API = "https://api.websave.in/api/manufactur/delerMapDevice";
 const FETCH_MAPPED_DEVICES_API =
   "https://api.websave.in/api/manufactur/fetchDelerMapDevices";
@@ -371,6 +372,7 @@ const DelerMapDevicesTable = ({ openEditModal, openViewModal }) => {
         <MapPin size={32} />
         Mapped Devices Dashboard 
       </h2>
+      <MappedDeviceList/>
       
       {/* Search Bar (Placeholder) */}
       <div className="mb-6 flex items-center justify-between">
@@ -918,6 +920,7 @@ function App() {
 
       if (!response.ok) throw new Error("Failed to fetch packages");
       const data = await response.json();
+      console.log(data)
 
       setPackages(data.Packages || data.data || []);
     } catch (error) {

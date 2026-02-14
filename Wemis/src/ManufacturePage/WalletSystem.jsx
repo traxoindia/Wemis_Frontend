@@ -171,6 +171,7 @@ const WalletSystem = () => {
     try {
       const response = await fetch(FETCH_WALLET_HISTORY_API, { headers: { Authorization: `Bearer ${tkn}` } });
       const result = await response.json();
+      
       if (result.success) setWalletHistory(result.activationWallets || []);
     } catch (error) { toast.error("Error loading packages"); }
     finally { setLoading(false); }

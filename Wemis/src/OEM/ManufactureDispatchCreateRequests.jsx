@@ -108,7 +108,7 @@ console.log(payload)
             <OemNavbar />
             <WalletStock />
 
-            <div className="max-w-7xl mx-auto p-6">
+            <div className="max-w-full mx-auto p-6">
                 <div className="flex justify-between items-center mb-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-800 tracking-tight text-left">Create Request</h1>
