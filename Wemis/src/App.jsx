@@ -313,8 +313,12 @@ function App() {
               path="/dealer-oem/dashboard"
               element={<DealerDashboardOem />}
             />
+             <Route
+              path="/dealer/dashboard"
+              element={<DealerDashboard/>}
+            />
 
-            
+          
           
           </>
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { 
   MapPin, Eye, SquarePen, FileText, SquareCheckBig, 
-  Loader2, AlertTriangle, ChevronDown, ChevronUp, Search, MoreHorizontal
+  Loader2, AlertTriangle,Smartphone, ChevronDown, ChevronUp, Search, MoreHorizontal
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -146,29 +146,29 @@ function MappedDeviceList() {
                     </td>
                     <td className="p-5">
                       <div className="font-bold text-yellow-500">{device.vechileNo}</div>
-                      <div className="text-[10px] text-gray-500 uppercase">{device.RegistrationNo}</div>
+                      <div className="text-[10px] text-yellow-500 uppercase">{device.RegistrationNo}</div>
                     </td>
                     <td className="p-5">
-                      <div className="flex items-center gap-2 font-mono text-gray-300">
-                        <Smartphone size={14} className="text-gray-600" />
+                      <div className="flex items-center gap-2 font-mono text-yellow-500">
+                        <Smartphone size={14} className="text-yellow-500" />
                         {device.deviceNo}
                       </div>
                     </td>
                     <td className="p-5">
-                      <div className="font-medium">{device.fullName}</div>
-                      <div className="text-xs text-gray-500">{device.mobileNo}</div>
+                      <div className="font-medium text-white">{device.fullName}</div>
+                      <div className="text-xs text-yellow-500">{device.mobileNo}</div>
                     </td>
-                    <td className="p-5 text-gray-400">
+                    <td className="p-5 text-yellow-500">
                       {device.date ? new Date(device.date).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="p-5 text-right">
                       <div className="flex justify-end gap-2">
-                        <button className="p-2 hover:bg-blue-500/20 hover:text-blue-400 rounded-lg transition-colors" title="View Details">
+                        <button className="p-2 text-white hover:bg-blue-500/20 hover:text-blue-400 rounded-lg transition-colors" title="View Details">
                           <Eye size={18} />
                         </button>
                         <button 
                           onClick={() => setExpandedRow(expandedRow === device._id ? null : device._id)}
-                          className={`p-2 rounded-lg transition-all ${expandedRow === device._id ? 'bg-yellow-500 text-black' : 'hover:bg-white/10 text-gray-400'}`}
+                          className={`p-2 rounded-lg transition-all ${expandedRow === device._id ? 'bg-yellow-500 text-yellow-100' : 'hover:bg-white/10 text-gray-400'}`}
                         >
                           <ChevronDown size={18} className={`transition-transform duration-300 ${expandedRow === device._id ? 'rotate-180' : ''}`} />
                         </button>

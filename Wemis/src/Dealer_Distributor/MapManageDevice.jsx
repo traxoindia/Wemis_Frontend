@@ -14,13 +14,13 @@ import {
   XCircle,
   ChevronDown,
   ChevronUp,
-  SquareCheckBig, 
-  SquarePen, 
-  FileTextIcon, 
-  Eye, 
+  SquareCheckBig,
+  SquarePen,
+  FileTextIcon,
+  Eye,
 } from "lucide-react";
 // 🎯 NEW: Import navigation tools from react-router-dom
-import { useNavigate, useLocation } from "react-router-dom"; 
+import { useNavigate, useLocation } from "react-router-dom";
 import DealerNavbar from "./DealerNavbar";
 import MappedDeviceList from "./MappedDeviceList";
 
@@ -88,7 +88,6 @@ const PackageDetailItem = ({ label, value }) => (
   </div>
 );
 
-
 // --- API Configuration (Included for completeness, values are mock/placeholders) ---
 const FETCH_PLANS_API =
   "https://api.websave.in/api/manufactur/fetchDistributorOrOemReceivedActivationWallets";
@@ -142,7 +141,7 @@ const INDIA_STATES = [
 const DelerMapDevicesTable = ({ openEditModal, openViewModal }) => {
   // 🎯 NEW: Initialize navigate hook
   const navigate = useNavigate();
-  
+
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -151,7 +150,7 @@ const DelerMapDevicesTable = ({ openEditModal, openViewModal }) => {
     direction: "descending",
   });
   const [expandedRow, setExpandedRow] = useState(null);
-  const [selectedDevices, setSelectedDevices] = useState([]); 
+  const [selectedDevices, setSelectedDevices] = useState([]);
 
   const fetchMappedDevices = useCallback(async () => {
     setLoading(true);
@@ -201,15 +200,12 @@ const DelerMapDevicesTable = ({ openEditModal, openViewModal }) => {
             PanNo: "FGHIJ5678K",
             InvoiceNo: "INV002",
             CompliteAddress: "Gurgaon, Haryana, India",
-            simDetails: [
-              { simNo: "888899990000", operator: "Jio" },
-            ],
+            simDetails: [{ simNo: "888899990000", operator: "Jio" }],
           },
         ],
       };
 
       setDevices(mockData.delMapDevice || []);
-
     } catch (err) {
       console.error("Error fetching mapped devices:", err);
       setError(`Failed to fetch mapped devices: ${err.message}`);
@@ -244,14 +240,14 @@ const DelerMapDevicesTable = ({ openEditModal, openViewModal }) => {
   // 🎯 UPDATED: Handler for Live Tracking to use navigate and pass device numbers
   const handleLiveTracking = () => {
     if (selectedDevices.length === 0) return;
-    
+
     // 1. Get the device numbers (deviceNo) for all selected devices
     const selectedDeviceNos = devices
       .filter((d) => selectedDevices.includes(d._id))
       .map((d) => d.deviceNo);
 
     // 2. Format them as a comma-separated string for the URL
-    const deviceNosString = selectedDeviceNos.join(',');
+    const deviceNosString = selectedDeviceNos.join(",");
 
     // 3. Navigate to the Live Tracking route, passing the device numbers as a query parameter
     navigate(`/dealer/map-device/livetracking?deviceNos=${deviceNosString}`);
@@ -259,30 +255,28 @@ const DelerMapDevicesTable = ({ openEditModal, openViewModal }) => {
 
   const handleViewDetails = () => {
     if (selectedDevices.length === 1 && openViewModal) {
-        const selectedDevice = devices.find(d => d._id === selectedDevices[0]);
-        openViewModal(selectedDevice);
+      const selectedDevice = devices.find((d) => d._id === selectedDevices[0]);
+      openViewModal(selectedDevice);
     } else {
-        alert("Please select exactly ONE device to view details.");
+      alert("Please select exactly ONE device to view details.");
     }
   };
-  
+
   const handleEditDevice = () => {
     if (selectedDevices.length === 1 && openEditModal) {
-        const selectedDevice = devices.find(d => d._id === selectedDevices[0]);
-        openEditModal(selectedDevice);
+      const selectedDevice = devices.find((d) => d._id === selectedDevices[0]);
+      openEditModal(selectedDevice);
     } else {
-        alert("Please select exactly ONE device to edit.");
+      alert("Please select exactly ONE device to edit.");
     }
   };
-  
+
   const handleCertificates = () => {
     if (selectedDevices.length === 0) return;
     const selected = devices
       .filter((d) => selectedDevices.includes(d._id))
       .map((d) => d.deviceNo);
-    alert(
-      `Generating PDF Certificates for devices: ${selected.join(", ")}`
-    );
+    alert(`Generating PDF Certificates for devices: ${selected.join(", ")}`);
   };
 
   const sortedDevices = React.useMemo(() => {
@@ -370,219 +364,14 @@ const DelerMapDevicesTable = ({ openEditModal, openViewModal }) => {
     <div className="mt-12 p-6 bg-gray-800/50 rounded-2xl shadow-2xl border border-yellow-500/30">
       <h2 className="text-3xl font-bold text-yellow-400 mb-6 flex items-center gap-3">
         <MapPin size={32} />
-        Mapped Devices Dashboard 
+        Mapped Devices Dashboard
       </h2>
-      <MappedDeviceList/>
-      
+      <MappedDeviceList />
+
       {/* Search Bar (Placeholder) */}
-      <div className="mb-6 flex items-center justify-between">
-        <input
-          type="search"
-          placeholder="Search by Device No, RTO, or Customer Name"
-          className="w-1/2 px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 placeholder:text-gray-500"
-        />
-        <span className="text-sm text-gray-400">
-            Showing {devices.length} of {devices.length} devices.
-        </span>
-      </div>
-
-      {/* Action Buttons (NEW - Replicating Screenshot) */}
-      <div className="flex space-x-3 mb-6">
-        <button
-          onClick={handleViewDetails}
-          disabled={!isSingleDeviceSelected}
-          className={`px-4 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 ${
-            isSingleDeviceSelected
-              ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md"
-              : "bg-gray-700 text-gray-400 cursor-not-allowed"
-          }`}
-        >
-          <Eye size={20} />
-          View Details
-        </button>
-        <button
-          onClick={handleEditDevice}
-          disabled={!isSingleDeviceSelected}
-          className={`px-4 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 ${
-            isSingleDeviceSelected
-              ? "bg-orange-500 hover:bg-orange-600 text-white shadow-md"
-              : "bg-gray-700 text-gray-400 cursor-not-allowed"
-          }`}
-        >
-          <SquarePen size={20} />
-          Edit Device
-        </button>
-        <button
-          onClick={handleCertificates}
-          disabled={!hasSelectedDevices}
-          className={`px-4 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 ${
-            hasSelectedDevices
-              ? "bg-teal-600 hover:bg-teal-700 text-white shadow-md"
-              : "bg-gray-700 text-gray-400 cursor-not-allowed"
-          }`}
-        >
-          <FileTextIcon size={20} />
-          Certificates (PDF)
-        </button>
-        <button
-          // This button now triggers the navigation logic
-          onClick={handleLiveTracking}
-          disabled={!hasSelectedDevices}
-          className={`px-4 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 ${
-            hasSelectedDevices
-              ? "bg-green-600 hover:bg-green-700 text-white shadow-md"
-              : "bg-gray-700 text-gray-400 cursor-not-allowed"
-          }`}
-        >
-          <SquareCheckBig size={20} />
-          Live Tracking
-        </button>
-      </div>
-      {/* End Action Buttons */}
-
-      <div className="overflow-x-auto relative shadow-md sm:rounded-lg">
-        <table className="w-full text-sm text-left text-gray-400">
-          <thead className="text-xs text-yellow-300 uppercase bg-gray-700/70 sticky top-0">
-            <tr>
-              {/* Select All Checkbox (NEW) */}
-              <th scope="col" className="p-4">
-                <input
-                  type="checkbox"
-                  checked={selectedDevices.length === devices.length && devices.length > 0}
-                  onChange={handleSelectAllDevices}
-                  className="w-4 h-4 text-yellow-500 bg-gray-800 border-gray-600 rounded focus:ring-yellow-500 focus:ring-2"
-                />
-              </th>
-              {headers.map((header) => (
-                <th
-                  key={header.key}
-                  scope="col"
-                  className="px-6 py-3 cursor-pointer whitespace-nowrap"
-                  onClick={() => requestSort(header.key)}
-                >
-                  <div className="flex items-center">
-                    {header.label}
-                    {getSortIcon(header.key)}
-                  </div>
-                </th>
-              ))}
-              <th scope="col" className="px-6 py-3">
-                Action
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedDevices.map((device, index) => {
-                const isSelected = selectedDevices.includes(device._id);
-                return (
-              <React.Fragment key={device._id || index}>
-                <tr className={`border-b border-gray-700 transition-colors ${isSelected ? 'bg-yellow-900/40 hover:bg-yellow-900/50' : 'bg-gray-900 hover:bg-gray-700/50'}`}>
-                  {/* Row Checkbox (NEW) */}
-                  <td className="w-4 p-4">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleSelectDevice(device._id)}
-                      className="w-4 h-4 text-yellow-500 bg-gray-800 border-gray-600 rounded focus:ring-yellow-500 focus:ring-2"
-                    />
-                  </td>
-                  <td className="px-6 py-4 font-medium text-white whitespace-nowrap">
-                    {device.vechileNo || "N/A"}
-                  </td>
-                  <td className="px-6 py-4">{device.deviceNo || "N/A"}</td>
-                  <td className="px-6 py-4">{device.fullName || "N/A"}</td>
-                  <td className="px-6 py-4">{device.mobileNo || "N/A"}</td>
-                  <td className="px-6 py-4">
-                    {device.RegistrationNo || "N/A"}
-                  </td>
-                  <td className="px-6 py-4">
-                    {device.date
-                      ? new Date(device.date).toLocaleDateString()
-                      : "N/A"}
-                  </td>
-                  {/* Action Column for old View Details/Expanded Row */}
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() =>
-                        setExpandedRow(
-                          expandedRow === device._id ? null : device._id
-                        )
-                      }
-                      className="text-yellow-400 hover:text-yellow-300 font-medium transition-colors flex items-center text-xs"
-                    >
-                      {expandedRow === device._id ? "Hide All" : "Quick View"}
-                      {expandedRow === device._id ? (
-                        <ChevronUp size={16} className="ml-1" />
-                      ) : (
-                        <ChevronDown size={16} className="ml-1" />
-                      )}
-                    </button>
-                  </td>
-                </tr>
-                {/* Expanded Row Details */}
-                {expandedRow === device._id && (
-                  <tr className="bg-gray-800/70 border-b border-yellow-500/30">
-                    <td colSpan={9} className="p-4">
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 text-xs text-gray-300">
-                        <PackageDetailItem
-                          label="Chassis No"
-                          value={device.ChassisNumber}
-                        />
-                        <PackageDetailItem
-                          label="Engine No"
-                          value={device.EngineNumber}
-                        />
-                        <PackageDetailItem
-                          label="Package ID"
-                          value={device.Packages}
-                        />
-                        <PackageDetailItem
-                          label="Customer State"
-                          value={device.Customerstate}
-                        />
-                        <PackageDetailItem
-                          label="Aadhar No"
-                          value={device.AdharNo}
-                        />
-                        <PackageDetailItem
-                          label="PAN No"
-                          value={device.PanNo}
-                        />
-                        <PackageDetailItem
-                          label="SIM Details"
-                          value={
-                            device.simDetails &&
-                            Array.isArray(device.simDetails)
-                              ? device.simDetails
-                                  .map((s) => s.simNo || s.iccidNo)
-                                  .join(", ")
-                              : "N/A"
-                          }
-                        />
-                        <PackageDetailItem
-                          label="Invoice No"
-                          value={device.InvoiceNo}
-                        />
-                        <div className="col-span-full">
-                          <PackageDetailItem
-                            label="Full Address"
-                            value={device.CompliteAddress}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            );
-          })} 
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 };
-
 
 // =========================================================
 // 3. MAIN APP COMPONENT & INITIAL STATE (Device Mapping Form)
@@ -638,14 +427,13 @@ const initialFormData = {
   Panic_Sticker: null,
 };
 
-
 // 4. NEW: LiveTracking Component (To receive the data)
 const LiveTracking = () => {
   // 🎯 NEW: Use useLocation to read query parameters
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
-  const deviceNosString = queryParams.get('deviceNos');
-  const deviceNos = deviceNosString ? deviceNosString.split(',') : [];
+  const deviceNosString = queryParams.get("deviceNos");
+  const deviceNos = deviceNosString ? deviceNosString.split(",") : [];
 
   return (
     <div className="p-8 bg-gray-900 min-h-screen text-white">
@@ -661,10 +449,11 @@ const LiveTracking = () => {
           {deviceNos.length > 0 ? (
             <div className="space-y-2">
               <p className="text-green-300">
-                Total Devices: <span className="font-bold">{deviceNos.length}</span>
+                Total Devices:{" "}
+                <span className="font-bold">{deviceNos.length}</span>
               </p>
               <ul className="list-disc list-inside ml-4 text-sm text-gray-300">
-                {deviceNos.map(no => (
+                {deviceNos.map((no) => (
                   <li key={no}>**Device Serial No:** {no.trim()}</li>
                 ))}
               </ul>
@@ -684,197 +473,232 @@ const LiveTracking = () => {
   );
 };
 
-
 // 5. Device Details/Edit Modal Component
-const DeviceDetailModal = ({ isOpen, onClose, device, isEditMode, packages }) => {
-    if (!isOpen || !device) return null;
+const DeviceDetailModal = ({
+  isOpen,
+  onClose,
+  device,
+  isEditMode,
+  packages,
+}) => {
+  if (!isOpen || !device) return null;
 
-    const [modalData, setModalData] = useState(device);
-    const [loading, setLoading] = useState(false);
-    const isView = !isEditMode;
+  const [modalData, setModalData] = useState(device);
+  const [loading, setLoading] = useState(false);
+  const isView = !isEditMode;
 
-    useEffect(() => {
-        setModalData(device);
-    }, [device]);
+  useEffect(() => {
+    setModalData(device);
+  }, [device]);
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setModalData(prev => ({ ...prev, [name]: value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setModalData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    // Placeholder for Edit Logic
+    console.log("Submitting updated device data:", modalData);
+    await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API call
+    setLoading(false);
+    alert("Device updated successfully! (Mock Action)");
+    onClose();
+  };
+
+  const getLabel = (key) => {
+    const labels = {
+      vechileNo: "Vehicle No",
+      deviceNo: "Device Serial No",
+      mobileNo: "Mobile No",
+      RegistrationNo: "Registration No",
+      date: "Installation Date",
+      ChassisNumber: "Chassis Number",
+      EngineNumber: "Engine Number",
+      Packages: "Package ID",
+      Customerstate: "Customer State",
+      AdharNo: "Aadhar No",
+      PanNo: "PAN No",
+      InvoiceNo: "Invoice No",
+      CompliteAddress: "Complete Address",
+      fullName: "Customer Name",
     };
+    return labels[key] || key;
+  };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        // Placeholder for Edit Logic
-        console.log("Submitting updated device data:", modalData);
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-        setLoading(false);
-        alert("Device updated successfully! (Mock Action)");
-        onClose();
-    };
-
-    const getLabel = (key) => {
-        const labels = {
-          vechileNo: "Vehicle No",
-          deviceNo: "Device Serial No",
-          mobileNo: "Mobile No",
-          RegistrationNo: "Registration No",
-          date: "Installation Date",
-          ChassisNumber: "Chassis Number",
-          EngineNumber: "Engine Number",
-          Packages: "Package ID",
-          Customerstate: "Customer State",
-          AdharNo: "Aadhar No",
-          PanNo: "PAN No",
-          InvoiceNo: "Invoice No",
-          CompliteAddress: "Complete Address",
-          fullName: "Customer Name",
-        };
-        return labels[key] || key;
-      };
-
-    const renderInput = (key, disabled = isView, isRequired = false, isSelect = false, options = []) => {
-        const isDateField = key.toLowerCase().includes("date") || key === "VechileBirth";
-        const type = isDateField ? "date" : "text";
-
-        return (
-            <div key={key} className="col-span-1">
-                <label className="block mb-2 font-medium text-yellow-300 text-sm">
-                    {getLabel(key)} {isRequired ? "*" : ""}
-                </label>
-                {isSelect ? (
-                    <select
-                        name={key}
-                        value={modalData[key] || ""}
-                        onChange={handleChange}
-                        disabled={disabled}
-                        className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${disabled ? "opacity-70 cursor-not-allowed bg-gray-900/50" : ""}`}
-                    >
-                        <option value="">Select Option</option>
-                        {options.map(opt => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                            </option>
-                        ))}
-                    </select>
-                ) : (
-                    <input
-                        type={type}
-                        name={key}
-                        value={modalData[key] || ""}
-                        onChange={handleChange}
-                        disabled={disabled}
-                        className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder:text-gray-500 ${disabled ? "opacity-70 cursor-not-allowed bg-gray-900/50" : ""}`}
-                        placeholder={getLabel(key)}
-                    />
-                )}
-            </div>
-        );
-    };
-
-    const fields = [
-        "vechileNo", "deviceNo", "RegistrationNo", "ChassisNumber", "EngineNumber", "fullName", "mobileNo", "AdharNo", "PanNo", "InvoiceNo", 
-        "date", "Customerstate", "Packages", "CompliteAddress"
-    ];
-
-    const packageOptions = packages.map(pkg => ({ value: pkg._id, label: pkg.packageName }));
-    const stateOptions = INDIA_STATES.map(state => ({ value: state, label: state }));
-    const isPackageField = (key) => key === "Packages";
-    const isStateField = (key) => key === "Customerstate";
+  const renderInput = (
+    key,
+    disabled = isView,
+    isRequired = false,
+    isSelect = false,
+    options = [],
+  ) => {
+    const isDateField =
+      key.toLowerCase().includes("date") || key === "VechileBirth";
+    const type = isDateField ? "date" : "text";
 
     return (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-yellow-500 rounded-2xl shadow-2xl max-w-4xl w-full my-8 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-yellow-600 scrollbar-track-gray-800">
-                <div className="sticky top-0 bg-black/95 backdrop-blur-md border-b-2 border-yellow-500/80 p-6 flex justify-between items-center z-10">
-                    <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 flex items-center gap-3">
-                        {isEditMode ? <SquarePen size={32} /> : <Eye size={32} />}
-                        {isEditMode ? "Edit Device Details" : "Device Details"}
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-yellow-400 hover:text-white transition-colors p-2 rounded-full hover:bg-yellow-500/10 border border-yellow-500/20"
-                    >
-                        <X size={28} />
-                    </button>
-                </div>
-                <div className="p-8">
-                    <form onSubmit={handleSubmit}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                            {fields.map(key => 
-                                isPackageField(key) ? renderInput(key, isView, false, true, packageOptions) :
-                                isStateField(key) ? renderInput(key, isView, false, true, stateOptions) :
-                                renderInput(key)
-                            )}
-                        </div>
-                        
-                        <div className="p-4 bg-gray-800/50 rounded-lg mb-6">
-                            <h3 className="font-bold text-yellow-400 mb-2">SIM Details (Read Only)</h3>
-                            {device.simDetails && device.simDetails.length > 0 ? (
-                                <ul className="list-disc list-inside text-gray-300">
-                                    {device.simDetails.map((sim, index) => (
-                                        <li key={index} className="text-sm">
-                                            Operator: **{sim.operator}**, SIM No: **{sim.simNo || sim.iccidNo}**
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                <p className="text-gray-500 text-sm">No SIM details available.</p>
-                            )}
-                        </div>
-
-
-                        {isEditMode && (
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-xl font-bold text-lg hover:from-orange-400 hover:to-red-400 transition-all duration-300 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {loading ? (
-                                    <>
-                                        <Loader2 size={24} className="animate-spin" />
-                                        Saving Changes...
-                                    </>
-                                ) : (
-                                    <>
-                                        <SquarePen size={24} />
-                                        Save Changes
-                                    </>
-                                )}
-                            </button>
-                        )}
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className={`w-full mt-3 px-6 py-3 rounded-xl font-bold text-lg transition-all duration-300 border ${isEditMode ? 'bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200' : 'bg-yellow-600 hover:bg-yellow-700 border-yellow-600 text-black'}`}
-                        >
-                            Close
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
+      <div key={key} className="col-span-1">
+        <label className="block mb-2 font-medium text-yellow-300 text-sm">
+          {getLabel(key)} {isRequired ? "*" : ""}
+        </label>
+        {isSelect ? (
+          <select
+            name={key}
+            value={modalData[key] || ""}
+            onChange={handleChange}
+            disabled={disabled}
+            className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors ${disabled ? "opacity-70 cursor-not-allowed bg-gray-900/50" : ""}`}
+          >
+            <option value="">Select Option</option>
+            {options.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            type={type}
+            name={key}
+            value={modalData[key] || ""}
+            onChange={handleChange}
+            disabled={disabled}
+            className={`w-full px-4 py-2.5 border border-yellow-500/30 rounded-lg bg-black/60 text-yellow-100 focus:outline-none focus:border-yellow-500 transition-colors placeholder:text-gray-500 ${disabled ? "opacity-70 cursor-not-allowed bg-gray-900/50" : ""}`}
+            placeholder={getLabel(key)}
+          />
+        )}
+      </div>
     );
-};
+  };
 
+  const fields = [
+    "vechileNo",
+    "deviceNo",
+    "RegistrationNo",
+    "ChassisNumber",
+    "EngineNumber",
+    "fullName",
+    "mobileNo",
+    "AdharNo",
+    "PanNo",
+    "InvoiceNo",
+    "date",
+    "Customerstate",
+    "Packages",
+    "CompliteAddress",
+  ];
+
+  const packageOptions = packages.map((pkg) => ({
+    value: pkg._id,
+    label: pkg.packageName,
+  }));
+  const stateOptions = INDIA_STATES.map((state) => ({
+    value: state,
+    label: state,
+  }));
+  const isPackageField = (key) => key === "Packages";
+  const isStateField = (key) => key === "Customerstate";
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-yellow-500 rounded-2xl shadow-2xl max-w-4xl w-full my-8 max-h-[90vh] overflow-y-auto scrollbar-thin scrollbar-thumb-yellow-600 scrollbar-track-gray-800">
+        <div className="sticky top-0 bg-black/95 backdrop-blur-md border-b-2 border-yellow-500/80 p-6 flex justify-between items-center z-10">
+          <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-500 flex items-center gap-3">
+            {isEditMode ? <SquarePen size={32} /> : <Eye size={32} />}
+            {isEditMode ? "Edit Device Details" : "Device Details"}
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-yellow-400 hover:text-white transition-colors p-2 rounded-full hover:bg-yellow-500/10 border border-yellow-500/20"
+          >
+            <X size={28} />
+          </button>
+        </div>
+        <div className="p-8">
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {fields.map((key) =>
+                isPackageField(key)
+                  ? renderInput(key, isView, false, true, packageOptions)
+                  : isStateField(key)
+                    ? renderInput(key, isView, false, true, stateOptions)
+                    : renderInput(key),
+              )}
+            </div>
+
+            <div className="p-4 bg-gray-800/50 rounded-lg mb-6">
+              <h3 className="font-bold text-yellow-400 mb-2">
+                SIM Details (Read Only)
+              </h3>
+              {device.simDetails && device.simDetails.length > 0 ? (
+                <ul className="list-disc list-inside text-gray-300">
+                  {device.simDetails.map((sim, index) => (
+                    <li key={index} className="text-sm">
+                      Operator: **{sim.operator}**, SIM No: **
+                      {sim.simNo || sim.iccidNo}**
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500 text-sm">
+                  No SIM details available.
+                </p>
+              )}
+            </div>
+
+            {isEditMode && (
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-xl font-bold text-lg hover:from-orange-400 hover:to-red-400 transition-all duration-300 shadow-xl flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 size={24} className="animate-spin" />
+                    Saving Changes...
+                  </>
+                ) : (
+                  <>
+                    <SquarePen size={24} />
+                    Save Changes
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className={`w-full mt-3 px-6 py-3 rounded-xl font-bold text-lg transition-all duration-300 border ${isEditMode ? "bg-gray-700 hover:bg-gray-600 border-gray-600 text-gray-200" : "bg-yellow-600 hover:bg-yellow-700 border-yellow-600 text-black"}`}
+            >
+              Close
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 function App() {
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false); 
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false); 
-  const [selectedDeviceForModal, setSelectedDeviceForModal] = useState(null); 
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedDeviceForModal, setSelectedDeviceForModal] = useState(null);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false); 
+  const [submitting, setSubmitting] = useState(false);
 
   // 🎯 FIX: Using initialFormData defined globally above.
   const [formData, setFormData] = useState(initialFormData);
-  const [deviceBarcodes, setDeviceBarcodes] = useState([]); 
+  const [deviceBarcodes, setDeviceBarcodes] = useState([]);
   const [mappedSims, setMappedSims] = useState([]);
   const [packages, setPackages] = useState([]);
   const [selectedPackageDetails, setSelectedPackageDetails] = useState(null);
-  const [loading, setLoading] = useState(false); 
+  const [loading, setLoading] = useState(false);
   const [packagesLoading, setPackagesLoading] = useState(false);
-  const [barcodesLoading, setBarcodesLoading] = useState(false); 
+  const [barcodesLoading, setBarcodesLoading] = useState(false);
   const [toast, setToast] = useState({ message: "", type: null });
 
   const openEditModal = (device) => {
@@ -888,11 +712,10 @@ function App() {
   };
 
   const closeModals = () => {
-      setIsEditModalOpen(false);
-      setIsDetailModalOpen(false);
-      setSelectedDeviceForModal(null);
+    setIsEditModalOpen(false);
+    setIsDetailModalOpen(false);
+    setSelectedDeviceForModal(null);
   };
-
 
   const resetDeviceFields = () => {
     setMappedSims([]);
@@ -920,7 +743,7 @@ function App() {
 
       if (!response.ok) throw new Error("Failed to fetch packages");
       const data = await response.json();
-      console.log(data)
+      console.log(data);
 
       setPackages(data.Packages || data.data || []);
     } catch (error) {
@@ -936,7 +759,7 @@ function App() {
     setDeviceBarcodes([]);
     setFormData((prev) => ({
       ...prev,
-      ...resetDeviceFields(), 
+      ...resetDeviceFields(),
     }));
 
     try {
@@ -951,7 +774,6 @@ function App() {
       const data = await response.json();
 
       setDeviceBarcodes(data.barcodes || data.data || []);
-      
     } catch (error) {
       console.error("Error fetching device barcodes:", error.message);
     } finally {
@@ -961,10 +783,9 @@ function App() {
 
   useEffect(() => {
     fetchPackages();
-    fetchBarcodesForDealer(); 
+    fetchBarcodesForDealer();
   }, [fetchPackages, fetchBarcodesForDealer]);
 
-  
   const handleChange = (e) => {
     const { name, value, type, files } = e.target;
     let newFormData = { ...formData };
@@ -978,7 +799,7 @@ function App() {
     if (name === "deviceNo") {
       if (value) {
         const selectedDevice = deviceBarcodes.find(
-          (device) => device.barCodeNo === value
+          (device) => device.barCodeNo === value,
         );
         const sims =
           selectedDevice && Array.isArray(selectedDevice.simDetails)
@@ -1012,7 +833,7 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setSubmitting(true); 
+    setSubmitting(true);
     setToast({ message: "", type: null });
 
     try {
@@ -1070,7 +891,7 @@ function App() {
           result.message ||
           "Submission failed. Please check the required fields and network.";
         setToast({ message: errorMsg, type: "error" });
-        setSubmitting(false); 
+        setSubmitting(false);
         return;
       }
 
@@ -1089,7 +910,7 @@ function App() {
           : `Submission failed: ${error.message}`;
       console.error("⛔ Submission Error:", error);
       setToast({ message: errorMsg, type: "error" });
-      setSubmitting(false); 
+      setSubmitting(false);
     } finally {
       setLoading(false);
     }
@@ -1185,6 +1006,7 @@ function App() {
       </div>
     ));
   };
+ 
 
   const renderPackageDetailsBox = () => {
     if (!selectedPackageDetails) return null;
@@ -1348,9 +1170,9 @@ function App() {
         {/* Main Content (Mapped Devices Table) */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           {/* PASS NEW FUNCTIONS TO TABLE */}
-          <DelerMapDevicesTable 
-              openEditModal={openEditModal} 
-              openViewModal={openViewModal}
+          <DelerMapDevicesTable
+            openEditModal={openEditModal}
+            openViewModal={openViewModal}
           />
         </div>
 
@@ -1422,8 +1244,8 @@ function App() {
                             {barcodesLoading
                               ? "Loading Devices..."
                               : deviceBarcodes.length > 0
-                              ? "Select Device Number"
-                              : "No Devices Available"}
+                                ? "Select Device Number"
+                                : "No Devices Available"}
                           </option>
                           {deviceBarcodes.map((device) => (
                             <option
@@ -1457,8 +1279,8 @@ function App() {
                             {packagesLoading
                               ? "Loading Packages..."
                               : packages.length > 0
-                              ? "Select Package"
-                              : "No Packages Found"}
+                                ? "Select Package"
+                                : "No Packages Found"}
                           </option>
                           {/* Use _id for value, packageName for display. This ensures the _id is passed. */}
                           {packages.map((pkg) => (
@@ -1652,20 +1474,20 @@ function App() {
 
         {/* NEW: Device Details Modal */}
         <DeviceDetailModal
-            isOpen={isDetailModalOpen}
-            onClose={closeModals}
-            device={selectedDeviceForModal}
-            isEditMode={false}
-            packages={packages}
+          isOpen={isDetailModalOpen}
+          onClose={closeModals}
+          device={selectedDeviceForModal}
+          isEditMode={false}
+          packages={packages}
         />
 
         {/* NEW: Device Edit Modal */}
         <DeviceDetailModal
-            isOpen={isEditModalOpen}
-            onClose={closeModals}
-            device={selectedDeviceForModal}
-            isEditMode={true}
-            packages={packages}
+          isOpen={isEditModalOpen}
+          onClose={closeModals}
+          device={selectedDeviceForModal}
+          isEditMode={true}
+          packages={packages}
         />
       </div>
     </div>

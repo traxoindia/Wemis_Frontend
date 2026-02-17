@@ -144,7 +144,7 @@ const DealerNavbar = () => {
             </NavDropdown>
             <NavDropdown menuKey="Wallet" title="Wallet" icon={<FaWallet />} openMenu={openMenu} toggleMenu={setOpenMenu}>
               <DropdownLink to="/dealer/walletActivation">Activation Wallet</DropdownLink>
-              <DropdownLink to="/dealer/walletRequests">Wallet Requests</DropdownLink>
+             
             </NavDropdown>
           </div>
           {/* User Actions */}  
@@ -159,7 +159,7 @@ const DealerNavbar = () => {
             <div className="flex items-center gap-3 pl-4 border-l border-gray-700">
               <div className="hidden lg:text-right lg:block text-white">
                 <p className="text-xs font-black uppercase tracking-wider">
-                  {user?.name || "Rahul Pradhan"}
+                  {user?.name || "Dealer"}
                 </p>
                 <p className="text-[10px] text-yellow-400 font-bold uppercase">
                   Dealer Partner
