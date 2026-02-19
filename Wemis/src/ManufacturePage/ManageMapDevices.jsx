@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, MapPin, Package, User, Smartphone, Loader2, AlertTriangle, CheckCircle, XCircle, ShieldCheck } from 'lucide-react';
+import { X, MapPin, Package, User, Smartphone, Loader2, AlertTriangle, CheckCircle, XCircle, ShieldCheck, Send } from 'lucide-react';
 import DeviceMapreport from './DeviceMapreport';
 import ManufactureNavbar from './ManufactureNavbar';
 
@@ -61,6 +61,7 @@ const initialFormData = {
   NoOfPanicButtons: '', fullName: '', email: '', mobileNo: '', GstinNo: '',
   Customercountry: 'India', Customerstate: '', Customerdistrict: '', Rto: '',
   PinCode: '', CompliteAddress: '', AdharNo: '', PanNo: '', Packages: '', InvoiceNo: '',
+  deviceSendTo: '', // Added new field
   Vechile_Doc: null, Rc_Doc: null, Pan_Card: null, Device_Doc: null, Adhar_Card: null,
   Invious_Doc: null, Signature_Doc: null, Panic_Sticker: null,
 };
@@ -162,50 +163,39 @@ function App() {
       const payload = {};
       for (const key in formData) {
         const value = formData[key];
-        // Skip file/document fields explicitly
+        // Skip file fields
         if (value instanceof File || key.endsWith('_Doc') || key.endsWith('_Card') || key.endsWith('_Sticker')) {
           continue;
         }
         payload[key] = value ? String(value).trim() : "";
       }
 
-      // Attach the actual SIM objects and package plan ID
       payload.simDetails = mappedSims || [];
       payload.packagePlanId = formData.Packages;
 
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Authentication token missing");
 
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000);
-
       const response = await fetch(SUBMIT_API, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        signal: controller.signal
       });
 
-      clearTimeout(timeout);
       const result = await response.json();
-
-      if (!response.ok || result.success === false) {
-        throw new Error(result.message || "Submission failed");
-      }
+      if (!response.ok || result.success === false) throw new Error(result.message || "Submission failed");
 
       setToast({ message: "Device mapped successfully!", type: "success" });
       setIsModalOpen(false);
       setFormData(initialFormData);
       setMappedSims([]);
     } catch (error) {
-      const errorMsg = error.name === "AbortError" ? "Request timed out." : error.message;
-      setToast({ message: errorMsg, type: "error" });
+      setToast({ message: error.message, type: "error" });
     } finally {
       setLoading(false);
     }
   };
 
-  // --- Render Helpers ---
   const renderFormInput = (name, label, type = "text", required = false) => (
     <div className="flex flex-col gap-2">
       <label className="text-xs font-bold text-yellow-500/80 uppercase tracking-wider">{label} {required && '*'}</label>
@@ -253,7 +243,7 @@ function App() {
               
               <section>
                 <SectionHeader icon={MapPin} title="Hardware Allocation" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-yellow-500/80 uppercase">State *</label>
                     <select name="state" value={formData.state} onChange={handleChange} required className="bg-black/40 border border-yellow-500/20 rounded-lg px-4 py-2.5 text-yellow-100">
@@ -275,7 +265,10 @@ function App() {
                       {dealers.map(d => <option key={d._id} value={d.name || d.business_Name}>{d.name || d.business_Name}</option>)}
                     </select>
                   </div>
+                  {/* --- NEW FIELD ADDED HERE --- */}
+                  {renderFormInput('deviceSendTo', 'Device Send To', 'text', true)}
                 </div>
+                
                 <div className="max-w-md">
                    <label className="text-xs font-bold text-yellow-500/80 uppercase block mb-2">Package Plan *</label>
                    <select name="Packages" value={formData.Packages} onChange={handleChange} required className="w-full bg-black/60 border border-yellow-500/40 rounded-xl px-4 py-4 text-yellow-400 font-bold outline-none ring-2 ring-yellow-500/10">
@@ -301,7 +294,6 @@ function App() {
                   {renderFormInput('batchNo', 'Batch No')}
                 </div>
 
-                {/* Integrated SIM Details Display */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 bg-black/20 p-6 rounded-2xl border border-white/5">
                   {!formData.deviceNo ? (
                     <p className="col-span-full text-center text-gray-500 py-4 italic">Select a device to view SIM details</p>
