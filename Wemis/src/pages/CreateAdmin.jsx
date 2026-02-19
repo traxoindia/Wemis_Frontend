@@ -59,7 +59,7 @@ function CreateAdmin() {
 
       console.log(payload)
       const response = await axios.post(
-        "https://wemis-backend.onrender.com/api/superadmin/createAdmin",
+        "https://api.websave.in/api/superadmin/createAdmin",
         payload,
         {
           headers: {

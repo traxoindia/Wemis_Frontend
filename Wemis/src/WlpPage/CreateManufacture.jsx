@@ -1,34 +1,50 @@
 import React, { useState, useEffect, useContext } from "react";
-import { toast } from "react-toastify";
-import WlpNavbar from "./WlpNavbar";
+import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
 import { UserAppContext } from "../contexts/UserAppProvider";
-import { 
-  Upload, 
-  Save, 
-  X,
-  Loader2,
-  MapPin,
-  User,
-  Globe
+import {
+  Upload, Save, X, Loader2, User, Globe, Building2, CheckCircle2, Phone, Mail, Link, Hash
 } from "lucide-react";
 
-// --- Constants ---
+// 1. CONSTANTS & SUB-COMPONENTS (Defined outside to prevent re-render focus loss)
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat",
   "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh",
   "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab",
   "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh",
-  "Uttarakhand", "West Bengal", "Andaman and Nicobar Islands", "Chandigarh",
-  "Dadra and Nagar Haveli and Daman and Diu", "Delhi", "Jammu and Kashmir", "Ladakh",
-  "Lakshadweep", "Puducherry"
+  "Uttarakhand", "West Bengal", "Delhi", "Jammu and Kashmir", "Ladakh"
 ];
 
+
+const InputField = ({ label, name, value, onChange, placeholder, readOnly, required, type = "text", icon: Icon }) => (
+  <div className="flex flex-col gap-1">
+    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">{label} {required && "*"}</label>
+    <div className="relative">
+      {Icon && <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />}
+      <input
+        type={type}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        readOnly={readOnly}
+        required={required}
+        autoComplete="off"
+        className={`w-full p-2.5 ${Icon ? 'pl-10' : 'pl-3'} border rounded-lg text-sm transition-all outline-none focus:ring-2 focus:ring-blue-500/20 ${readOnly ? 'bg-gray-100 cursor-not-allowed text-gray-500' : 'bg-white border-gray-300 hover:border-gray-400'
+          }`}
+      />
+    </div>
+  </div>
+);
+
 function CreateManufacture() {
-  // Updated city -> state in initial state
   const [formData, setFormData] = useState({
-    country: "",
-    state: "", 
+    country: "India",
+    state: "",
+    city: "",
     manufactur_code: "MFG-001",
     business_Name: "",
     gst_Number: "",
@@ -41,289 +57,195 @@ function CreateManufacture() {
     address: "",
     logo: null,
   });
-
+  const navigate = useNavigate();
   const [logoPreview, setLogoPreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const { token: contextToken } = useContext(UserAppContext);
   const tkn = contextToken || localStorage.getItem("token");
 
-  // Fetch Parent WLP Name
   useEffect(() => {
     const fetchWlpNames = async () => {
       try {
         const res = await axios.post(
           "https://api.websave.in/api/wlp/fetchWlpName",
           {},
-          {
-            headers: {
-              Authorization: `Bearer ${tkn}`,
-              "Content-Type": "application/json",
-            },
-          }
+          { headers: { Authorization: `Bearer ${tkn}` } }
         );
-
-        setFormData((prev) => ({
-          ...prev,
-          Parent_WLP: res.data.wlpName,
-        }));
+        setFormData((prev) => ({ ...prev, Parent_WLP: res.data.wlpName || "Default WLP" }));
       } catch (error) {
-        console.error("Error fetching WLP names:", error);
-        toast.error("Failed to fetch Parent WLP name");
+        console.error("WLP Fetch Error:", error);
       }
     };
-
     if (tkn) fetchWlpNames();
   }, [tkn]);
 
-  // Handle input change
   const handleChange = (e) => {
-    const { name, value, files } = e.target;
-    if (files && files[0]) {
-      setFormData({ ...formData, [name]: files[0] });
-      setLogoPreview(URL.createObjectURL(files[0]));
+    const { name, value, type, files } = e.target;
+    if (type === "file") {
+      const file = files[0];
+      if (file) {
+        setFormData(prev => ({ ...prev, [name]: file }));
+        setLogoPreview(URL.createObjectURL(file));
+      }
     } else {
-      setFormData({ ...formData, [name]: value });
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
-  // Close Button Action
-  const handleClose = () => {
-     window.history.back(); 
-  };
-
-  // Submit handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    // Validation
-    if(!formData.state) {
-        toast.error("Please select a state.");
-        setLoading(false);
-        return;
-    }
-
     try {
       const payload = new FormData();
       Object.entries(formData).forEach(([key, value]) => {
-        if (value !== null && value !== undefined) {
-          payload.append(key, value);
-        }
+        if (value !== null && value !== "") payload.append(key, value);
       });
 
-      const res = await axios.post(
+      await axios.post(
         "https://api.websave.in/api/wlp/createManuFactur",
-        payload, // Changed from formData to payload
-        {
-          headers: {
-            Authorization: `Bearer ${tkn}`,
-            "Content-Type": "multipart/form-data",
-          },
-        }
+        payload,
+        { headers: { Authorization: `Bearer ${tkn}`, "Content-Type": "multipart/form-data" } }
       );
 
-      if (res.data) {
-        toast.success("Manufacturer Created Successfully!");
-        
-        // Reset form
-        setFormData((prev) => ({
-          country: "",
-          state: "",
-          manufactur_code: "MFG-001",
-          business_Name: "",
-          gst_Number: "",
-          Parent_WLP: prev.Parent_WLP,
-          manufacturer_Name: "",
-          mobile_Number: "",
-          email: "",
-          toll_Free_Number: "",
-          website: "",
-          address: "",
-          logo: null,
-        }));
-        setLogoPreview(null);
-      }
+      setShowSuccessModal(true);
     } catch (error) {
-      console.error("Error submitting form:", error);
-      toast.error(error.response?.data?.message || "Failed to create manufacturer.");
+      toast.error(error.response?.data?.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Reusable Input Component
-  const InputField = ({ label, name, type = "text", placeholder, value, onChange, readOnly, required }) => (
-    <div>
-      <label className="block text-sm font-semibold text-gray-700 mb-1">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <input
-        type={type}
-        name={name}
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        readOnly={readOnly}
-        className={`w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 transition-all ${readOnly ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : 'bg-white text-gray-900'}`}
-      />
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-gray-50 font-sans pt-20">
-      <WlpNavbar />
+    <div className="min-h-screen bg-slate-50 pt-8 pb-12">
+      <ToastContainer />
 
-      <div className="w-full px-4 md:px-8 pb-10">
-        
-        {/* Header Bar */}
-        <div className="bg-white border border-gray-200 rounded-t-xl p-5 flex justify-between items-center shadow-sm">
+      <div className="max-w-5xl mx-auto px-4">
+        {/* Header */}
+        <div className="bg-white p-6 rounded-t-3xl border-b flex justify-between items-center shadow-sm">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Add New Manufacturer</h1>
-            <p className="text-sm text-gray-500">Enter details to register a manufacturing unit.</p>
+            <h1 className="text-2xl font-black text-slate-800">New Manufacturer</h1>
+            <p className="text-slate-500 text-sm font-medium">Register a partner entity to the platform</p>
           </div>
-          <button 
-            onClick={handleClose}
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
-          >
-            <X size={24} />
+          <button onClick={() => window.history.back()} className="bg-slate-100 hover:bg-red-50 hover:text-red-500 p-2.5 rounded-full transition-all">
+            <X size={20} />
           </button>
         </div>
 
-        {/* Main Form Area */}
-        <form onSubmit={handleSubmit} className="bg-white border-x border-b border-gray-200 rounded-b-xl p-6 md:p-8 space-y-8 shadow-sm">
-            
-            {/* SECTION 1: Location & Business */}
-            <div>
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4 flex items-center gap-2">
-                    <Globe size={16}/> Business Information
-                </h3>
-                
-                {/* Responsive Grid: 1 col mobile, 2 col tablet, 3 col desktop */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    
-                    {/* Country */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
-                        <select
-                            name="country"
-                            value={formData.country}
-                            onChange={handleChange}
-                            className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        >
-                            <option value="">Select Country</option>
-                            <option value="India">India</option>
-                            <option value="USA">USA</option>
-                        </select>
-                    </div>
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} className="bg-white rounded-b-3xl p-8 space-y-12 shadow-xl border border-t-0 border-slate-200">
 
-                    {/* State (Replaces City) */}
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
-                        <div className="relative">
-                            <select
-                                name="state"
-                                value={formData.state}
-                                onChange={handleChange}
-                                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none"
-                            >
-                                <option value="">Select State</option>
-                                {INDIAN_STATES.map((state) => (
-                                    <option key={state} value={state}>{state}</option>
-                                ))}
-                            </select>
-                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 text-xs">▼</div>
-                        </div>
-                    </div>
-
-                    <InputField label="Manufacturer Code" name="manufactur_code" value={formData.manufactur_code} onChange={handleChange} required />
-                    <InputField label="Business Name" name="business_Name" value={formData.business_Name} onChange={handleChange} placeholder="Company Name" required />
-                    <InputField label="GST Number" name="gst_Number" value={formData.gst_Number} onChange={handleChange} placeholder="GSTIN..." required />
-                    <InputField label="Parent WLP" name="Parent_WLP" value={formData.Parent_WLP} readOnly />
-                </div>
+          {/* Section 1: Identity */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-1">
+              <h3 className="font-black text-slate-800 flex items-center gap-2 ">
+                <Building2 size={18} /> BUSINESS IDENTITY
+              </h3>
+              <p className="text-xs text-slate-400 mt-2">Legal naming and system identifiers.</p>
             </div>
-
-            {/* SECTION 2: Contact Details */}
-            <div>
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4 flex items-center gap-2">
-                    <User size={16}/> Contact Details
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <InputField label="Contact Person" name="manufacturer_Name" value={formData.manufacturer_Name} onChange={handleChange} placeholder="Full Name" required />
-                    <InputField label="Mobile Number" name="mobile_Number" value={formData.mobile_Number} onChange={handleChange} placeholder="+91..." required />
-                    <InputField label="Email Address" type="email" name="email" value={formData.email} onChange={handleChange} placeholder="email@domain.com" required />
-                    <InputField label="Toll Free Number" name="toll_Free_Number" value={formData.toll_Free_Number} onChange={handleChange} placeholder="1800..." />
-                    <InputField label="Website" name="website" value={formData.website} onChange={handleChange} placeholder="www.example.com" />
-                </div>
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <InputField label="Business Name" name="business_Name" value={formData.business_Name} onChange={handleChange} required placeholder="" icon={Building2} />
+              <InputField label="GST Number" name="gst_Number" value={formData.gst_Number} onChange={handleChange} required placeholder="22AAAAA0000A1Z5" icon={Hash} />
+              <InputField label="Manufacturer Code" name="manufactur_code" value={formData.manufactur_code} onChange={handleChange} required icon={Hash} />
+              <InputField label="Parent WLP" name="Parent_WLP" value={formData.Parent_WLP} readOnly icon={Globe} />
             </div>
+          </section>
 
-            {/* SECTION 3: Address & Branding */}
-            <div>
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 pb-2 mb-4 flex items-center gap-2">
-                    <MapPin size={16}/> Address & Branding
-                </h3>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Full Address <span className="text-red-500">*</span></label>
-                        <textarea
-                            name="address"
-                            rows="3"
-                            value={formData.address}
-                            onChange={handleChange}
-                            placeholder="Complete street address..."
-                            className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">Upload Logo <span className="text-red-500">*</span></label>
-                        <div className="flex items-center gap-4">
-                            <label className="flex-grow flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 hover:border-blue-400 transition-all">
-                                <Upload size={20} className="text-gray-400 mb-1" />
-                                <span className="text-xs text-gray-500">Click to upload image</span>
-                                <input type="file" name="logo" onChange={handleChange} className="hidden" accept="image/*" />
-                            </label>
-                            
-                            {logoPreview && (
-                                <div className="w-20 h-20 border border-gray-200 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center relative group">
-                                    <img src={logoPreview} alt="Preview" className="max-w-full max-h-full object-contain" />
-                                    <button 
-                                      type="button" 
-                                      onClick={() => { setLogoPreview(null); setFormData(prev => ({...prev, logo: null})); }}
-                                      className="absolute inset-0 bg-black/40 hidden group-hover:flex items-center justify-center text-white"
-                                    >
-                                      <X size={16} />
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
+          {/* Section 2: Contact Person */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-1">
+              <h3 className="font-black text-slate-800 flex items-center gap-2 ">
+                <User size={18} /> CONTACT PERSON
+              </h3>
+              <p className="text-xs text-slate-400 mt-2">Primary point of contact for this entity.</p>
             </div>
-
-            {/* Footer Actions */}
-            <div className="pt-6 border-t border-gray-100 flex flex-col md:flex-row justify-end gap-4">
-                <button
-                    type="button"
-                    onClick={handleClose}
-                    className="w-full md:w-auto px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 hover:bg-gray-100 transition-colors order-2 md:order-1"
-                >
-                    Cancel
-                </button>
-                <button
-                    type="submit"
-                    disabled={loading}
-                    className={`w-full md:w-auto flex items-center justify-center gap-2 px-8 py-2.5 rounded-lg text-sm font-bold text-white shadow-sm transition-all order-1 md:order-2 ${loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 active:scale-95"}`}
-                >
-                    {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                    {loading ? "Creating..." : "Create Manufacturer"}
-                </button>
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <InputField label="Full Name" name="manufacturer_Name" value={formData.manufacturer_Name} onChange={handleChange} required placeholder="John Doe" icon={User} />
+              <InputField label="Mobile Number" name="mobile_Number" value={formData.mobile_Number} onChange={handleChange} required placeholder="+91 00000 00000" icon={Phone} />
+              <InputField label="Email Address" name="email" type="email" value={formData.email} onChange={handleChange} required placeholder="contact@business.com" icon={Mail} />
+              <InputField label="Toll Free" name="toll_Free_Number" value={formData.toll_Free_Number} onChange={handleChange} placeholder="1800-XXX-XXXX" icon={Phone} />
             </div>
+          </section>
 
+          {/* Section 3: Location & Online */}
+          <section className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="md:col-span-1">
+              <h3 className="font-black text-slate-800 flex items-center gap-2 ">
+                <Globe size={18} /> LOCATION & WEB
+              </h3>
+              <p className="text-xs text-slate-400 mt-2">Physical address and online presence.</p>
+            </div>
+            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <InputField label="Country" name="country" value={formData.country} onChange={handleChange} required icon={Globe} />
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-500 uppercase">State *</label>
+                <select name="state" value={formData.state} onChange={handleChange} required className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-blue-500/20">
+                  <option value="">Select State</option>
+                  {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+              <InputField label="City" name="city" value={formData.city} onChange={handleChange} required placeholder="City Name" icon={Globe} />
+              <InputField label="Website" name="website" value={formData.website} onChange={handleChange} placeholder="https://example.com" icon={Link} />
+              <div className="sm:col-span-2">
+                <label className="text-xs font-bold text-gray-500 uppercase">Full Office Address *</label>
+                <textarea name="address" value={formData.address} onChange={handleChange} required rows="3" className="w-full mt-1 p-3 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-500/20" placeholder="Suite, Street, Area, Zip Code..." />
+              </div>
+            </div>
+          </section>
+
+          {/* Section 4: Branding */}
+          <section className="bg-slate-50 p-6 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center gap-8">
+            <div className="flex-1">
+              <h3 className="font-black text-slate-800 mb-2">Company Branding</h3>
+              <p className="text-sm text-slate-500 mb-4">Upload a high-resolution logo (PNG/JPG).</p>
+              <label className="cursor-pointer bg-white border-2 border-dashed border-blue-200 hover:border-blue-500 p-6 rounded-xl flex flex-col items-center justify-center transition-all group">
+                <Upload size={28} className="text-blue-400 group-hover:scale-110 transition-transform mb-2" />
+                <span className="text-sm font-bold text-slate-600">Choose File</span>
+                <input type="file" name="logo" onChange={handleChange} className="hidden" accept="image/*" />
+              </label>
+            </div>
+            <div className="w-32 h-32 bg-white rounded-2xl border-4 border-white shadow-lg overflow-hidden flex items-center justify-center">
+              {logoPreview ? <img src={logoPreview} className="object-contain w-full h-full" alt="Logo Preview" /> : <Building2 className="text-slate-100" size={60} />}
+            </div>
+          </section>
+
+          {/* Submit */}
+          <div className="flex justify-end pt-4">
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full sm:w-auto px-16 py-4 rounded-2xl font-black text-white shadow-xl transition-all flex items-center justify-center gap-3 ${loading ? "bg-slate-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 active:scale-95"}`}
+            >
+              {loading ? <Loader2 className="animate-spin" /> : <Save size={22} />}
+              {loading ? "PROCESSING..." : "REGISTER MANUFACTURER"}
+            </button>
+          </div>
         </form>
       </div>
+
+      {/* --- SIMPLE SUCCESS MODAL --- */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center z-[999] p-4">
+          <div className="bg-white rounded-[40px] p-10 max-w-sm w-full text-center shadow-2xl scale-up-center">
+            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 size={56} className="text-green-600" />
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 mb-3">All Set!</h3>
+            <p className="text-slate-500 font-medium mb-8">Manufacturer profile has been created and is now active.</p>
+            <button
+              onClick={() => {
+                window.location.href = "/wlp/manufacturelist";
+              }}
+              className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold hover:shadow-lg transition-all"
+            >
+              Great, thanks!
+            </button>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
