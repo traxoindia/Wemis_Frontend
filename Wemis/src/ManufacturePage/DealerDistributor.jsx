@@ -58,28 +58,41 @@ const INDIA_RTO_MAP = {
   },
   // Odisha RTOs
   Odisha: {
-    Khordha: [
-      "Bhubaneswar-I (OD-02)",
-      "Bhubaneswar-II (OD-33)",
-      "Khurda (OD-35)",
-    ],
-    Cuttack: ["Cuttack (OD-05)"],
-    Balasore: ["Balasore (OD-01)"],
-    Sambalpur: ["Sambalpur (OD-15)"],
-    Bhadrak: ["Bhadrak (OD-04)"],
-    Mayurbhanj: ["Mayurbhanj (Baripada) (OD-11)"],
-    Keonjhar: ["Keonjhar (OD-09)"],
-    Jajpur: ["Jajpur (OD-34)"],
-    Kendrapara: ["Kendrapara (OD-29)"],
-    Puri: ["Puri (OD-13)"],
-    Ganjam: ["Ganjam (Chhatrapur) (OD-07)", "Berhampur (OD-32)"],
-    Koraput: ["Koraput (OD-10)"],
-    Bolangir: ["Bolangir (OD-03)"],
-    Sundargarh: ["Sundargarh (OD-16)", "Rourkela (OD-14 / OD-19)"],
-    Dhenkanal: ["Dhenkanal (OD-06)"],
-    Angul: ["Angul (OD-19)"],
-    // NOTE: Other Odisha RTOs (OD-20 to OD-31) can be added similarly
-  },
+  Khordha: [
+    "Bhubaneswar-I (OD-02)",
+    "Bhubaneswar-II (OD-33)",
+    "Khurda (OD-35)",
+  ],
+  Cuttack: ["Cuttack (OD-05)"],
+  Balasore: ["Balasore (OD-01)"],
+  Sambalpur: ["Sambalpur (OD-03 / OD-15)"],
+  Bhadrak: ["Bhadrak (OD-04)"],
+  Mayurbhanj: ["Mayurbhanj (Baripada) (OD-11)", "Rairangpur (OD-38)"],
+  Kendujhar: ["Kendujhar (OD-09)","Barbill (OD-901)"],
+  Jajpur: ["Jajpur (OD-34)", "Chandikhol (OD-37)"],
+  Kendrapara: ["Kendrapara (OD-29)"],
+  Puri: ["Puri (OD-13)"],
+  Ganjam: ["Ganjam (Chhatrapur) (OD-07)", "Berhampur (OD-32)"],
+  Koraput: ["Koraput (OD-10)"],
+  Bolangir: ["Bolangir (OD-03)"],
+  Sundargarh: ["Sundargarh (OD-16 / OD-31)", "Rourkela (OD-14)"],
+  Dhenkanal: ["Dhenkanal (OD-06)"],
+  Angul: ["Angul (OD-19)", "Talcher (OD-36)"],
+  Kalahandi: ["Bhawanipatna (OD-08)"],
+  Kandhamal: ["Phulbani (OD-12)"],
+  Bargarh: ["Bargarh (OD-17)"],
+  Rayagada: ["Rayagada (OD-18)"],
+  Gajapati: ["Paralakhemundi (OD-20)"],
+  Jagatsinghpur: ["Jagatsinghpur (OD-21)"],
+  Boudh: ["Boudh (OD-22)"],
+  Jharsuguda: ["Jharsuguda (OD-23)"],
+  Nabarangpur: ["Nabarangpur (OD-24)"],
+  Nayagarh: ["Nayagarh (OD-25)"],
+  Nuapada: ["Nuapada (OD-26)"],
+  Subarnapur: ["Sonepur (OD-27)"],
+  Deogarh: ["Deogarh (OD-28)"],
+  Malkangiri: ["Malkangiri (OD-30)"],
+}
   // Add other states (e.g., Maharashtra, Tamil Nadu) as needed
 };
 
@@ -404,6 +417,7 @@ function DealerDistributor() {
           </tbody>
         </table>
       </div>
+      
 
       {/* Create Dealer Modal */}
       {isCreateModalOpen && (
