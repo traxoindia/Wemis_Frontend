@@ -183,29 +183,42 @@ function ActivationPage() {
     setMiniModal({ ...miniModal, isOpen: false });
   };
 
-  const handleCreateWalletSubmit = async (e) => {
-    e.preventDefault();
-    setSubmissionLoading(true);
-    const tid = toast.loading("Creating...");
-    try {
-      const response = await fetch(CREATE_WALLET_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tkn}` },
-        body: JSON.stringify(walletData),
-      });
-      if (response.ok) {
-        toast.success("Created!", { id: tid });
-        fetchActivations();
-        setIsWalletModalOpen(false);
-      } else {
-        toast.error("Error creating wallet", { id: tid });
-      }
-    } catch (err) {
-      toast.error("Network error", { id: tid });
-    } finally {
-      setSubmissionLoading(false);
+ const handleCreateWalletSubmit = async (e) => {
+  e.preventDefault();
+  setSubmissionLoading(true);
+  const tid = toast.loading("Creating...");
+
+  try {
+    const numericBillingCycle = parseInt(walletData.billingCycle);
+
+    const payload = {
+      ...walletData,
+      billingCycle: numericBillingCycle,
+    };
+
+    const response = await fetch(CREATE_WALLET_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${tkn}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      toast.success("Created!", { id: tid });
+      fetchActivations();
+      setIsWalletModalOpen(false);
+    } else {
+      toast.error("Error creating wallet", { id: tid });
     }
-  };
+  } catch (err) {
+    toast.error("Network error", { id: tid });
+  } finally {
+    setSubmissionLoading(false);
+  }
+};
+
 
   const handleSendToManufacturerSubmit = async (e) => {
     e.preventDefault();

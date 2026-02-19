@@ -81,11 +81,7 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
     {
       name: "Dashboard",
       icon: <LayoutDashboard className="w-5 h-5" />,
-      dropdown: [
-        { name: "Status Dashboard", route: "/dashboard/status" },
-        { name: "CCC Dashboard", route: "/dashboard/ccc" },
-        { name: "Monitoring Dashboard", route: "/dashboard/monitoring" },
-      ],
+     
     },
     {
       name: "Wallet Requests",
@@ -111,16 +107,16 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
           route: "/barcode/rollback",
           icon: <RotateCcw className="w-4 h-4" />,
         },
-        {
-          name: "Renewal Allocation",
-          route: "/barcode/renewal",
-          icon: <RefreshCw className="w-4 h-4" />,
-        },
-        {
-          name: "Manage Accessories",
-          route: "/barcode/accessories",
-          icon: <Box className="w-4 h-4" />,
-        },
+        // {
+        //   name: "Renewal Allocation",
+        //   route: "/barcode/renewal",
+        //   icon: <RefreshCw className="w-4 h-4" />,
+        // },
+        // {
+        //   name: "Manage Accessories",
+        //   route: "/barcode/accessories",
+        //   icon: <Box className="w-4 h-4" />,
+        // },
       ],
     },
     // {
