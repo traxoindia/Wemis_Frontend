@@ -1,195 +1,238 @@
 import React, { useState, useEffect } from "react";
-import {
-  Wallet,
-  Package,
-  Calendar,
-  Tag,
-  Info,
-  Loader2,
-  AlertCircle,
-  Building2,
-  ArrowRight
+import { 
+  Loader2, X, Package, CheckCircle2, Building2, CheckCircle
 } from "lucide-react";
 import ManufactureNavbar from "./ManufactureNavbar";
 
 function Renewal() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+  const [showToast, setShowToast] = useState(false); // Toast State
+
+  const [gstRate, setGstRate] = useState(18);
+  const [formData, setFormData] = useState({
+    basePrice: '',
+    distributorMargin: '',
+    dealerMargin: '',
+  });
+
+  const fetchRenewalData = async () => {
+    try {
+      const token = localStorage.getItem("token") || "YOUR_TOKEN";
+      const res = await fetch("https://api.websave.in/api/manufactur/fetchManufacturRenewalWalletPackage", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+      if (result.success) {
+        setData(result);
+        if (result.renewalPackages?.length > 0) setSelectedPackage(result.renewalPackages[0]);
+      }
+    } catch (err) {
+      console.error("Fetch Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchRenewalData = async () => {
-      try {
-        setLoading(true);
-        // Replace with your actual token retrieval logic
-        const token = localStorage.getItem("token") || "YOUR_TOKEN_HERE";
-
-        const response = await fetch(
-          "https://api.websave.in/api/manufactur/fetchManufacturRenewalWalletPackage",
-          {
-            method: "GET",
-            headers: {
-              "Authorization": `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`Error: ${response.status} - ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        console.log(result)
-        
-        if (result.success) {
-          setData(result);
-        } else {
-          throw new Error(result.message || "Failed to fetch data");
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchRenewalData();
   }, []);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
-        <p className="mt-4 text-gray-600 font-medium">Fetching Renewal Packages...</p>
-      </div>
-    );
-  }
+  const calc = (val) => {
+    const num = Number(val) || 0;
+    const gst = (num * gstRate) / 100;
+    return { net: num, gst: gst, total: num + gst };
+  };
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-red-100 text-center max-w-md">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-gray-900">Request Failed</h2>
-          <p className="text-gray-500 mt-2">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="mt-6 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const baseData = calc(formData.basePrice);
+  const distData = calc(formData.distributorMargin);
+  const dealData = calc(formData.dealerMargin);
+  const finalTotal = baseData.total + distData.total + dealData.total;
+
+  const handleUpdatePrice = async (e) => {
+    e.preventDefault();
+    setIsUpdating(true);
+
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("https://api.websave.in/api/manufactur/manufacturerUpdareRenewalPackagePrice", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          renewalPackageId: selectedPackage._id,
+          price: baseData.net,
+          distributorOemMarginPrice: distData.net,
+          delerMarginPrice: dealData.net,
+          totalPrice: finalTotal.toFixed(2),
+        }),
+      });
+
+      if (response.ok) {
+        setIsModalOpen(false);
+        setFormData({ basePrice: '', distributorMargin: '', dealerMargin: '' }); // Reset form
+        setShowToast(true); // Trigger Toast
+        setTimeout(() => setShowToast(false), 3000); // Auto-hide toast
+        fetchRenewalData();
+      }
+    } catch (err) {
+      alert("Pricing update failed");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <Loader2 className="animate-spin text-blue-600 w-10 h-10" />
+    </div>
+  );
 
   return (
-    <>
+    <div className="min-h-screen bg-[#FDFDFD] relative">
       <ManufactureNavbar />
 
-      <div className="min-h-screen bg-gray-50/50 p-4 md:p-8">
-        <div className="max-w-full mx-auto space-y-6">
-          
-          {/* Top Info Cards */}
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-white border rounded-xl p-5 shadow-sm flex items-center gap-4">
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <Building2 className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Manufacturer</p>
-                <h2 className="text-lg font-bold text-gray-800">{data?.manufacturerName}</h2>
-              </div>
-            </div>
-            <div className="bg-white border rounded-xl p-5 shadow-sm flex items-center gap-4">
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <Info className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">WLP Name</p>
-                <h2 className="text-sm font-medium text-gray-700">{data?.wlpName}</h2>
-              </div>
-            </div>
-          </div>
-
-          {/* Renewal Packages Table Section */}
-          <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
-            <div className="p-6 border-b flex justify-between items-center bg-white">
-              <div className="flex items-center gap-2">
-                <Package className="h-5 w-5 text-gray-600" />
-                <h3 className="text-xl font-bold text-gray-800">Renewal Packages</h3>
-              </div>
-              <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full font-medium">
-                {data?.renewalPackages?.length} Available
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 text-gray-600 text-sm uppercase">
-                    <th className="px-6 py-4 font-semibold">Package Name</th>
-                    <th className="px-6 py-4 font-semibold">Element</th>
-                    <th className="px-6 py-4 font-semibold">Type</th>
-                    <th className="px-6 py-4 font-semibold">Billing Cycle</th>
-                    <th className="px-6 py-4 font-semibold text-right">Price (INR)</th>
-                    <th className="px-6 py-4 font-semibold text-center">Action</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {data?.renewalPackages?.map((pkg) => (
-                    <tr key={pkg._id} className="hover:bg-gray-50 transition-colors group">
-                      <td className="px-6 py-4">
-                        <div className="font-semibold text-gray-900">{pkg.packageName}</div>
-                        <div className="text-xs text-gray-500">{pkg.description}</div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-50 text-blue-700">
-                          {pkg.elementName}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {pkg.packageType}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center text-sm text-gray-700">
-                          <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-400" />
-                          {pkg.billingCycle} Months
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="font-bold text-gray-900">₹{pkg.totalPrice}</div>
-                        {pkg.price > 0 && (
-                          <div className="text-xs text-gray-400 line-through">₹{pkg.price}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <button className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors">
-                          Select <ArrowRight className="h-4 w-4" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            
-            {data?.renewalPackages?.length === 0 && (
-              <div className="p-12 text-center text-gray-500">
-                No renewal packages found for this manufacturer.
-              </div>
-            )}
-          </div>
-
-          {/* Footer Footer */}
-          <div className="flex justify-between items-center text-xs text-gray-400 pt-4">
-            <p>System Status: Online</p>
-            <p>© {new Date().getFullYear()} Renewal Management Portal</p>
+      {/* --- TOAST NOTIFICATION --- */}
+      {showToast && (
+        <div className="fixed top-20 right-5 z-[100] animate-in slide-in-from-right duration-300">
+          <div className="bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border border-gray-700">
+            <CheckCircle className="text-green-400 w-5 h-5" />
+            <span className="text-sm font-bold tracking-tight">Pricing updated successfully!</span>
           </div>
         </div>
+      )}
+
+      <div className="max-w-full mx-auto p-6 md:p-10">
+        <div className="mb-8 flex items-center justify-between">
+            <h1 className="text-xl font-bold text-gray-900 tracking-tight uppercase">Inventory Control</h1>
+            <div className="text-xs font-bold text-gray-400 flex items-center gap-2">
+                <Building2 size={14}/> {data?.manufacturerName}
+            </div>
+        </div>
+
+        {/* REFINED TABLE */}
+        <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+          <table className="w-full text-left">
+            <thead className="bg-gray-50/50">
+              <tr className="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100">
+                <th className="px-6 py-4">Manufacturer</th>
+                <th className="px-6 py-4">WLP Name</th>
+                <th className="px-6 py-4">Package Identity</th>
+                <th className="px-6 py-4">Cycle</th>
+                <th className="px-6 py-4 text-right">Gross Price</th>
+                <th className="px-6 py-4 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {data?.renewalPackages?.map((pkg) => (
+                <tr key={pkg._id} className="hover:bg-blue-50/20 transition-all duration-200">
+                  <td className="px-6 py-5 font-bold text-gray-800 text-sm">{data?.manufacturerName}</td>
+                  <td className="px-6 py-5 text-sm font-medium text-gray-600">{data?.wlpName}</td>
+                  <td className="px-6 py-5">
+                    <div className="font-bold text-blue-600 text-sm">{pkg.packageName}</div>
+                    <div className="text-[11px] text-gray-400 font-bold">{pkg.elementName}</div>
+                  </td>
+                  <td className="px-6 py-5 text-xs font-bold text-gray-500">
+                    {pkg.billingCycle} Days
+                  </td>
+                  <td className="px-6 py-5 text-right font-black text-gray-900">
+                    ₹{pkg.totalPrice}
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    <button 
+                      onClick={() => { setSelectedPackage(pkg); setIsModalOpen(true); }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all"
+                    >
+                      Update Price
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </>
+
+      {/* --- MINIMALIST MODAL --- */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-[#0F172A]/30 backdrop-blur-sm flex justify-center items-center p-4">
+          <div className="bg-white w-full max-w-xl rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+            <div className="px-8 py-6 border-b border-gray-50 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800 tracking-tight">Update Pricing</h3>
+              <button onClick={() => setIsModalOpen(false)}>
+                <X size={18} className="text-gray-400 hover:text-gray-600 transition-colors" />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdatePrice} className="p-8 space-y-6">
+              
+              <div className="grid grid-cols-2 gap-3">
+                {data?.renewalPackages?.map((pkg) => (
+                  <button
+                    key={pkg._id}
+                    type="button"
+                    onClick={() => setSelectedPackage(pkg)}
+                    className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                      selectedPackage?._id === pkg._id ? 'border-blue-600 bg-blue-50/30' : 'border-gray-100'
+                    }`}
+                  >
+                    {selectedPackage?._id === pkg._id && <CheckCircle2 className="absolute top-3 right-3 text-blue-600" size={14} />}
+                    <p className="font-bold text-xs text-gray-800">{pkg.packageName}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">₹{pkg.totalPrice} (Current)</p>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center justify-between px-1">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Taxation Rate</span>
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                    {[12, 18].map(r => (
+                        <button key={r} type="button" onClick={() => setGstRate(r)} className={`px-4 py-1 text-[10px] font-black rounded-md transition-all ${gstRate === r ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-400'}`}>{r}%</button>
+                    ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Base Price (Net)</label>
+                  <input type="number" value={formData.basePrice} onChange={(e) => setFormData({...formData, basePrice: e.target.value})} className="w-full text-base font-bold border-b border-gray-200 focus:border-blue-600 outline-none py-1 transition-all" />
+                  <p className="text-[10px] text-blue-500 font-medium italic">Gross: ₹{baseData.total.toFixed(0)}</p>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Distributor Margin</label>
+                  <input type="number" value={formData.distributorMargin} onChange={(e) => setFormData({...formData, distributorMargin: e.target.value})} className="w-full text-base font-bold border-b border-gray-200 focus:border-blue-600 outline-none py-1 transition-all" />
+                  <p className="text-[10px] text-blue-500 font-medium italic">Gross: ₹{distData.total.toFixed(0)}</p>
+                </div>
+
+                <div className="space-y-1 col-span-1 md:col-span-2">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Dealer Margin</label>
+                  <input type="number" value={formData.dealerMargin} onChange={(e) => setFormData({...formData, dealerMargin: e.target.value})} className="w-full text-base font-bold border-b border-gray-200 focus:border-blue-600 outline-none py-1 transition-all" />
+                  <p className="text-[10px] text-blue-500 font-medium italic">Gross: ₹{dealData.total.toFixed(0)}</p>
+                </div>
+              </div>
+
+              <div className="pt-6 flex items-center justify-between border-t border-gray-50">
+                <div className="text-left">
+                  <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest">Final Total Gross</p>
+                  <p className="text-2xl font-black text-gray-900 tracking-tighter">₹{finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                </div>
+                <button
+                  type="submit"
+                  disabled={isUpdating}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                >
+                  {isUpdating ? <Loader2 className="animate-spin" size={14} /> : "Save Changes"}
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

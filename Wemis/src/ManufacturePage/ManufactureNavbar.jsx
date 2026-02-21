@@ -81,6 +81,7 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
     {
       name: "Dashboard",
       icon: <LayoutDashboard className="w-5 h-5" />,
+      route: "/manufacturer/dashboard"
      
     },
     {

@@ -72,7 +72,7 @@ const WalletRequests = () => {
       <Toaster position="top-right" />
       <ManufactureNavbar />
 
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <main className="max-w-full mx-auto px-6 py-8">
         <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
           <div>
             <h1 className="text-2xl font-black text-slate-800 flex items-center gap-2">
