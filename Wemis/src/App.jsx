@@ -84,6 +84,7 @@ import ActivationPLans from "./CustomerPage/ActivationPLans";
 import ManufactureDispatchCreateRequests from "./OEM/ManufactureDispatchCreateRequests";
 import ActivationRequestsOEM from "./OEM/ActivationRequestsOEM";
 import ActivationWalletSummary from "./Dealer_OEM/ActivationWalletSummary";
+import Renewalwalletwlp from "./WlpPage/Renewalwalletwlp";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -317,6 +318,8 @@ function App() {
               path="/dealer/dashboard"
               element={<DealerDashboard/>}
             />
+            {/* renewal wallet route */}
+              <Route path="/wlp/Renewal" element={<Renewalwalletwlp />} />
 
           
           

@@ -11,6 +11,7 @@ import {
   MdSubscriptions,
   MdMenu,
   MdClose,
+  MdWallet
 } from "react-icons/md";
 import { UserAppContext } from "../contexts/UserAppProvider";
 import { Wallet } from "lucide-react";
@@ -39,6 +40,7 @@ const WlpNavbar = () => {
     { name: "Dashboard", icon: <MdDashboard />, path: "/wlp/dashboard" },
     // { name: "Wallet", icon: <Wallet size={18} />, path: "/wlp/wallet" },
     { name: "Activation Wallet", icon: <MdSubscriptions />, path: "/wlp/Activation" },
+    { name: "Renewal Wallet", icon: <MdWallet />, path: "/wlp/Renewal" },
   ];
 
   const clientLinks = [
