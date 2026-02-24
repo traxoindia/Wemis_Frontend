@@ -164,7 +164,7 @@ const DistributorNavbar = () => {
             onClick={() => toggleMenu("requests")}
             tabIndex={0}
           >
-            <ClipboardList size={18} /> Activation Requests
+            <ClipboardList size={18} /> Wallet
             {openMenu === "requests" ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </div>
           {openMenu === "requests" && (
@@ -185,6 +185,15 @@ const DistributorNavbar = () => {
                     className="flex items-center gap-2 px-4 py-3 hover:bg-yellow-400 hover:text-black rounded transition"
                   >
                     <UserCheck size={16} /> Dealer Requests
+                  </Link>
+                </li>
+
+                <li>
+                  <Link
+                    to="/distributor/renewal-requests"
+                    className="flex items-center gap-2 px-4 py-3 hover:bg-yellow-400 hover:text-black rounded transition"
+                  >
+                    <ClipboardList size={16} /> Renewal 
                   </Link>
                 </li>
               </ul>

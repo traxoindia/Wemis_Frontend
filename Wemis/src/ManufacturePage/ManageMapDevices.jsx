@@ -61,7 +61,7 @@ const initialFormData = {
   NoOfPanicButtons: '', fullName: '', email: '', mobileNo: '', GstinNo: '',
   Customercountry: 'India', Customerstate: '', Customerdistrict: '', Rto: '',
   PinCode: '', CompliteAddress: '', AdharNo: '', PanNo: '', Packages: '', InvoiceNo: '',
-  deviceSendTo: '', // Added new field
+  deviceSendTo: '', 
   Vechile_Doc: null, Rc_Doc: null, Pan_Card: null, Device_Doc: null, Adhar_Card: null,
   Invious_Doc: null, Signature_Doc: null, Panic_Sticker: null,
 };
@@ -163,7 +163,6 @@ function App() {
       const payload = {};
       for (const key in formData) {
         const value = formData[key];
-        // Skip file fields
         if (value instanceof File || key.endsWith('_Doc') || key.endsWith('_Card') || key.endsWith('_Sticker')) {
           continue;
         }
@@ -265,8 +264,23 @@ function App() {
                       {dealers.map(d => <option key={d._id} value={d.name || d.business_Name}>{d.name || d.business_Name}</option>)}
                     </select>
                   </div>
-                  {/* --- NEW FIELD ADDED HERE --- */}
-                  {renderFormInput('deviceSendTo', 'Device Send To', 'text', true)}
+                  
+                  {/* --- UPDATED DEVICE SEND TO DROPDOWN --- */}
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-bold text-yellow-500/80 uppercase tracking-wider">Device Send To *</label>
+                    <select 
+                      name="deviceSendTo" 
+                      value={formData.deviceSendTo} 
+                      onChange={handleChange} 
+                      required 
+                      className="bg-black/40 border border-yellow-500/20 rounded-lg px-4 py-2.5 text-yellow-100 focus:border-yellow-500 outline-none transition-all"
+                    >
+                      <option value="">Select Location</option>
+                      <option value="Hansa Sambalpur">Hansa Sambalpur</option>
+                      <option value="Hansa Puri">Hansa Puri</option>
+                      <option value="Hansa rourkela">Hansa rourkela</option>
+                    </select>
+                  </div>
                 </div>
                 
                 <div className="max-w-md">

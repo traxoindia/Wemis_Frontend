@@ -85,7 +85,7 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
      
     },
     {
-      name: "Wallet Requests",
+      name: "Activation Wallet Requests",
       icon: <FileText className="w-5 h-5" />,
       route: "/walletrequests"
     },

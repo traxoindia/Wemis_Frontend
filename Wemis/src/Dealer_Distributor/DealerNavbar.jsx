@@ -144,6 +144,7 @@ const DealerNavbar = () => {
             </NavDropdown>
             <NavDropdown menuKey="Wallet" title="Wallet" icon={<FaWallet />} openMenu={openMenu} toggleMenu={setOpenMenu}>
               <DropdownLink to="/dealer/walletActivation">Activation Wallet</DropdownLink>
+               <DropdownLink to="/dealer/walletRenewal">Renewal Wallet</DropdownLink>
              
             </NavDropdown>
           </div>
