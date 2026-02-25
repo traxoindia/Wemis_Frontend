@@ -256,7 +256,7 @@ const CustomerDashboard = () => {
     socketRef.current = socket;
 
     socket.on("gps-update", (data) => {
-      console.log(data);
+      
       const extractedData = extractSocketData(data);
 
       // 1. Update List Data (Always)
@@ -622,7 +622,7 @@ const CustomerDashboard = () => {
         const extracted = extractSocketData(d);
         devicesObj[extracted.deviceNo] = extracted;
       });
-      console.log("first", devicesObj);
+    
 
       setDevices(devicesObj);
       updateSummary(Object.values(devicesObj));
@@ -643,7 +643,7 @@ const CustomerDashboard = () => {
       d.vechileNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       d.deviceNo?.includes(searchTerm),
   );
-  console.log("my filterd", filteredDevices);
+  
 
   const displayData =
     isPlaybackMode && playbackRoute.length > 0

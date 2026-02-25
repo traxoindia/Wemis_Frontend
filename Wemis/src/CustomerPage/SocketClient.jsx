@@ -118,7 +118,6 @@ const CustomerDashboard = () => {
     });
 
     socketRef.current = socket;
-
     // Handle GPS updates from socket
     socket.on("gps-update", (data) => {
       setDevices(prev => {

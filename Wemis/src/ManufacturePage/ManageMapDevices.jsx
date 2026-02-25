@@ -279,6 +279,7 @@ function App() {
                       <option value="Hansa Sambalpur">Hansa Sambalpur</option>
                       <option value="Hansa Puri">Hansa Puri</option>
                       <option value="Hansa rourkela">Hansa rourkela</option>
+                        <option value="Hansa rourkela">Other</option>
                     </select>
                   </div>
                 </div>
