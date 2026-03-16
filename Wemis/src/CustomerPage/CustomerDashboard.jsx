@@ -158,6 +158,7 @@ const CustomerDashboard = () => {
   // --- Helper: Extract data ---
   const extractSocketData = (data) => {
     const liveData = data.liveTracking || data;
+    
     const deviceInfo = data.dev || {};
     return {
       deviceNo: data.deviceNo || liveData.deviceNo || liveData.deviceId,
@@ -363,6 +364,7 @@ const CustomerDashboard = () => {
         },
       );
       const data = await response.json();
+     
 
       if (data.success && data.route?.length > 0) {
         const cleanRoute = data.route
