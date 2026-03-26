@@ -2,18 +2,12 @@ import React, { useEffect, useState, useContext, useRef, useMemo } from "react";
 import axios from "axios";
 import {
     Zap, AlertTriangle, Edit, Eye, FileText, MapPin, Loader2, Info, X,
-    Truck, Key, Phone, Mail, DollarSign, Calendar, UploadCloud, Link, Download, Search, Trash2
+    Truck, Key, Phone, Mail, DollarSign, Calendar, UploadCloud, Link, Download, Search, Trash2, Save
 } from "lucide-react";
 
 import { useNavigate } from 'react-router-dom';
-;
 
-
-
-// Assuming the path to your UserAppContext is correct
 import { UserAppContext } from "../contexts/UserAppProvider";
-
-// Import jsPDF for client-side PDF generation
 import { jsPDF } from 'jspdf';
 
 // --- 0a. Dynamic Bouncing Cube Loader Component ---
@@ -28,7 +22,6 @@ const CubeLoader = ({ text = "Loading data..." }) => (
         </div>
         <p className="mt-6 text-lg font-semibold text-indigo-300 tracking-wider">{text}</p>
         <style jsx global>{`
-          /* Retained CSS for CubeLoader animation */
           @keyframes bounce-slow {
             0%, 100% { transform: translate(-50%, -50%) scale(1); }
             50% { transform: translate(-50%, -50%) scale(1.2); }
@@ -114,7 +107,6 @@ const SimDetailItem = ({ sim, index }) => (
 
 // --- DeviceDetailsModal Component ---
 const DeviceDetailsModal = ({ device, onClose, loading, isOpen }) => {
-    // ... (Modal structure and content from V5 - unchanged)
     const sections = [
         {
             title: "Customer & Contact Information",
@@ -262,9 +254,173 @@ const DeviceDetailsModal = ({ device, onClose, loading, isOpen }) => {
     );
 };
 
+// --- EditDeviceModal Component ---
+const EditDeviceModal = ({ isOpen, onClose, deviceData, onSave, isLoading }) => {
+    const [formData, setFormData] = useState({});
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (deviceData && isOpen) {
+            // Populate form with device data
+            setFormData({
+                mapId: deviceData._id || deviceData.mapId || "",
+                deviceSendTo: deviceData.deviceSendTo || "",
+                deviceType: deviceData.deviceType || "",
+                deviceNo: deviceData.deviceNo || "",
+                voltage: deviceData.voltage || "",
+                elementType: deviceData.elementType || "",
+                batchNo: deviceData.batchNo || "",
+                VechileBirth: deviceData.VechileBirth || "",
+                RegistrationNo: deviceData.RegistrationNo || "",
+                date: deviceData.date ? deviceData.date.split('T')[0] : "",
+                ChassisNumber: deviceData.ChassisNumber || "",
+                EngineNumber: deviceData.EngineNumber || "",
+                VehicleType: deviceData.VehicleType || "",
+                MakeModel: deviceData.MakeModel || "",
+                ModelYear: deviceData.ModelYear || "",
+                InsuranceRenewDate: deviceData.InsuranceRenewDate ? deviceData.InsuranceRenewDate.split('T')[0] : "",
+                PollutionRenewdate: deviceData.PollutionRenewdate ? deviceData.PollutionRenewdate.split('T')[0] : "",
+                vechileNo: deviceData.vechileNo || "",
+                fullName: deviceData.fullName || "",
+                email: deviceData.email || "",
+                mobileNo: deviceData.mobileNo || "",
+                GstinNo: deviceData.GstinNo || "",
+                Customercountry: deviceData.Customercountry || "",
+                Customerstate: deviceData.Customerstate || "",
+                Customerdistrict: deviceData.Customerdistrict || "",
+                Rto: deviceData.Rto || "",
+                PinCode: deviceData.PinCode || "",
+                CompliteAddress: deviceData.CompliteAddress || "",
+                AdharNo: deviceData.AdharNo || "",
+                PanNo: deviceData.PanNo || "",
+                Packages: deviceData.Packages || "",
+                InvoiceNo: deviceData.InvoiceNo || "",
+                VehicleKMReading: deviceData.VehicleKMReading || "",
+                DriverLicenseNo: deviceData.DriverLicenseNo || "",
+                MappedDate: deviceData.MappedDate ? deviceData.MappedDate.split('T')[0] : "",
+                NoOfPanicButtons: deviceData.NoOfPanicButtons || "",
+            });
+        }
+    }, [deviceData, isOpen]);
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        await onSave(formData);
+        setLoading(false);
+    };
+
+    if (!isOpen) return null;
+
+    const inputFields = [
+        { label: "Device Send To", name: "deviceSendTo", type: "text", required: true },
+        { label: "Device Type", name: "deviceType", type: "text", required: true },
+        { label: "Device No", name: "deviceNo", type: "text", required: true },
+        { label: "Voltage", name: "voltage", type: "text" },
+        { label: "Element Type", name: "elementType", type: "text" },
+        { label: "Batch No", name: "batchNo", type: "text" },
+        { label: "Vehicle Birth", name: "VechileBirth", type: "text" },
+        { label: "Registration No", name: "RegistrationNo", type: "text" },
+        { label: "Date", name: "date", type: "date" },
+        { label: "Chassis Number", name: "ChassisNumber", type: "text" },
+        { label: "Engine Number", name: "EngineNumber", type: "text" },
+        { label: "Vehicle Type", name: "VehicleType", type: "text" },
+        { label: "Make/Model", name: "MakeModel", type: "text" },
+        { label: "Model Year", name: "ModelYear", type: "text" },
+        { label: "Insurance Renew Date", name: "InsuranceRenewDate", type: "date" },
+        { label: "Pollution Renew Date", name: "PollutionRenewdate", type: "date" },
+        { label: "Vehicle No", name: "vechileNo", type: "text" },
+        { label: "Full Name", name: "fullName", type: "text", required: true },
+        { label: "Email", name: "email", type: "email", required: true },
+        { label: "Mobile No", name: "mobileNo", type: "tel", required: true },
+        { label: "GSTIN No", name: "GstinNo", type: "text" },
+        { label: "Customer Country", name: "Customercountry", type: "text" },
+        { label: "Customer State", name: "Customerstate", type: "text" },
+        { label: "Customer District", name: "Customerdistrict", type: "text" },
+        { label: "RTO", name: "Rto", type: "text" },
+        { label: "Pin Code", name: "PinCode", type: "text" },
+        { label: "Complete Address", name: "CompliteAddress", type: "text" },
+        { label: "Aadhar No", name: "AdharNo", type: "text" },
+        { label: "Pan No", name: "PanNo", type: "text" },
+        { label: "Packages", name: "Packages", type: "text" },
+        { label: "Invoice No", name: "InvoiceNo", type: "text" },
+        { label: "Vehicle KM Reading", name: "VehicleKMReading", type: "text" },
+        { label: "Driver License No", name: "DriverLicenseNo", type: "text" },
+        { label: "Mapped Date", name: "MappedDate", type: "date" },
+        { label: "No of Panic Buttons", name: "NoOfPanicButtons", type: "number" },
+    ];
+
+    return (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="absolute inset-0 bg-black bg-opacity-60 transition-opacity" onClick={onClose}></div>
+            <div className="flex items-center justify-center min-h-screen p-4">
+                <div className="bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl transform transition-all duration-300 relative max-h-[90vh] overflow-y-auto">
+                    <div className="p-6 border-b border-gray-700 flex justify-between items-center sticky top-0 bg-gray-800 z-10">
+                        <h3 className="text-xl font-bold text-yellow-400 flex items-center">
+                            <Edit size={20} className="mr-2" /> Edit Device Details
+                        </h3>
+                        <button onClick={onClose} className="text-gray-400 hover:text-white transition p-1 rounded-full hover:bg-gray-700">
+                            <X size={24} />
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleSubmit} className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {inputFields.map((field) => (
+                                <div key={field.name} className="space-y-1">
+                                    <label htmlFor={field.name} className="block text-sm font-medium text-gray-300">
+                                        {field.label} {field.required && <span className="text-red-500">*</span>}
+                                    </label>
+                                    <input
+                                        type={field.type}
+                                        id={field.name}
+                                        name={field.name}
+                                        value={formData[field.name] || ''}
+                                        onChange={handleChange}
+                                        required={field.required}
+                                        className="block w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-gray-700 flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="px-6 py-2 rounded-lg font-bold transition-all duration-300 bg-gray-700 text-gray-300 hover:bg-gray-600"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={loading || isLoading}
+                                className="px-6 py-2 rounded-lg font-bold transition-all duration-300 flex items-center gap-2 bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-500/50"
+                            >
+                                {(loading || isLoading) ? (
+                                    <><Loader2 size={18} className="animate-spin" /> Saving...</>
+                                ) : (
+                                    <><Save size={18} /> Save Changes</>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- CertificateModal Component ---
 const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading }) => {
-    // ... (Modal structure and content from V5 - unchanged)
     const [certificateOptions, setCertificateOptions] = useState({
         copyType: 'Customer Copy',
         letterHead: 'Leather Head',
@@ -289,7 +445,6 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
     const letterHeadOptions = ['Leather Head', 'Plain Paper'];
     const allowOptions = ['Allow', 'Restrict'];
     const certificateTypeOptions = ['Installation', 'Renewal', 'Transfer'];
-
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
@@ -390,9 +545,8 @@ const CertificateModal = ({ isOpen, onClose, deviceNo, onDownload, isDownloading
     );
 };
 
-// --- PDF Generation Logic (using jsPDF) ---
+// --- PDF Generation Logic ---
 const generateCertificatePDF = (doc, deviceData, options) => {
-    // ... (PDF generation logic from V5 - unchanged)
     let y = 15;
     const margin = 15;
     const lineHeight = 8;
@@ -407,14 +561,12 @@ const generateCertificatePDF = (doc, deviceData, options) => {
         return false;
     };
 
-    // --- Title & Header ---
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(30, 30, 30);
     doc.text(`Device ${options.certificateType} Certificate`, margin, y);
     y += 10;
 
-    // Subtitle based on selected options
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(12);
     doc.setTextColor(50, 50, 50);
@@ -433,13 +585,12 @@ const generateCertificatePDF = (doc, deviceData, options) => {
     doc.line(margin, y, doc.internal.pageSize.width - margin, y);
     y += 5;
 
-    // 1. Print SIM Details
     checkPageBreak(deviceData.simDetails ? deviceData.simDetails.length * 8 + 15 : 10);
 
     if (deviceData.simDetails && deviceData.simDetails.length > 0) {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(14);
-        doc.setTextColor(50, 70, 150); // Indigo
+        doc.setTextColor(50, 70, 150);
         doc.text("SIM Card Information", margin, y);
         y += 6;
 
@@ -453,7 +604,6 @@ const generateCertificatePDF = (doc, deviceData, options) => {
         y += 4;
     }
 
-    // 2. Print Dynamic Sections
     const sections = [
         {
             title: "Customer & Contact Information",
@@ -480,8 +630,7 @@ const generateCertificatePDF = (doc, deviceData, options) => {
                 { label: "Device No.", key: "deviceNo" }, { label: "Device Type", key: "deviceType" },
                 { label: "Element Type", key: "elementType" }, { label: "Voltage", key: "voltage" },
                 { label: "No. of Panic Buttons", key: "NoOfPanicButtons" }, { label: "Mapped Date", key: "MappedDate" },
-                { label: "Batch No.", key: "batchNo" }, { label: "Distributor Name ID", key: "distributorName" },
-                { label: "Manufacturer ID", key: "manufacturId" },
+                { label: "Batch No.", key: "batchNo" },
             ]
         },
         {
@@ -498,15 +647,6 @@ const generateCertificatePDF = (doc, deviceData, options) => {
                 { label: "State", key: "Customerstate" }, { label: "District", key: "Customerdistrict" },
                 { label: "Country", key: "Customercountry" },
             ]
-        },
-        {
-            title: "Documents (Uploads) - Links",
-            fields: [
-                { label: "RC Document Link", key: "RcDocument" }, { label: "Aadhaar Card Link", key: "AdharCardDocument" },
-                { label: "Pan Card Link", key: "PanCardDocument" }, { label: "Device Document Link", key: "DeviceDocument" },
-                { label: "Invoice Document Link", key: "InvoiceDocument" }, { label: "Panic Button w/ Sticker Link", key: "PanicButtonWithSticker" },
-                { label: "Signature Document Link", key: "SignatureDocument" }, { label: "Vehicle ID Document Link", key: "VechileIDocument" },
-            ]
         }
     ];
 
@@ -515,10 +655,9 @@ const generateCertificatePDF = (doc, deviceData, options) => {
         const sectionHeight = Math.ceil(numFields / 2) * lineHeight * 1.5 + 15;
         checkPageBreak(sectionHeight);
 
-        // Section Title
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(12);
-        doc.setTextColor(150, 80, 0); // Orange/Brown for section titles
+        doc.setTextColor(150, 80, 0);
         doc.text(section.title, margin, y);
         y += 4;
 
@@ -527,7 +666,6 @@ const generateCertificatePDF = (doc, deviceData, options) => {
         doc.line(margin, y, doc.internal.pageSize.width - margin, y);
         y += 3;
 
-        // Fields in two columns
         doc.setFontSize(9);
         doc.setTextColor(50, 50, 50);
 
@@ -540,7 +678,6 @@ const generateCertificatePDF = (doc, deviceData, options) => {
             const field2 = section.fields[i + 1];
             let currentY = y;
 
-            // Left Column
             doc.setFont('helvetica', 'bold');
             doc.text(`${field1.label}:`, margin, currentY);
             doc.setFont('helvetica', 'normal');
@@ -550,7 +687,6 @@ const generateCertificatePDF = (doc, deviceData, options) => {
             doc.text(splitText1, margin + labelWidth, currentY);
             const height1 = splitText1.length * 4;
 
-            // Right Column
             let height2 = 0;
             if (field2) {
                 doc.setFont('helvetica', 'bold');
@@ -569,7 +705,6 @@ const generateCertificatePDF = (doc, deviceData, options) => {
         y += 4;
     });
 
-    // --- Footer/Disclaimer ---
     checkPageBreak(15);
     doc.setDrawColor(150, 150, 150);
     doc.line(margin, y, doc.internal.pageSize.width - margin, y);
@@ -592,9 +727,10 @@ function DeviceMapreport() {
     const [mapDevices, setMapDevices] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedDeviceIds, setSelectedDeviceIds] = useState([]);
-    const [searchTerm, setSearchTerm] = useState(''); // NEW: State for search input
+    const [searchTerm, setSearchTerm] = useState('');
     const { token: contextToken } = useContext(UserAppContext);
     const selectAllRef = useRef(null);
+    const navigate = useNavigate();
 
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [modalDeviceDetails, setModalDeviceDetails] = useState(null);
@@ -603,48 +739,212 @@ function DeviceMapreport() {
     const [isCertificateModalOpen, setIsCertificateModalOpen] = useState(false);
     const [isPdfDownloading, setIsPdfDownloading] = useState(false);
 
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editDeviceData, setEditDeviceData] = useState(null);
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
+
     const isSingleDeviceSelected = selectedDeviceIds.length === 1;
 
-    // NEW: Memoized filtering logic
     const filteredDevices = useMemo(() => {
         if (!searchTerm) return mapDevices;
-
         const lowerCaseSearch = searchTerm.toLowerCase();
-
         return mapDevices.filter(device =>
             (device.deviceNo && device.deviceNo.toLowerCase().includes(lowerCaseSearch)) ||
             (device.Rto && device.Rto.toLowerCase().includes(lowerCaseSearch)) ||
             (device.fullName && device.fullName.toLowerCase().includes(lowerCaseSearch))
         );
     }, [mapDevices, searchTerm]);
-    // -------------------------------------------------------------
 
-    // --- Action Button Component (Retained) ---
-    const ActionButton = ({ icon: Icon, label, onClick, className = '' }) => {
-        const isDisabled = !isSingleDeviceSelected;
-        const tooltip = 'Select exactly one device to perform this action.';
+    // --- Delete Device Function ---
+    const handleDeleteDevice = async (deviceId, deviceNo, email) => {
+        if (!window.confirm(`Are you sure you want to delete device ${deviceNo}? This action cannot be undone.`)) {
+            return;
+        }
 
-        const baseClasses = "px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 flex items-center gap-2 shadow-lg";
+        try {
+            const token = contextToken || localStorage.getItem("token");
+            if (!token) throw new Error("Authentication token not found.");
+            
+            const response = await axios.post(
+                "https://api.websave.in/api/manufactur/deleteAmapdevice",
+                { deviceNo: deviceNo, email: email },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
 
-        const defaultEnabledClasses = "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/50 focus:ring-4 focus:ring-indigo-500/50";
-
-        const disabledClasses = "bg-gray-700 text-gray-500 cursor-not-allowed shadow-inner";
-
-        return (
-            <button
-                className={`${baseClasses} ${isDisabled ? disabledClasses : className || defaultEnabledClasses}`}
-                onClick={isDisabled ? null : onClick}
-                disabled={isDisabled}
-                title={isDisabled ? tooltip : label}
-            >
-                <Icon size={18} />
-                {label}
-            </button>
-        );
+            if (response.data && (response.data.success || response.data.message === "Device deleted successfully")) {
+                setMapDevices(prevDevices => prevDevices.filter(device => device._id !== deviceId));
+                setSelectedDeviceIds(prevIds => prevIds.filter(id => id !== deviceId));
+                alert("Device deleted successfully!");
+            } else {
+                alert("Failed to delete device. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error deleting device:", error);
+            alert(`Error deleting device: ${error.response?.data?.message || error.message}`);
+        }
     };
-    // -------------------------------------------------------------------------
 
-    // --- API Fetch Functions (Retained) ---
+    // --- Fetch Device Details for Edit ---
+    const handleEditDevice = async () => {
+        if (!isSingleDeviceSelected) return;
+
+        const selectedDevice = mapDevices.find(device => device._id === selectedDeviceIds[0]);
+        const mapIdToPass = selectedDevice?._id;
+
+        if (!mapIdToPass) {
+            alert("Could not find a valid ID for this device.");
+            return;
+        }
+
+        try {
+            setModalLoading(true);
+            const token = contextToken || localStorage.getItem("token");
+            if (!token) throw new Error("Authentication token not found.");
+
+            const response = await axios.post(
+                "https://api.websave.in/api/manufactur/getAMapDeviceData",
+                { mapId: mapIdToPass },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (response.data && response.data.result) {
+                setEditDeviceData(response.data.result);
+                setIsEditModalOpen(true);
+            } else {
+                alert("Failed to fetch device data for editing.");
+            }
+        } catch (error) {
+            console.error("Error fetching device data for edit:", error);
+            alert(`Error fetching device data: ${error.response?.statusText || error.message}`);
+        } finally {
+            setModalLoading(false);
+        }
+    };
+
+    // --- Save Edited Device ---
+    const handleSaveEdit = async (updatedData) => {
+        try {
+            setIsSavingEdit(true);
+            const token = contextToken || localStorage.getItem("token");
+            if (!token) throw new Error("Authentication token not found.");
+
+            // Make sure mapId is included in the payload
+            const editPayload = {
+                mapId: updatedData.mapId,
+                deviceSendTo: updatedData.deviceSendTo,
+                deviceType: updatedData.deviceType,
+                deviceNo: updatedData.deviceNo,
+                voltage: updatedData.voltage,
+                elementType: updatedData.elementType,
+                batchNo: updatedData.batchNo,
+                VechileBirth: updatedData.VechileBirth,
+                RegistrationNo: updatedData.RegistrationNo,
+                date: updatedData.date,
+                ChassisNumber: updatedData.ChassisNumber,
+                EngineNumber: updatedData.EngineNumber,
+                VehicleType: updatedData.VehicleType,
+                MakeModel: updatedData.MakeModel,
+                ModelYear: updatedData.ModelYear,
+                InsuranceRenewDate: updatedData.InsuranceRenewDate,
+                PollutionRenewdate: updatedData.PollutionRenewdate,
+                vechileNo: updatedData.vechileNo,
+                fullName: updatedData.fullName,
+                email: updatedData.email,
+                mobileNo: updatedData.mobileNo,
+                GstinNo: updatedData.GstinNo,
+                Customercountry: updatedData.Customercountry,
+                Customerstate: updatedData.Customerstate,
+                Customerdistrict: updatedData.Customerdistrict,
+                Rto: updatedData.Rto,
+                PinCode: updatedData.PinCode,
+                CompliteAddress: updatedData.CompliteAddress,
+                AdharNo: updatedData.AdharNo,
+                PanNo: updatedData.PanNo,
+                Packages: updatedData.Packages,
+                InvoiceNo: updatedData.InvoiceNo,
+                VehicleKMReading: updatedData.VehicleKMReading,
+                DriverLicenseNo: updatedData.DriverLicenseNo,
+                MappedDate: updatedData.MappedDate,
+                NoOfPanicButtons: updatedData.NoOfPanicButtons
+            };
+
+            const response = await axios.post(
+                "https://api.websave.in/api/manufactur/editAmapDevice",
+                editPayload,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+
+            if (response.data && response.data.success) {
+                alert("Device updated successfully!");
+                setIsEditModalOpen(false);
+                setEditDeviceData(null);
+                await fetchMapDevices(); // Refresh the device list
+            } else {
+                alert("Failed to update device. Please try again.");
+            }
+        } catch (error) {
+            console.error("Error saving device edit:", error);
+            alert(`Error updating device: ${error.response?.data?.message || error.message}`);
+        } finally {
+            setIsSavingEdit(false);
+        }
+    };
+
+    // --- Fetch Map Devices ---
+    const fetchMapDevices = async () => {
+        setLoading(true);
+        try {
+            const token = contextToken || localStorage.getItem("token");
+            if (!token) {
+                setLoading(false);
+                return;
+            }
+
+            const response = await axios.post(
+                "https://api.websave.in/api/manufactur/fetchAllMapDevice",
+                {},
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (response.data?.mapDevice) {
+                const devicesArray = Array.isArray(response.data.mapDevice) ? response.data.mapDevice : [];
+                const sortedDevices = devicesArray.sort((a, b) =>
+                    (a.deviceNo || "").localeCompare(b.deviceNo || "")
+                );
+                setMapDevices(sortedDevices);
+            }
+        } catch (error) {
+            console.error("Error fetching map devices:", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- Initial Fetch ---
+    useEffect(() => {
+        fetchMapDevices();
+    }, [contextToken]);
+
+    // --- Fetch Device Details for View ---
     const fetchDeviceDetails = async (deviceId, setDetailsState, setLoadingState) => {
         const selectedDevice = mapDevices.find(device => device._id === deviceId);
         if (!selectedDevice || !selectedDevice.deviceNo) {
@@ -671,7 +971,7 @@ function DeviceMapreport() {
                     },
                 }
             );
-            console.log(response.data)
+
             if (response.data?.mapDevice && typeof response.data.mapDevice === 'object' && !Array.isArray(response.data.mapDevice)) {
                 if (setDetailsState) setDetailsState(response.data.mapDevice);
                 return response.data.mapDevice;
@@ -710,7 +1010,6 @@ function DeviceMapreport() {
                 throw new Error("Device not found in the list.");
             }
 
-            // Fetches complete data needed for PDF
             deviceData = await fetchDeviceDetails(selectedDevice._id, null, () => { });
 
             if (!deviceData) {
@@ -734,58 +1033,16 @@ function DeviceMapreport() {
             setIsCertificateModalOpen(false);
         }
     };
-    // -----------------------------------------------------------------
 
-
-    // --- Initial Fetch & Checkbox Handlers (Retained) ---
-    useEffect(() => {
-        const fetchMapDevices = async () => {
-            setLoading(true);
-            try {
-                const token = contextToken || localStorage.getItem("token");
-                if (!token) {
-                    setLoading(false);
-                    return;
-                }
-
-                const response = await axios.post(
-                    "https://api.websave.in/api/manufactur/fetchAllMapDevice",
-                    {},
-                    {
-                        headers: {
-                            Authorization: `Bearer ${token}`,
-                        },
-                    }
-                );
-
-                if (response.data?.mapDevice) {
-                    console.log(response.data)
-                    const devicesArray = Array.isArray(response.data.mapDevice) ? response.data.mapDevice : [];
-                    const sortedDevices = devicesArray.sort((a, b) =>
-                        (a.deviceNo || "").localeCompare(b.deviceNo || "")
-                    );
-                    setMapDevices(sortedDevices);
-                }
-            } catch (error) {
-                console.error("Error fetching map devices:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchMapDevices();
-    }, [contextToken]);
-
+    // --- Checkbox Handlers ---
     const handleSelectAll = (event) => {
         if (event.target.checked) {
-            // Selects only the currently filtered devices
             const allIds = filteredDevices.map(device => device._id);
             setSelectedDeviceIds(allIds);
         } else {
             setSelectedDeviceIds([]);
         }
     };
-    const navigate = useNavigate();
 
     const handleSelectOne = (event, deviceId) => {
         if (event.target.checked) {
@@ -803,7 +1060,6 @@ function DeviceMapreport() {
             selectAllRef.current.indeterminate = isIndeterminate;
         }
     }, [isIndeterminate]);
-
 
     if (loading) {
         return (
@@ -829,20 +1085,17 @@ function DeviceMapreport() {
 
     return (
         <div className="p-4 md:p-8 bg-gray-900 min-h-screen text-gray-100">
-            {/* Loading overlay for PDF generation */}
             {isPdfDownloading && (
                 <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex justify-center items-center">
                     <CubeLoader text="Generating and downloading PDF certificate..." />
                 </div>
             )}
 
-            {/* HEADER/DASHBOARD CONTROLS */}
             <header className="mb-8 p-6 bg-gray-800 rounded-xl shadow-2xl border-b-4 border-indigo-700/50">
                 <h2 className="text-3xl font-extrabold text-indigo-400 tracking-tight flex items-center gap-2">
                     <Zap className="h-7 w-7 text-yellow-400" /> Mapped Devices Dashboard
                 </h2>
 
-                {/* Search & Filter Area (Updated) */}
                 <div className="mt-4 flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="relative w-full md:w-1/3">
                         <input
@@ -851,66 +1104,40 @@ function DeviceMapreport() {
                             value={searchTerm}
                             onChange={(e) => {
                                 setSearchTerm(e.target.value);
-                                setSelectedDeviceIds([]); // Clear selection on new search
+                                setSelectedDeviceIds([]);
                             }}
                             className="w-full py-2 pl-10 pr-4 bg-gray-700 border border-gray-600 rounded-lg text-gray-100 placeholder-gray-400 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 shadow-md"
                         />
                         <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     </div>
-                    {/* Display filtered results count */}
                     <p className="text-sm text-gray-400 font-medium">
                         Showing {filteredDevices.length} of {mapDevices.length} devices.
                     </p>
                 </div>
 
-                {/* ACTION BUTTONS ROW (More prominent background) */}
                 <div className="mt-6 flex flex-wrap gap-3 p-4 bg-gray-900 rounded-lg border border-indigo-600/30 shadow-inner">
-                    <ActionButton icon={Eye} label="View Details" onClick={handleViewDetails} />
-
-                    <ActionButton
-                        icon={Edit}
-                        label="Edit Device"
-                        onClick={() => alert('Edit action for ' + selectedDeviceIds[0])}
-                        className="bg-yellow-600 text-gray-900 hover:bg-yellow-700 hover:shadow-yellow-500/50 focus:ring-4 focus:ring-yellow-500/50"
-                    />
-                    <ActionButton
-                        icon={FileText}
-                        label="Certificates (PDF)"
-                        onClick={handleOpenCertificateModal}
-                        className="bg-green-600 text-white hover:bg-green-700 hover:shadow-green-500/50 focus:ring-4 focus:ring-green-500/50"
-                    />
-                    {/* <ActionButton
-                        icon={MapPin}
-                        label="Live Tracking"
-                        onClick={() => navigate(`/live-tracking`)}
-                        className="bg-green-600 text-white hover:bg-green-700 hover:shadow-green-500/50 focus:ring-4 focus:ring-green-500/50"
-                    /> */}
-
+                    <ActionButton icon={Eye} label="View Details" onClick={handleViewDetails} isSingleSelected={isSingleDeviceSelected} />
+                    <ActionButton icon={Edit} label="Edit Device" onClick={handleEditDevice} isSingleSelected={isSingleDeviceSelected} />
+                    <ActionButton icon={FileText} label="Certificates (PDF)" onClick={handleOpenCertificateModal} isSingleSelected={isSingleDeviceSelected} />
                     <ActionButton
                         icon={MapPin}
                         label="Live Tracking"
                         onClick={() => {
                             const selectedDevice = mapDevices.find(d => d._id === selectedDeviceIds[0]);
                             navigate('/live-tracking', {
-                                state: {
-                                    device: selectedDevice
-                                }
+                                state: { device: selectedDevice }
                             });
                         }}
-                        className="bg-green-600 text-white hover:bg-green-700 hover:shadow-green-500/50 focus:ring-4 focus:ring-green-500/50"
+                        isSingleSelected={isSingleDeviceSelected}
                     />
                 </div>
             </header>
 
-            {/* TABLE CONTAINER (Elegant Elevation) */}
             <div className="bg-gray-800 rounded-xl shadow-2xl overflow-hidden ring-2 ring-indigo-600/50">
                 <div className="max-h-[70vh] overflow-y-auto overflow-x-auto">
                     <table className="min-w-full text-sm divide-y divide-gray-700">
-
-                        {/* REFINED TABLE HEADER - Sticky, elevated, and bold */}
                         <thead className="sticky top-0 bg-gray-900/95 backdrop-blur-sm z-20 border-b-4 border-yellow-400 shadow-xl">
                             <tr>
-                                {/* Sticky Checkbox Column */}
                                 <th className="p-4 text-left min-w-[50px] sticky left-0 bg-gray-900/95">
                                     <input
                                         type="checkbox"
@@ -920,9 +1147,7 @@ function DeviceMapreport() {
                                         onChange={handleSelectAll}
                                     />
                                 </th>
-                                {/* Sticky Action Column */}
-                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[80px] sticky left-[50px] bg-gray-900/95 border-l border-gray-700">Action</th>
-
+                                <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[120px] sticky left-[50px] bg-gray-900/95 border-l border-gray-700">Actions</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[150px]">Device No.</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[160px]">Sim Details</th>
                                 <th className="px-6 py-3 text-left text-xs font-bold text-indigo-300 uppercase tracking-wider min-w-[120px]">State/District</th>
@@ -939,7 +1164,6 @@ function DeviceMapreport() {
                             {filteredDevices.map((device, index) => (
                                 <tr
                                     key={device._id}
-                                    // Striped rows for better readability
                                     className={`
                                         transition duration-150 
                                         ${index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700/60'} 
@@ -947,7 +1171,6 @@ function DeviceMapreport() {
                                         ${selectedDeviceIds.includes(device._id) ? 'bg-indigo-900/40 border-l-4 border-indigo-500' : ''}
                                     `}
                                 >
-                                    {/* Sticky Checkbox Cell */}
                                     <td className="p-4 whitespace-nowrap sticky left-0 z-10 bg-inherit">
                                         <input
                                             type="checkbox"
@@ -956,30 +1179,38 @@ function DeviceMapreport() {
                                             onChange={(e) => handleSelectOne(e, device._id)}
                                         />
                                     </td>
-                                    {/* Sticky Action Cell (Icon-only until hover) */}
                                     <td className="px-6 py-4 whitespace-nowrap sticky left-[50px] z-10 bg-inherit border-l border-gray-700/50">
-                                        <button
-                                            onClick={() => {
-                                                setSelectedDeviceIds([device._id]);
-                                                handleViewDetails();
-                                            }}
-                                            className="inline-flex items-center text-indigo-400 hover:text-white hover:bg-indigo-600 p-2 rounded-lg transition duration-200 group relative"
-                                            title="View Details"
-                                        >
-                                            <Eye size={18} />
-                                            {/* Tooltip-like effect on hover for clarity on small columns */}
-                                            <span className="absolute left-full ml-2 w-max px-2 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                                View Details
-                                            </span>
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedDeviceIds([device._id]);
+                                                    handleViewDetails();
+                                                }}
+                                                className="text-indigo-400 hover:text-white hover:bg-indigo-600 p-1.5 rounded-lg transition duration-200"
+                                                title="View Details"
+                                            >
+                                                <Eye size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedDeviceIds([device._id]);
+                                                    handleEditDevice();
+                                                }}
+                                                className="text-yellow-400 hover:text-white hover:bg-yellow-600 p-1.5 rounded-lg transition duration-200"
+                                                title="Edit Device"
+                                            >
+                                                <Edit size={16} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteDevice(device._id, device.deviceNo, device.email)}
+                                                className="text-red-400 hover:text-white hover:bg-red-600 p-1.5 rounded-lg transition duration-200"
+                                                title="Delete Device"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
                                     </td>
-
-                                    <td className="px-6 py-4 whitespace-nowrap text-gray-100 font-medium">{device.deviceNo || 'N/A'}
-
-
-                                    </td>
-
-                                    {/* SIM DETAILS COLUMN - Compact and readable */}
+                                    <td className="px-6 py-4 whitespace-nowrap text-gray-100 font-medium">{device.deviceNo || 'N/A'}</td>
                                     <td className="px-6 py-3 text-gray-300 text-xs">
                                         {device.simDetails && device.simDetails.length > 0 ? (
                                             device.simDetails.map((sim, index) => (
@@ -992,17 +1223,14 @@ function DeviceMapreport() {
                                             <span className="text-gray-400 text-sm">N/A</span>
                                         )}
                                     </td>
-
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">
                                         {`${device.Customerstate || 'N/A'} / ${device.Customerdistrict || 'N/A'}`}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">{device.VehicleType || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">{device.vechileNo || 'N/A'}</td>
-                                    {/* RTO Data Cell - Highlighted */}
                                     <td className="px-6 py-4 whitespace-nowrap text-yellow-400 font-semibold text-sm">
                                         {device.Rto || 'N/A'}
                                     </td>
-
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-200 text-sm">{device.delerName || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-100 text-sm font-medium">{device.fullName || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-gray-300 text-sm">{device.mobileNo || 'N/A'}</td>
@@ -1019,16 +1247,25 @@ function DeviceMapreport() {
                             <p className="mt-1 text-gray-500">Try adjusting your search terms.</p>
                         </div>
                     )}
-
                 </div>
             </div>
 
-            {/* Modals */}
             <DeviceDetailsModal
                 device={modalDeviceDetails}
                 onClose={() => setIsViewModalOpen(false)}
                 loading={modalLoading}
                 isOpen={isViewModalOpen}
+            />
+
+            <EditDeviceModal
+                isOpen={isEditModalOpen}
+                onClose={() => {
+                    setIsEditModalOpen(false);
+                    setEditDeviceData(null);
+                }}
+                deviceData={editDeviceData}
+                onSave={handleSaveEdit}
+                isLoading={isSavingEdit}
             />
 
             <CertificateModal
@@ -1041,5 +1278,24 @@ function DeviceMapreport() {
         </div>
     );
 }
+
+// --- ActionButton Component ---
+const ActionButton = ({ icon: Icon, label, onClick, className = '', isSingleSelected = true }) => {
+    const baseClasses = "px-4 py-2 rounded-lg font-bold text-sm transition-all duration-300 flex items-center gap-2 shadow-lg";
+    const defaultEnabledClasses = "bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-indigo-500/50 focus:ring-4 focus:ring-indigo-500/50";
+    const disabledClasses = "bg-gray-700 text-gray-500 cursor-not-allowed shadow-inner";
+
+    return (
+        <button
+            className={`${baseClasses} ${!isSingleSelected ? disabledClasses : className || defaultEnabledClasses}`}
+            onClick={!isSingleSelected ? null : onClick}
+            disabled={!isSingleSelected}
+            title={!isSingleSelected ? "Select exactly one device to perform this action." : label}
+        >
+            <Icon size={18} />
+            {label}
+        </button>
+    );
+};
 
 export default DeviceMapreport;

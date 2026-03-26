@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, MapPin, Package, User, Smartphone, Loader2, AlertTriangle, CheckCircle, XCircle, ShieldCheck, Send } from 'lucide-react';
+import { X, MapPin, Package, User, Smartphone, Loader2, AlertTriangle, CheckCircle, XCircle, ShieldCheck, Send, Calendar } from 'lucide-react';
 import DeviceMapreport from './DeviceMapreport';
 import ManufactureNavbar from './ManufactureNavbar';
 
@@ -62,6 +62,9 @@ const initialFormData = {
   Customercountry: 'India', Customerstate: '', Customerdistrict: '', Rto: '',
   PinCode: '', CompliteAddress: '', AdharNo: '', PanNo: '', Packages: '', InvoiceNo: '',
   deviceSendTo: '', 
+  // Added 3 New Fields
+  manufacturerYear: '', invoiceDate: '', callibrationDate: '',
+  // Docs
   Vechile_Doc: null, Rc_Doc: null, Pan_Card: null, Device_Doc: null, Adhar_Card: null,
   Invious_Doc: null, Signature_Doc: null, Panic_Sticker: null,
 };
@@ -163,6 +166,7 @@ function App() {
       const payload = {};
       for (const key in formData) {
         const value = formData[key];
+        // Exclude file fields from JSON payload
         if (value instanceof File || key.endsWith('_Doc') || key.endsWith('_Card') || key.endsWith('_Sticker')) {
           continue;
         }
@@ -265,7 +269,6 @@ function App() {
                     </select>
                   </div>
                   
-                  {/* --- UPDATED DEVICE SEND TO DROPDOWN --- */}
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-yellow-500/80 uppercase tracking-wider">Device Send To *</label>
                     <select 
@@ -341,6 +344,13 @@ function App() {
                   {renderFormInput('VehicleType', 'Vehicle Type')}
                   {renderFormInput('MakeModel', 'Make/Model')}
                   {renderFormInput('ModelYear', 'Model Year')}
+                  
+                  {/* --- NEWLY ADDED FIELDS START --- */}
+                  {renderFormInput('manufacturerYear', 'Manufacturer Year', 'text')}
+                  {renderFormInput('invoiceDate', 'Invoice Date', 'date')}
+                  {renderFormInput('callibrationDate', 'Calibration Date', 'date')}
+                  {/* --- NEWLY ADDED FIELDS END --- */}
+
                   {renderFormInput('InsuranceRenewDate', 'Insurance Renew Date', 'date')}
                   {renderFormInput('PollutionRenewdate', 'Pollution Renew Date', 'date')}
                   {renderFormInput('VehicleKMReading', 'KM Reading')}
