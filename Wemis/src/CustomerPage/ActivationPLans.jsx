@@ -15,7 +15,8 @@ import {
   Wifi,
   Gauge,
   Activity,
-  RefreshCw
+  RefreshCw,
+  X
 } from "lucide-react";
 
 function ActivationPlans() {
@@ -26,6 +27,16 @@ function ActivationPlans() {
   const [statusLoading, setStatusLoading] = useState(false);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
+  
+  // Modal states
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRenewing, setIsRenewing] = useState(false);
+  const [renewalData, setRenewalData] = useState({
+    paymentMethod: "UPI",
+    utrNo: ""
+  });
+  const [renewalError, setRenewalError] = useState("");
+  const [renewalSuccess, setRenewalSuccess] = useState("");
 
   const token = localStorage.getItem("token");
 
@@ -185,6 +196,100 @@ function ActivationPlans() {
       setDeviceStatus(null);
     } finally {
       setStatusLoading(false);
+    }
+  };
+
+  // Handle Renew/Reactivate click
+  const handleRenewClick = () => {
+    setRenewalError("");
+    setRenewalSuccess("");
+    setRenewalData({
+      paymentMethod: "UPI",
+      utrNo: ""
+    });
+    setIsModalOpen(true);
+  };
+
+  // Handle input change in modal
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setRenewalData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  // Handle renewal submission
+  const handleRenewalSubmit = async () => {
+    if (!token) {
+      setRenewalError("Authentication token not found. Please log in.");
+      return;
+    }
+
+    if (!renewalData.utrNo.trim()) {
+      setRenewalError("Please enter UTR number");
+      return;
+    }
+
+    if (!renewalData.paymentMethod) {
+      setRenewalError("Please select payment method");
+      return;
+    }
+
+    const currentVehicle = allData.find(v => v.vechileNo === selectedVehicleNo);
+    
+    if (!currentVehicle) {
+      setRenewalError("Vehicle data not found");
+      return;
+    }
+
+    // Prepare the request payload
+    const payload = {
+      activationId: currentVehicle._id || currentVehicle.activationId,
+      vechileNo: currentVehicle.vechileNo,
+      vechileType: currentVehicle.vehicleType || "OTHER",
+      packageName: currentVehicle.package?.packageName || "",
+      price: currentVehicle.package?.totalPrice || 0,
+      billingCycle: currentVehicle.package?.billingCycle || 1,
+      paymentMethod: renewalData.paymentMethod,
+      utrNo: renewalData.utrNo
+    };
+
+    setIsRenewing(true);
+    setRenewalError("");
+    
+    try {
+      const response = await fetch("https://api.websave.in/api/manufactur/renewalApi", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      console.log("Renewal Response:", result);
+
+      if (result.success) {
+        setRenewalSuccess("Plan renewed successfully!");
+        setTimeout(() => {
+          setIsModalOpen(false);
+          fetchWalletData(); // Refresh the data
+          // Reset renewal form
+          setRenewalData({
+            paymentMethod: "UPI",
+            utrNo: ""
+          });
+        }, 2000);
+      } else {
+        throw new Error(result.message || "Failed to renew plan");
+      }
+    } catch (err) {
+      setRenewalError(err.message);
+      console.error("Renewal error:", err);
+    } finally {
+      setIsRenewing(false);
     }
   };
 
@@ -370,7 +475,10 @@ function ActivationPlans() {
                     <h3 className="text-3xl font-black">₹{activePlan?.package?.totalPrice || 0}</h3>
                   </div>
                   
-                  <button className="bg-white px-8 py-3 rounded-lg font-bold text-sm hover:shadow-lg text-gray-900">
+                  <button 
+                    onClick={handleRenewClick}
+                    className="bg-white px-8 py-3 rounded-lg font-bold text-sm hover:shadow-lg text-gray-900 transition-transform hover:scale-105"
+                  >
                     {isExpired ? 'Reactivate' : 'Extend Plan'}
                   </button>
                 </div>
@@ -461,9 +569,6 @@ function ActivationPlans() {
                           <p className="text-xs text-gray-400 mb-1">Last Updated</p>
                           <p className="text-sm">{lastUpdated || "Just now"}</p>
                         </div>
-
-                        {/* Additional device information */}
-                        
                       </div>
                     )}
                   </div>
@@ -482,6 +587,128 @@ function ActivationPlans() {
           )}
         </div>
       </div>
+
+      {/* Renewal Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <RefreshCw size={20} className="text-blue-600" />
+                {isExpired ? 'Reactivate Plan' : 'Extend Plan'}
+              </h2>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* Plan Summary */}
+              <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-4 rounded-lg mb-6">
+                <h3 className="text-sm font-bold text-gray-600 mb-3">Plan Summary</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Vehicle Number:</span>
+                    <span className="font-semibold">{activePlan?.vechileNo}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Package:</span>
+                    <span className="font-semibold">{activePlan?.package?.packageName}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Billing Cycle:</span>
+                    <span className="font-semibold">{activePlan?.package?.billingCycle} days</span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                    <span className="text-gray-800">Total Amount:</span>
+                    <span className="text-blue-600">₹{activePlan?.package?.totalPrice}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Form */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Payment Method *
+                  </label>
+                  <select
+                    name="paymentMethod"
+                    value={renewalData.paymentMethod}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="UPI">UPI</option>
+                    <option value="NET_BANKING">Net Banking</option>
+                    <option value="CREDIT_CARD">Credit Card</option>
+                    <option value="DEBIT_CARD">Debit Card</option>
+                    <option value="CASH">Cash</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    UTR Number / Transaction ID *
+                  </label>
+                  <input
+                    type="text"
+                    name="utrNo"
+                    value={renewalData.utrNo}
+                    onChange={handleInputChange}
+                    placeholder="Enter UTR number or transaction ID"
+                    className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Please enter the UTR number from your payment transaction
+                  </p>
+                </div>
+
+                {/* Error Message */}
+                {renewalError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm flex items-start gap-2">
+                    <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+                    <span>{renewalError}</span>
+                  </div>
+                )}
+
+                {/* Success Message */}
+                {renewalSuccess && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-600 text-sm flex items-start gap-2">
+                    <ShieldCheck size={16} className="mt-0.5 flex-shrink-0" />
+                    <span>{renewalSuccess}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 bg-gray-50 border-t p-4 flex gap-3">
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="flex-1 px-4 py-2 border rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRenewalSubmit}
+                disabled={isRenewing}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {isRenewing ? (
+                  <>
+                    <Loader size={18} className="animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  isExpired ? 'Reactivate Plan' : 'Extend Plan'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes spin-slow {

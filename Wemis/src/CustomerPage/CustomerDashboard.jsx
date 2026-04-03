@@ -1475,6 +1475,8 @@ const CustomerDashboard = () => {
   const extractSocketData = (data) => {
     const liveData = data.liveTracking || data;
     const deviceInfo = data.dev || {};
+  //  console.log(liveData)
+
     return {
       deviceNo: data.deviceNo || liveData.deviceNo || liveData.deviceId,
       lat: Number(liveData.lat),
