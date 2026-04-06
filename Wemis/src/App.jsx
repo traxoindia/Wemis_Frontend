@@ -87,6 +87,7 @@ import ActivationWalletSummary from "./Dealer_OEM/ActivationWalletSummary";
 import Renewalwalletwlp from "./WlpPage/Renewalwalletwlp";
 import RenewalWallet from "./Dealer_Distributor/RenewalWallet";
 import DistRenewalWallet from "./Distributor/DistRenewalWallet";
+import CustomerRenewalRequests from "./ManufacturePage/CustomerRenewalRequests";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -326,6 +327,7 @@ function App() {
           <Route path="/dealer/walletRenewal" element={<RenewalWallet />} />
 
            <Route path="/distributor/renewal-requests" element={<DistRenewalWallet />} />
+            <Route path="/renewal-requests" element={<CustomerRenewalRequests />} />
           </>
 
          

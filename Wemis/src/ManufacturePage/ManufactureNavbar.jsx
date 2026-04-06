@@ -85,9 +85,13 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
      
     },
     {
-      name: "Activation Wallet Requests",
-      icon: <FileText className="w-5 h-5" />,
-      route: "/walletrequests"
+      name: "Requests",
+      icon: <Users2 className="w-5 h-5" />,
+      dropdown: [
+        { name: "Activation Wallet Requests", route: "/walletrequests" },
+        { name: "Customer Renewal Requests", route: "/renewal-requests" },
+       
+      ],
     },
     {
       name: "Barcode",
