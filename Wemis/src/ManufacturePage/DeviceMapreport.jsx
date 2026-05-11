@@ -924,7 +924,7 @@ function DeviceMapreport() {
                     },
                 }
             );
-
+console.log(response.data)
             if (response.data?.mapDevice) {
                 const devicesArray = Array.isArray(response.data.mapDevice) ? response.data.mapDevice : [];
                 const sortedDevices = devicesArray.sort((a, b) =>
@@ -971,7 +971,7 @@ function DeviceMapreport() {
                     },
                 }
             );
-
+console.log(response.data)
             if (response.data?.mapDevice && typeof response.data.mapDevice === 'object' && !Array.isArray(response.data.mapDevice)) {
                 if (setDetailsState) setDetailsState(response.data.mapDevice);
                 return response.data.mapDevice;

@@ -511,6 +511,7 @@ const Livetracking = () => {
 
             if (!response.ok) throw new Error("API Error");
             const data = await response.json();
+            console.log(data)
             processLiveTrackingData(data);
         } catch (error) {
             console.error("Tracking Error:", error);
