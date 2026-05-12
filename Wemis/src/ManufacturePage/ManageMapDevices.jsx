@@ -230,7 +230,7 @@
 //       {isModalOpen && (
 //         <div className="fixed inset-0 z-50 bg-white backdrop-blur-md flex items-center justify-center p-4">
 //           <div className="bg-zinc-900 border border-yellow-500/30 rounded-3xl w-full max-w-7xl max-h-[95vh] overflow-hidden flex flex-col shadow-2xl">
-            
+
 //             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-gradient-to-b from-white/5 to-transparent">
 //               <div className="flex items-center gap-4">
 //                 <div className="bg-yellow-500/10 p-3 rounded-2xl text-yellow-500"><ShieldCheck size={28}/></div>
@@ -243,7 +243,7 @@
 //             </div>
 
 //             <form id="mappingForm" onSubmit={handleSubmit} className="flex-grow overflow-y-auto p-8 space-y-12 custom-scrollbar">
-              
+
 //               <section>
 //                 <SectionHeader icon={MapPin} title="Hardware Allocation" />
 //                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -268,7 +268,7 @@
 //                       {dealers.map(d => <option key={d._id} value={d.name || d.business_Name}>{d.name || d.business_Name}</option>)}
 //                     </select>
 //                   </div>
-                  
+
 //                   <div className="flex flex-col gap-2">
 //                     <label className="text-xs font-bold text-yellow-500/80 uppercase tracking-wider">Device Send To *</label>
 //                     <select 
@@ -286,7 +286,7 @@
 //                     </select>
 //                   </div>
 //                 </div>
-                
+
 //                 <div className="max-w-md">
 //                    <label className="text-xs font-bold text-yellow-500/80 uppercase block mb-2">Package Plan *</label>
 //                    <select name="Packages" value={formData.Packages} onChange={handleChange} required className="w-full bg-black/60 border border-yellow-500/40 rounded-xl px-4 py-4 text-yellow-400 font-bold outline-none ring-2 ring-yellow-500/10">
@@ -344,7 +344,7 @@
 //                   {renderFormInput('VehicleType', 'Vehicle Type')}
 //                   {renderFormInput('MakeModel', 'Make/Model')}
 //                   {renderFormInput('ModelYear', 'Model Year')}
-                  
+
 //                   {/* --- NEWLY ADDED FIELDS START --- */}
 //                   {renderFormInput('manufacturerYear', 'Manufacturer Year', 'text')}
 //                   {renderFormInput('invoiceDate', 'Invoice Date', 'date')}
@@ -465,7 +465,7 @@ const initialFormData = {
   NoOfPanicButtons: '', fullName: '', email: '', mobileNo: '', GstinNo: '',
   Customercountry: 'India', Customerstate: '', Customerdistrict: '', Rto: '',
   PinCode: '', CompliteAddress: '', AdharNo: '', PanNo: '', Packages: '', InvoiceNo: '',
-  deviceSendTo: '', 
+  deviceSendTo: '',
   // Added 3 New Fields
   manufacturerYear: '', invoiceDate: '', callibrationDate: '',
   // Docs
@@ -492,8 +492,9 @@ function App() {
       const token = localStorage.getItem("token");
       const response = await fetch(FETCH_WALLET_HISTORY_API, { headers: { Authorization: `Bearer ${token}` } });
       const result = await response.json();
+      console.log(result)
       if (result.success) setWalletHistory(result.activationWallets || []);
-    } catch (error) { console.error("Plan Fetch Error:", error); } 
+    } catch (error) { console.error("Plan Fetch Error:", error); }
     finally { setWalletLoading(false); }
   }, []);
 
@@ -537,6 +538,8 @@ function App() {
   }, []);
 
   useEffect(() => { fetchWalletPlans(); }, [fetchWalletPlans]);
+
+
   useEffect(() => { if (formData.state) fetchDistributors(formData.state); }, [formData.state, fetchDistributors]);
   useEffect(() => { if (formData.distributorName) fetchDealers(formData.distributorName); }, [formData.distributorName, fetchDealers]);
   useEffect(() => { if (formData.delerName) fetchDevices(formData.delerName); }, [formData.delerName, fetchDevices]);
@@ -550,8 +553,8 @@ function App() {
       const selected = deviceNumbers.find(d => d.barCodeNo === value);
       const sims = selected?.simDetails || [];
       setMappedSims(sims);
-      setFormData(prev => ({ 
-        ...prev, 
+      setFormData(prev => ({
+        ...prev,
         simDetails: sims.map(s => s.simNo || s.iccidNo).join(', '),
         deviceType: selected?.deviceType || '',
         voltage: selected?.voltage || '',
@@ -625,7 +628,7 @@ function App() {
           <h1 className="text-2xl font-black bg-gradient-to-r from-yellow-400 to-yellow-600 bg-clip-text text-transparent">WEMIS MAPPING</h1>
         </div>
         <button onClick={() => setIsModalOpen(true)} className="bg-yellow-500 text-black font-bold px-6 py-2.5 rounded-full hover:scale-105 transition-all flex items-center gap-2">
-          <Smartphone size={18}/> Map Device
+          <Smartphone size={18} /> Map Device
         </button>
       </nav>
 
@@ -634,20 +637,20 @@ function App() {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-yellow-500/30 rounded-3xl w-full max-w-7xl max-h-[95vh] overflow-hidden flex flex-col shadow-2xl">
-            
+
             <div className="p-6 border-b border-white/5 flex justify-between items-center bg-gradient-to-b from-white/5 to-transparent">
               <div className="flex items-center gap-4">
-                <div className="bg-yellow-500/10 p-3 rounded-2xl text-yellow-500"><ShieldCheck size={28}/></div>
+                <div className="bg-yellow-500/10 p-3 rounded-2xl text-yellow-500"><ShieldCheck size={28} /></div>
                 <div>
                   <h2 className="text-2xl font-black text-white">Map New Device</h2>
                   <p className="text-xs text-gray-500 font-medium">Link hardware to vehicle and customer profile</p>
                 </div>
               </div>
-              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-white/5"><X size={28}/></button>
+              <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-white/5"><X size={28} /></button>
             </div>
 
             <form id="mappingForm" onSubmit={handleSubmit} className="flex-grow overflow-y-auto p-8 space-y-12 custom-scrollbar">
-              
+
               <section>
                 <SectionHeader icon={MapPin} title="Hardware Allocation" />
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -672,14 +675,14 @@ function App() {
                       {dealers.map(d => <option key={d._id} value={d.name || d.business_Name}>{d.name || d.business_Name}</option>)}
                     </select>
                   </div>
-                  
+
                   <div className="flex flex-col gap-2">
                     <label className="text-xs font-bold text-yellow-500/80 uppercase tracking-wider">Device Send To *</label>
-                    <select 
-                      name="deviceSendTo" 
-                      value={formData.deviceSendTo} 
-                      onChange={handleChange} 
-                      required 
+                    <select
+                      name="deviceSendTo"
+                      value={formData.deviceSendTo}
+                      onChange={handleChange}
+                      required
                       className="bg-black/40 border border-yellow-500/20 rounded-lg px-4 py-2.5 text-yellow-100 focus:border-yellow-500 outline-none transition-all"
                     >
                       <option value="">Select Location</option>
@@ -687,17 +690,109 @@ function App() {
                       <option value="Hansa Puri">Hansa Puri</option>
                       <option value="Hansa rourkela">Hansa rourkela</option>
                       <option value="Hansa Bhubaneswar">Hansa Bhubaneswar</option>
-                        <option value="Others">Others</option>
+                      <option value="Others">Others</option>
                     </select>
                   </div>
                 </div>
-                
-                <div className="max-w-md">
-                   <label className="text-xs font-bold text-yellow-500/80 uppercase block mb-2">Package Plan *</label>
-                   <select name="Packages" value={formData.Packages} onChange={handleChange} required className="w-full bg-black/60 border border-yellow-500/40 rounded-xl px-4 py-4 text-yellow-400 font-bold outline-none ring-2 ring-yellow-500/10">
-                      <option value="">{walletLoading ? "Fetching..." : "Select Service Plan"}</option>
-                      {walletHistory.map(p => <option key={p._id} value={p._id}>{p.packageName} — {p.elementName}</option>)}
-                   </select>
+
+                <div className="w-full">
+                  <label className="text-xs font-bold text-yellow-500/80 uppercase block mb-4">
+                    Package Plan *
+                  </label>
+
+                  {walletLoading ? (
+                    <div className="text-yellow-400">Fetching...</div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {walletHistory.map((p) => (
+                        <div
+                          key={p._id}
+                          onClick={() =>
+                            setFormData((prev) => ({
+                              ...prev,
+                              Packages: p._id, // ✅ passing selected _id
+                            }))
+                          }
+                          className={`cursor-pointer rounded-xl border p-4 transition-all duration-300
+            ${formData.Packages === p._id
+                              ? "border-yellow-400 bg-yellow-500/20 shadow-md shadow-yellow-500/20"
+                              : "border-yellow-500/20 bg-black/40 hover:border-yellow-400/60"
+                            }`}
+                        >
+                          {/* Hidden Input */}
+                          <input
+                            type="radio"
+                            name="Packages"
+                            value={p._id}
+                            checked={formData.Packages === p._id}
+                            onChange={() =>
+                              setFormData((prev) => ({
+                                ...prev,
+                                Packages: p._id,
+                              }))
+                            }
+                            className="hidden"
+                          />
+
+                          {/* Top */}
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-yellow-400 font-bold text-sm">
+                              {p.packageName}
+                            </h3>
+
+                            <div
+                              className={`w-4 h-4 rounded-full border-2 flex items-center justify-center
+                ${formData.Packages === p._id
+                                  ? "border-yellow-400"
+                                  : "border-gray-500"
+                                }`}
+                            >
+                              {formData.Packages === p._id && (
+                                <div className="w-2 h-2 bg-yellow-400 rounded-full" />
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Small Info Boxes */}
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-2">
+                              <p className="text-[10px] text-gray-400 uppercase">Type</p>
+                              <p className="text-xs font-semibold text-white">
+                                {p.packageType}
+                              </p>
+                            </div>
+
+                            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-2">
+                              <p className="text-[10px] text-gray-400 uppercase">Price</p>
+                              <p className="text-xs font-bold text-green-400">
+                                ₹{p.totalPrice}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Element */}
+                          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 mb-3">
+                            <p className="text-[10px] text-gray-400 uppercase">
+                              Element Name
+                            </p>
+                            <p className="text-xs font-semibold text-white">
+                              {p.elementName}
+                            </p>
+                          </div>
+
+                          {/* Description */}
+                          <div className="bg-white/5 rounded-lg p-2">
+                            <p className="text-[10px] text-gray-400 uppercase mb-1">
+                              Description
+                            </p>
+                            <p className="text-xs text-gray-300 leading-relaxed">
+                              {p.description}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </section>
 
@@ -723,7 +818,7 @@ function App() {
                   ) : mappedSims.length > 0 ? (
                     mappedSims.map((sim, i) => (
                       <div key={i} className="bg-black/40 border border-yellow-500/20 p-5 rounded-xl">
-                        <h4 className="text-yellow-500 font-black mb-3 text-sm flex items-center gap-2"><Smartphone size={14}/> SIM {i+1}</h4>
+                        <h4 className="text-yellow-500 font-black mb-3 text-sm flex items-center gap-2"><Smartphone size={14} /> SIM {i + 1}</h4>
                         <div className="space-y-1">
                           <PackageDetailItem label="SIM No" value={sim.simNo} />
                           <PackageDetailItem label="ICCID" value={sim.iccidNo} />
@@ -749,7 +844,7 @@ function App() {
                   {renderFormInput('VehicleType', 'Vehicle Type')}
                   {renderFormInput('MakeModel', 'Make/Model')}
                   {renderFormInput('ModelYear', 'Model Year')}
-                  
+
                   {/* --- NEWLY ADDED FIELDS START --- */}
                   {renderFormInput('manufacturerYear', 'Manufacturer Year', 'text')}
                   {renderFormInput('invoiceDate', 'Invoice Date', 'date')}
@@ -788,7 +883,7 @@ function App() {
             <div className="p-8 border-t border-white/5 bg-black/40 backdrop-blur-md flex gap-4">
               <button onClick={() => setIsModalOpen(false)} className="px-8 py-3 rounded-xl border border-white/10 text-white font-bold hover:bg-white/5 transition-all flex-1">Cancel</button>
               <button type="submit" form="mappingForm" disabled={loading} className="flex-grow bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-black text-lg py-3 rounded-xl shadow-xl flex items-center justify-center gap-3 disabled:opacity-50">
-                {loading ? <Loader2 className="animate-spin"/> : <CheckCircle/>}
+                {loading ? <Loader2 className="animate-spin" /> : <CheckCircle />}
                 CONFIRM MAPPING
               </button>
             </div>
