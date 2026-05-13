@@ -366,7 +366,7 @@ const TechnicianPage = () => {
       {/* Modal (No changes needed, already looks good) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50">
-          <div className="bg-neutral-900 text-yellow-400 rounded-xl border border-yellow-400/30 shadow-2xl p-6 w-full max-w-lg relative animate-fadeIn">
+          <div className="bg-neutral-900 text-yellow-400 rounded-xl border border-yellow-400/30 shadow-2xl p-6 w-full relative animate-fadeIn">
             <button
               className="absolute top-3 right-3 text-yellow-400 hover:text-yellow-300 rounded-full focus:outline-none"
               onClick={() => setIsModalOpen(false)}

@@ -451,7 +451,7 @@ function ManageBarcode() {
         {/* Create Modal (Retained, but used new, simpler grid layout for responsiveness) */}
         {isCreateModalOpen && (
           <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div className="bg-gray-900 p-8 rounded-xl w-[950px] max-w-full max-h-[95vh] overflow-y-auto border border-yellow-500 shadow-2xl">
+            <div className="bg-gray-900 p-8 rounded-xl w-full max-h-[95vh] overflow-y-auto border border-yellow-500 shadow-2xl">
               <div className="flex justify-between items-center mb-6 border-b border-gray-700 pb-3">
                 <h2 className="text-2xl font-bold text-yellow-400">
                   Create New Barcode

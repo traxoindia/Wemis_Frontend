@@ -50,7 +50,7 @@ const Modal = ({ isOpen, onClose, title, children }) => {
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 text-yellow-400 rounded-xl shadow-2xl max-h-[95vh] overflow-y-auto w-full max-w-5xl transform transition-all duration-300 scale-100"
+        className="bg-gray-900 text-yellow-400 rounded-xl shadow-2xl max-h-[95vh] overflow-y-auto w-full transform transition-all duration-300 scale-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}

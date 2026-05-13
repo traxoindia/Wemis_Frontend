@@ -541,7 +541,7 @@ function Distributors() {
       {/* ✅ Create Distributor Modal */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-gray-900 p-6 rounded-xl w-[900px] max-h-[90vh] overflow-y-auto border border-yellow-500">
+          <div className="bg-gray-900 p-6 rounded-xl w-full max-h-[90vh] overflow-y-auto border border-yellow-500">
             <h2 className="text-xl font-bold text-yellow-400 mb-6">
               Create New Distributor
             </h2>
