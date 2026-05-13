@@ -102,6 +102,11 @@ const ManufactureNavbar = ({ activeRoute: propActiveRoute, setActiveRoute: propS
           route: "/barcode/manage",
           icon: <PackageCheck className="w-4 h-4" />,
         },
+         {
+          name: " Barcode Excel Upload",
+          route: "/barcode/Upload",
+          icon: <PackageCheck className="w-4 h-4" />,
+        },
         {
           name: "Allocate Barcode",
           route: "/barcode/allocate",

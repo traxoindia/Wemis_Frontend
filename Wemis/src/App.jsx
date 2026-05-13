@@ -89,6 +89,7 @@ import RenewalWallet from "./Dealer_Distributor/RenewalWallet";
 import DistRenewalWallet from "./Distributor/DistRenewalWallet";
 import CustomerRenewalRequests from "./ManufacturePage/CustomerRenewalRequests";
 import Test from "./CustomerPage/Test";
+import MapDeviceViaExcel from "./ManufacturePage/MapDeviceViaExecel";
 
 function App() {
   const { user } = useContext(UserAppContext);
@@ -186,6 +187,7 @@ function App() {
 
             {/* ✅ Barcode Dropdown Routes */}
             <Route path="/barcode/manage" element={<ManageBarcode />} />
+              <Route path="/barcode/Upload" element={<MapDeviceViaExcel />} />
             <Route path="/barcode/allocate" element={<AllocateBarcode />} />
             <Route path="/barcode/rollback" element={<RollbackBarcode />} />
             <Route path="/barcode/renewal" element={<RenewalAllocation />} />
