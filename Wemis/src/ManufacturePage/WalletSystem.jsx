@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Search,
   Loader2,
@@ -36,6 +36,14 @@ const WalletSystem = () => {
   const tkn = localStorage.getItem("token");
   const location = useLocation();
 
+  // ── KEY FIX ──────────────────────────────────────────────────────────────
+  // A ref that is set to true the moment we consume the location.state
+  // fulfillment data. Because refs don't cause re-renders, this flag
+  // survives every state update and guarantees the effect body never runs
+  // a second time — even when walletHistory is replaced by fetchWalletHistory.
+  const fulfillmentHandled = useRef(false);
+  // ─────────────────────────────────────────────────────────────────────────
+
   // --- Main State ---
   const [walletStats, setWalletStats] = useState({ balance: 0, avaliableStock: 0 });
   const [walletHistory, setWalletHistory] = useState([]);
@@ -70,6 +78,7 @@ const WalletSystem = () => {
     selectedPackage: null,
     quantity: 1,
     requestId: null,
+    isFulfillment: false,
   });
 
   // 1. Initial Data Fetch
@@ -81,7 +90,7 @@ const WalletSystem = () => {
     }
   }, [tkn]);
 
-  // 2. Fetch Partners when State is selected
+  // 2. Fetch Partners when State is selected inside subscription modal
   useEffect(() => {
     if (subForm.state && activeModal === "subscription") {
       fetchPartners(subForm.state);
@@ -90,40 +99,47 @@ const WalletSystem = () => {
 
   // 3. AUTO-DETECT fulfillment data from Location State
   useEffect(() => {
-    if (location.state?.fulfillmentData && walletHistory.length > 0) {
-      const data = location.state.fulfillmentData;
-      const matchingPackage = walletHistory.find(
-        (pkg) => pkg.activationWallet?._id === data.activationPlanId || pkg._id === data.activationPlanId
-      );
+    // Hard gate: once handled, never run again for this component lifetime
+    if (fulfillmentHandled.current) return;
+    if (!location.state?.fulfillmentData || walletHistory.length === 0) return;
 
-      setSubForm({
-        state: data.state || "",
-        partnerId: "", // Logic in Effect #4 will find this ID by name
-        partnerName: data.partnerName || "",
-        partnerType: data.role === "distributor" ? "distributor" : "oem",
-        quantity: data.requestedWalletCount || 1,
-        selectedPackage: matchingPackage || null,
-        requestId: location.state.requestId || null,
-      });
+    // Mark consumed BEFORE any state setters so no re-render can sneak past this
+    fulfillmentHandled.current = true;
+    // Also scrub from browser history immediately
+    window.history.replaceState(null, "", location.pathname);
 
-      fetchPartners(data.state);
-      setActiveModal("subscription");
-      window.history.replaceState({}, document.title);
-    }
+    const data = location.state.fulfillmentData;
+    const matchingPackage = walletHistory.find(
+      (pkg) => pkg.activationWallet?._id === data.activationPlanId || pkg._id === data.activationPlanId
+    );
+
+    setSubForm({
+      state: data.state || "",
+      partnerId: location.state.partnerId || "",
+      partnerName: data.partnerName || "",
+      partnerType: location.state.partnerType || (data.role === "distributor" ? "distributor" : "oem"),
+      quantity: data.requestedWalletCount || 1,
+      selectedPackage: matchingPackage || null,
+      requestId: location.state.requestId || null,
+      isFulfillment: true,
+    });
+
+    fetchPartners(data.state);
+    setActiveModal("subscription");
   }, [location.state, walletHistory]);
 
-  // 4. THE FIX: Auto-Select Partner ID based on Name after API loads
+  // 4. Fallback Auto-Select Partner ID by Name after partners API loads
   useEffect(() => {
     if (subForm.partnerName && !subForm.partnerId && !partners.loading) {
       const list = subForm.partnerType === "oem" ? partners.oems : partners.distributors;
-      const match = list.find(p => 
+      const match = list.find(p =>
         (p.business_Name || p.name || "").toLowerCase() === subForm.partnerName.toLowerCase()
       );
       if (match) {
         setSubForm(prev => ({ ...prev, partnerId: match._id }));
       }
     }
-  }, [partners.loading, subForm.partnerName, subForm.partnerType]);
+  }, [partners.loading, subForm.partnerName, subForm.partnerType, subForm.partnerId]);
 
   // --- Pricing Logic ---
   useEffect(() => {
@@ -171,7 +187,6 @@ const WalletSystem = () => {
     try {
       const response = await fetch(FETCH_WALLET_HISTORY_API, { headers: { Authorization: `Bearer ${tkn}` } });
       const result = await response.json();
-      
       if (result.success) setWalletHistory(result.activationWallets || []);
     } catch (error) { toast.error("Error loading packages"); }
     finally { setLoading(false); }
@@ -205,7 +220,11 @@ const WalletSystem = () => {
         noOfActivationWallets: Number(updateForm.noOfActivationWallets),
         activationId: updateForm.activationWallet,
       };
-      const res = await fetch(UPDATE_PRICE_QTY_API, { method: "POST", headers: { Authorization: `Bearer ${tkn}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const res = await fetch(UPDATE_PRICE_QTY_API, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tkn}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
       if (res.ok) {
         toast.success("Pricing Updated", { id: tid });
         setActiveModal(null);
@@ -226,22 +245,53 @@ const WalletSystem = () => {
         partnerName: subForm.partnerName,
         [subForm.partnerType === "oem" ? "oemId" : "distributorId"]: subForm.partnerId,
         activationPlanId: subForm.selectedPackage._id,
-        sentWalletAmount: Number(( subForm.selectedPackage.price) * subForm.quantity),
+        sentWalletAmount: Number((subForm.selectedPackage.price) * subForm.quantity),
         sentStockQuantity: Number(subForm.quantity),
+        ...(subForm.requestId && { requestId: subForm.requestId }),
       };
-      console.log(payload)
-      const response = await fetch(DISPATCH_SUBSCRIPTION_API, { method: "POST", headers: { Authorization: `Bearer ${tkn}`, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const response = await fetch(DISPATCH_SUBSCRIPTION_API, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tkn}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
       if (response.ok) {
-        toast.success("Inventory Dispatched", { id: tid });
+        toast.success("Dispatched successfully", { id: tid });
+
+        // console.log(payload)
+
+        // Close modal first, then reset form, then refresh data.
+        // Order matters: modal must close before walletHistory re-fetch
+        // triggers a re-render, so the fulfillmentHandled ref is the real
+        // safety net — but belt-and-suspenders doesn't hurt.
         setActiveModal(null);
-        fetchWalletHistory(); fetchRequests(); fetchWalletValues();
+        setSubForm({
+          state: "",
+          partnerId: "",
+          partnerName: "",
+          partnerType: "oem",
+          selectedPackage: null,
+          quantity: 1,
+          requestId: null,
+          isFulfillment: false,
+        });
+
+        fetchWalletHistory();
+        fetchRequests();
+        fetchWalletValues();
+      } else {
+        toast.error("Dispatch Failed", { id: tid });
       }
-    } catch (error) { toast.error("Dispatch Failed", { id: tid }); }
-    finally { setSubmitting(false); }
+    } catch (error) {
+      toast.error("Dispatch Failed", { id: tid });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const pendingRequests = allRequests.filter(r => r.requestStatus === "pending");
-  const filteredHistory = walletHistory.filter(item => item.packageName?.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredHistory = walletHistory.filter(item =>
+    item.packageName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900">
@@ -273,17 +323,30 @@ const WalletSystem = () => {
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input type="text" placeholder="Search packages..." className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-md text-sm outline-none shadow-sm" onChange={(e) => setSearchTerm(e.target.value)} />
+            <input
+              type="text"
+              placeholder="Search packages..."
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-md text-sm outline-none shadow-sm"
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
           <div className="flex gap-3">
             <button onClick={() => setActiveModal("notifications")} className="relative p-2 bg-white border border-slate-200 rounded-md hover:bg-slate-50">
               <Bell size={20} className="text-slate-600" />
-              {pendingRequests.length > 0 && <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />}
+              {pendingRequests.length > 0 && (
+                <span className="absolute top-0 right-0 h-2.5 w-2.5 bg-red-500 rounded-full border-2 border-white animate-pulse" />
+              )}
             </button>
             <button onClick={() => setActiveModal("update")} className="flex items-center gap-2 bg-white border border-slate-200 px-4 py-2 rounded-md text-sm font-medium hover:bg-slate-50">
               <Edit3 size={16} /> Update Price
             </button>
-            <button onClick={() => { setSubForm({ state: "", partnerId: "", partnerName: "", partnerType: "oem", quantity: 1, selectedPackage: null }); setActiveModal("subscription"); }} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 shadow-lg shadow-blue-200">
+            <button
+              onClick={() => {
+                setSubForm({ state: "", partnerId: "", partnerName: "", partnerType: "oem", quantity: 1, selectedPackage: null, requestId: null, isFulfillment: false });
+                setActiveModal("subscription");
+              }}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-blue-700 shadow-lg shadow-blue-200"
+            >
               <Send size={16} /> Dispatch
             </button>
           </div>
@@ -304,7 +367,11 @@ const WalletSystem = () => {
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {loading ? (
-                <tr><td colSpan="6" className="py-20 text-center"><Loader2 className="animate-spin inline mr-2 text-blue-600" /> Loading...</td></tr>
+                <tr>
+                  <td colSpan="6" className="py-20 text-center">
+                    <Loader2 className="animate-spin inline mr-2 text-blue-600" /> Loading...
+                  </td>
+                </tr>
               ) : (
                 filteredHistory.map((item) => (
                   <tr key={item._id} className="hover:bg-slate-50/50 transition-colors">
@@ -313,7 +380,9 @@ const WalletSystem = () => {
                     <td className="px-6 py-4 text-center font-medium">{item.noOfActivationWallets}</td>
                     <td className="px-6 py-4 font-bold">₹{item.price}</td>
                     <td className="px-6 py-4 text-blue-600 font-bold">₹{item.totalPrice || item.price}</td>
-                    <td className="px-6 py-4"><span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded uppercase">Live</span></td>
+                    <td className="px-6 py-4">
+                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded uppercase">Live</span>
+                    </td>
                   </tr>
                 ))
               )}
@@ -328,13 +397,15 @@ const WalletSystem = () => {
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-5 border-b flex justify-between items-center bg-slate-50">
               <div className="flex items-center gap-2 text-blue-600 font-bold">
-                <Send size={18} /> <span>Dispatch Inventory</span>
+                <Send size={18} />
+                <span>{subForm.isFulfillment ? "Review & Fulfill Request" : "Dispatch Inventory"}</span>
               </div>
-              <button onClick={() => setActiveModal(null)} className="p-1 hover:bg-slate-200 rounded-full"><X size={20} /></button>
+              <button onClick={() => setActiveModal(null)} className="p-1 hover:bg-slate-200 rounded-full">
+                <X size={20} />
+              </button>
             </div>
-            
+
             <div className="p-6 space-y-6">
-              {/* Detection Banner */}
               {subForm.partnerName && (
                 <div className="bg-blue-600 p-4 rounded-xl text-white shadow-lg shadow-blue-100 flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -355,7 +426,8 @@ const WalletSystem = () => {
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">State</label>
                   <select
-                    className="w-full border-2 border-slate-100 rounded-xl p-2.5 text-xs bg-white font-bold focus:border-blue-500 outline-none"
+                    disabled={subForm.isFulfillment}
+                    className="w-full border-2 border-slate-100 rounded-xl p-2.5 text-xs bg-white font-bold focus:border-blue-500 outline-none disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                     value={subForm.state}
                     onChange={(e) => {
                       setSubForm({ ...subForm, state: e.target.value, partnerId: "", partnerName: "" });
@@ -373,8 +445,9 @@ const WalletSystem = () => {
                     {["oem", "distributor"].map((t) => (
                       <button
                         key={t}
+                        disabled={subForm.isFulfillment}
                         onClick={() => setSubForm({ ...subForm, partnerType: t, partnerId: "", partnerName: "" })}
-                        className={`flex-1 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${subForm.partnerType === t ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}
+                        className={`flex-1 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all disabled:opacity-60 ${subForm.partnerType === t ? "bg-white text-blue-600 shadow-sm" : "text-slate-500"}`}
                       >
                         {t}
                       </button>
@@ -385,37 +458,49 @@ const WalletSystem = () => {
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">Select Partner</label>
                   <select
-                    className={`w-full border-2 rounded-xl p-2.5 text-xs bg-white font-bold outline-none ${partners.loading ? "border-orange-200 animate-pulse" : "border-slate-100"}`}
+                    className={`w-full border-2 rounded-xl p-2.5 text-xs bg-white font-bold outline-none disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed ${partners.loading ? "border-orange-200 animate-pulse" : "border-slate-100"}`}
                     value={subForm.partnerId}
-                    disabled={partners.loading || !subForm.state}
+                    disabled={subForm.isFulfillment || partners.loading || !subForm.state}
                     onChange={(e) => {
                       const list = subForm.partnerType === "oem" ? partners.oems : partners.distributors;
                       const sel = list.find((p) => p._id === e.target.value);
                       setSubForm({ ...subForm, partnerId: e.target.value, partnerName: sel?.business_Name || sel?.name || "" });
                     }}
                   >
-                    <option value="">{partners.loading ? "Syncing..." : "Choose Partner"}</option>
-                    {(subForm.partnerType === "oem" ? partners.oems : partners.distributors).map((p) => (
-                      <option key={p._id} value={p._id}>{p.business_Name || p.name}</option>
-                    ))}
+                    {subForm.isFulfillment ? (
+                      <option value={subForm.partnerId}>{subForm.partnerName}</option>
+                    ) : (
+                      <>
+                        <option value="">{partners.loading ? "Syncing..." : "Choose Partner"}</option>
+                        {(subForm.partnerType === "oem" ? partners.oems : partners.distributors).map((p) => (
+                          <option key={p._id} value={p._id}>{p.business_Name || p.name}</option>
+                        ))}
+                      </>
+                    )}
                   </select>
                 </div>
               </div>
 
               <div className="space-y-3">
-                <p className="text-xs font-black text-slate-800 uppercase flex items-center gap-2"><Package size={14}/> 4. Choose Plan</p>
+                <p className="text-xs font-black text-slate-800 uppercase flex items-center gap-2">
+                  <Package size={14}/> 4. Choose Plan
+                </p>
                 <div className="grid grid-cols-3 gap-3">
-                  {walletHistory.map((pkg) => (
-                    <button
-                      key={pkg._id}
-                      onClick={() => setSubForm({ ...subForm, selectedPackage: pkg })}
-                      className={`p-3 border-2 rounded-xl text-left transition-all relative ${subForm.selectedPackage?._id === pkg._id ? "border-blue-600 bg-blue-50 ring-4 ring-blue-50" : "border-slate-100 hover:border-slate-300"}`}
-                    >
-                      <div className="text-[10px] font-bold text-slate-400 uppercase truncate">{pkg.packageName}</div>
-                      <div className="text-sm font-black mt-1">₹{pkg.price}</div>
-                      {subForm.selectedPackage?._id === pkg._id && <CheckCircle2 size={12} className="absolute top-2 right-2 text-blue-600" />}
-                    </button>
-                  ))}
+                  {walletHistory.map((pkg) => {
+                    const isSelected = subForm.selectedPackage?._id === pkg._id;
+                    return (
+                      <button
+                        key={pkg._id}
+                        disabled={subForm.isFulfillment}
+                        onClick={() => setSubForm({ ...subForm, selectedPackage: pkg })}
+                        className={`p-3 border-2 rounded-xl text-left transition-all relative disabled:cursor-not-allowed ${isSelected ? "border-blue-600 bg-blue-50 ring-4 ring-blue-50" : "border-slate-100 hover:border-slate-300 disabled:opacity-40"}`}
+                      >
+                        <div className="text-[10px] font-bold text-slate-400 uppercase truncate">{pkg.packageName}</div>
+                        <div className="text-sm font-black mt-1">₹{pkg.price}</div>
+                        {isSelected && <CheckCircle2 size={12} className="absolute top-2 right-2 text-blue-600" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -424,21 +509,24 @@ const WalletSystem = () => {
                   <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Quantity</label>
                   <input
                     type="number"
-                    className="border-2 border-slate-200 rounded-xl p-2 w-32 text-xl font-black outline-none focus:border-blue-600"
+                    disabled={subForm.isFulfillment}
+                    className="border-2 border-slate-200 rounded-xl p-2 w-32 text-xl font-black outline-none focus:border-blue-600 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
                     value={subForm.quantity}
                     onChange={(e) => setSubForm({ ...subForm, quantity: e.target.value })}
                   />
                 </div>
                 <div className="text-right">
                   <p className="text-[10px] font-bold text-slate-400 uppercase">Total Value</p>
-                  <p className="text-3xl font-black text-slate-900">₹{((subForm.selectedPackage?.price || 0) * subForm.quantity).toLocaleString()}</p>
+                  <p className="text-3xl font-black text-slate-900">
+                    ₹{((subForm.selectedPackage?.price || 0) * subForm.quantity).toLocaleString()}
+                  </p>
                 </div>
                 <button
                   onClick={handleDispatchSubscription}
                   disabled={submitting || !subForm.partnerId || !subForm.selectedPackage}
                   className="bg-slate-900 text-white px-10 py-3.5 rounded-xl font-black hover:bg-blue-600 disabled:opacity-30 transition-all shadow-xl shadow-slate-200"
                 >
-                  {submitting ? "Processing..." : "Confirm Dispatch"}
+                  {submitting ? "Processing..." : subForm.isFulfillment ? "Approve & Dispatch" : "Confirm Dispatch"}
                 </button>
               </div>
             </div>
@@ -475,26 +563,46 @@ const WalletSystem = () => {
                 <div className="space-y-4 border-r pr-6">
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Base Price (Net)</label>
-                    <input type="number" className="w-full border rounded p-2 text-sm font-semibold outline-none focus:ring-1 focus:ring-blue-500" value={updateForm.basePrice} onChange={(e) => setUpdateForm({...updateForm, basePrice: e.target.value})} />
+                    <input
+                      type="number"
+                      className="w-full border rounded p-2 text-sm font-semibold outline-none focus:ring-1 focus:ring-blue-500"
+                      value={updateForm.basePrice}
+                      onChange={(e) => setUpdateForm({...updateForm, basePrice: e.target.value})}
+                    />
                     <div className="mt-1 text-[10px] text-blue-600 font-bold uppercase">Incl. GST: ₹{updateForm.priceWithGst.toFixed(2)}</div>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Add Stock Qty</label>
-                    <input type="number" className="w-full border rounded p-2 text-sm font-semibold" value={updateForm.noOfActivationWallets} onChange={(e) => setUpdateForm({...updateForm, noOfActivationWallets: e.target.value})} />
+                    <input
+                      type="number"
+                      className="w-full border rounded p-2 text-sm font-semibold"
+                      value={updateForm.noOfActivationWallets}
+                      onChange={(e) => setUpdateForm({...updateForm, noOfActivationWallets: e.target.value})}
+                    />
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Distributor Margin</label>
                     <div className="flex justify-between items-center">
-                      <input type="number" className="w-20 border rounded p-1 text-xs" value={updateForm.distributorBaseMargin} onChange={(e) => setUpdateForm({...updateForm, distributorBaseMargin: e.target.value})} />
+                      <input
+                        type="number"
+                        className="w-20 border rounded p-1 text-xs"
+                        value={updateForm.distributorBaseMargin}
+                        onChange={(e) => setUpdateForm({...updateForm, distributorBaseMargin: e.target.value})}
+                      />
                       <span className="text-xs font-bold text-blue-600">₹{updateForm.distributorMarginWithGst.toFixed(2)}</span>
                     </div>
                   </div>
                   <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                     <label className="text-[10px] font-bold text-slate-500 mb-1 block uppercase">Dealer Margin</label>
                     <div className="flex justify-between items-center">
-                      <input type="number" className="w-20 border rounded p-1 text-xs" value={updateForm.dealerBaseMargin} onChange={(e) => setUpdateForm({...updateForm, dealerBaseMargin: e.target.value})} />
+                      <input
+                        type="number"
+                        className="w-20 border rounded p-1 text-xs"
+                        value={updateForm.dealerBaseMargin}
+                        onChange={(e) => setUpdateForm({...updateForm, dealerBaseMargin: e.target.value})}
+                      />
                       <span className="text-xs font-bold text-blue-600">₹{updateForm.dealerMarginWithGst.toFixed(2)}</span>
                     </div>
                   </div>
@@ -506,7 +614,11 @@ const WalletSystem = () => {
                   <p className="text-[10px] font-bold uppercase opacity-80">Final Total Price</p>
                   <p className="text-2xl font-black">₹{updateForm.totalPrice.toFixed(2)}</p>
                 </div>
-                <button onClick={handleUpdateSubmit} disabled={submitting} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition-all disabled:opacity-50">
+                <button
+                  onClick={handleUpdateSubmit}
+                  disabled={submitting}
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
+                >
                   {submitting ? "Updating..." : "Update Inventory"}
                 </button>
               </div>
@@ -532,7 +644,9 @@ const WalletSystem = () => {
                     <span>PENDING</span>
                   </div>
                   <h4 className="font-bold mb-1 group-hover:text-blue-600">{req.distributorName || req.oemName}</h4>
-                  <p className="text-xs text-slate-500 mb-4">Requesting {req.requestedWalletCount} wallets of {req.activationPlanDetails?.packageName}</p>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Requesting {req.requestedWalletCount} wallets of {req.activationPlanDetails?.packageName}
+                  </p>
                   <button
                     onClick={() => {
                       setSubForm({
@@ -542,6 +656,8 @@ const WalletSystem = () => {
                         partnerType: req.distributorId ? "distributor" : "oem",
                         quantity: req.requestedWalletCount,
                         selectedPackage: req.activationPlanDetails || null,
+                        requestId: req._id,
+                        isFulfillment: true,
                       });
                       fetchPartners(req.state);
                       setActiveModal("subscription");
@@ -552,7 +668,9 @@ const WalletSystem = () => {
                   </button>
                 </div>
               ))}
-              {pendingRequests.length === 0 && <div className="text-center py-20 text-slate-400 text-sm">No pending requests</div>}
+              {pendingRequests.length === 0 && (
+                <div className="text-center py-20 text-slate-400 text-sm">No pending requests</div>
+              )}
             </div>
           </div>
         </div>
