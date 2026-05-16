@@ -471,7 +471,7 @@ function MapDeviceViaExcel() {
                   </tr>
                 </thead>
                 <tbody className="bg-gray-800 divide-y divide-gray-700">
-                  {filteredBarcodeData.map((item, index) => {
+                  {filteredBarcodeData.reverse().map((item, index) => {
                     const simDetails = item.simDetails && item.simDetails.length > 0 ? item.simDetails : [null];
                     
                     return simDetails.map((sim, simIndex) => (

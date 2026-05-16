@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom"; // Import useNavigate
-import { 
-  ClipboardList, Clock, CheckCircle2, 
-  Search, Loader2 
+import {
+  ClipboardList, Clock, CheckCircle2,
+  Search, Loader2
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import ManufactureNavbar from "./ManufactureNavbar";
@@ -28,6 +28,7 @@ const WalletRequests = () => {
         headers: { "Authorization": `Bearer ${tkn}`, "Content-Type": "application/json" }
       });
       const resData = await response.json();
+      console.log(resData)
       if (resData.success) setRequests(resData.result || []);
     } catch (error) {
       toast.error("Failed to load requests");
@@ -49,13 +50,13 @@ const WalletRequests = () => {
       if (resData.success) {
         toast.dismiss(tid);
         // Navigate to another page and pass data via state
-        navigate("/wallet/activation", { 
-          state: { 
+        navigate("/wallet/activation", {
+          state: {
             fulfillmentData: resData.data,
             requestId: req._id,
             partnerType: req.distributorId ? "distributor" : "oem",
             partnerId: req.distributorId || req.oemId
-          } 
+          }
         });
       } else {
         toast.error("Could not fetch request details", { id: tid });
@@ -95,37 +96,53 @@ const WalletRequests = () => {
                 <th className="px-6 py-4">Partner</th>
                 <th className="px-6 py-4">Package</th>
                 <th className="px-6 py-4 text-center">Qty</th>
+                <th className="px-6 py-4 text-center">Payment Method</th>
+                <th className="px-6 py-4 text-center">UTR No</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-sm">
               {loading ? (
-                <tr><td colSpan="5" className="py-20 text-center"><Loader2 className="animate-spin inline mr-2" /> Loading...</td></tr>
-              ) : filteredData.map((req) => (
-                <tr key={req._id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="font-bold">{req.distributorName || req.oemName}</div>
-                    <div className="text-[10px] text-blue-600 font-bold uppercase">{req.distributorId ? "Distributor" : "OEM"}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-medium">{req.activationPlanDetails?.packageName}</div>
-                  </td>
-                  <td className="px-6 py-4 text-center"><span className="bg-slate-100 px-3 py-1 rounded-full font-bold">{req.requestedWalletCount}</span></td>
-                  <td className="px-6 py-4">
-                    {req.requestStatus === "pending" ? (
-                      <span className="text-orange-600 font-bold text-xs flex items-center gap-1"><Clock size={14}/> PENDING</span>
-                    ) : (
-                      <span className="text-emerald-600 font-bold text-xs flex items-center gap-1"><CheckCircle2 size={14}/> COMPLETE</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    {req.requestStatus === "pending" && (
-                      <button onClick={() => handleOpenFulfillNavigation(req)} className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-xs font-bold hover:bg-blue-700 shadow-sm">Fulfill</button>
-                    )}
+                <tr>
+                  <td colSpan="7" className="py-20 text-center">
+                    <Loader2 className="animate-spin inline mr-2" /> Loading...
                   </td>
                 </tr>
-              ))}
+              ) : filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="py-20 text-center text-slate-400">
+                    No requests found
+                  </td>
+                </tr>
+              ) : (
+                filteredData.map((req) => (
+                  <tr key={req._id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-bold">{req.distributorName || req.oemName}</div>
+                      <div className="text-[10px] text-blue-600 font-bold uppercase">{req.distributorId ? "Distributor" : "OEM"}</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium">{req.activationPlanDetails?.packageName}</div>
+                    </td>
+                    <td className="px-6 py-4 text-center"><span className="bg-slate-100 px-3 py-1 rounded-full font-bold">{req.requestedWalletCount}</span></td>
+                    <td className="px-6 py-4 text-center">{req.paymentMethod || "N/A"}</td>
+                    <td className="px-6 py-4 text-center font-mono text-blue-600">{req.utrNumber || "N/A"}</td>
+                    <td className="px-6 py-4">
+                      {req.requestStatus === "pending" ? (
+                        <span className="text-orange-600 font-bold text-xs flex items-center gap-1"><Clock size={14} /> PENDING</span>
+                      ) : (
+                        <span className="text-emerald-600 font-bold text-xs flex items-center gap-1"><CheckCircle2 size={14} /> COMPLETE</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {req.requestStatus === "pending" && (
+                        <button onClick={() => handleOpenFulfillNavigation(req)} className="bg-blue-600 text-white px-4 py-1.5 rounded-md text-xs font-bold hover:bg-blue-700 shadow-sm">Fulfill</button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -32,7 +32,9 @@ function DealerWalletRequests() {
         setLoading(true);
         try {
             const res = await axios.get(API_GET_HISTORY, config);
+             console.log(res.data)
             if (res.data.success) {
+               
                 setRequests(res.data.data || []);
             }
         } catch (err) {

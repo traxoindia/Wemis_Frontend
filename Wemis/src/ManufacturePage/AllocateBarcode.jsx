@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useContext } from "react";
-import { ChevronRight, ChevronLeft, AlertCircle, RefreshCw, Loader, Ban, Briefcase, User, Calendar, Tag, Barcode } from "lucide-react";
+import { ChevronRight, ChevronLeft, AlertCircle, RefreshCw, Loader, Ban, Briefcase, User, Calendar, Tag, Barcode, Search } from "lucide-react";
 import axios from 'axios';
 import ManufactureNavbar from "./ManufactureNavbar";
 import toast, { Toaster } from "react-hot-toast";
@@ -150,6 +150,9 @@ function AllocateBarcode() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // New: Search term for available barcodes in modal
+  const [availableBarcodeSearchTerm, setAvailableBarcodeSearchTerm] = useState("");
 
 
   const [formData, setFormData] = useState({
@@ -177,6 +180,14 @@ function AllocateBarcode() {
   const filteredStates = useMemo(() => {
     return MOCK_OPTIONS.statesByCountry[formData.country] || [];
   }, [formData.country]);
+
+  // Filter available barcodes based on search term in modal
+  const filteredAvailableBarcodes = useMemo(() => {
+    if (!availableBarcodeSearchTerm.trim()) return availableBarcodes;
+    return availableBarcodes.filter(barcode => 
+      barcode.label.toLowerCase().includes(availableBarcodeSearchTerm.toLowerCase())
+    );
+  }, [availableBarcodes, availableBarcodeSearchTerm]);
 
   // Clear state and partners when country changes
   useEffect(() => {
@@ -237,7 +248,8 @@ function AllocateBarcode() {
       console.log("Allocated Data:", rawData)
 
       if (Array.isArray(rawData)) {
-        setAllocatedData(rawData);
+        // Reverse the array so latest data comes first
+        setAllocatedData([...rawData].reverse());
       } else {
         console.error("Allocated barcodes API did not return a valid array:", response.data);
         setAllocatedData([]);
@@ -548,10 +560,11 @@ function AllocateBarcode() {
   // Move forward/back (barcode transfer)
   const moveForward = () => {
     const selectedCodes = new Set(selectedAvailable);
-    const itemsToMove = availableBarcodes.filter((bc) => selectedCodes.has(bc.id));
+    const itemsToMove = filteredAvailableBarcodes.filter((bc) => selectedCodes.has(bc.id));
     setAvailableBarcodes((prev) => prev.filter((bc) => !selectedCodes.has(bc.id)));
     setAllocatedBarcodes((prev) => [...prev, ...itemsToMove].sort((a, b) => a.id.localeCompare(b.id)));
     setSelectedAvailable([]);
+    setAvailableBarcodeSearchTerm(""); // Clear search after moving
   };
 
   const moveBack = () => {
@@ -768,9 +781,20 @@ function AllocateBarcode() {
       <div className="bg-gray-800 p-4 border border-yellow-500 rounded-lg shadow-inner">
         <div className="flex flex-col md:flex-row gap-6">
           <div className="w-full md:w-5/12">
-            <div className="font-bold text-yellow-300 mb-2">
-              Available Barcodes ({availableBarcodes.length})
+            <div className="font-bold text-yellow-300 mb-2 flex justify-between items-center">
+              <span>Available Barcodes ({filteredAvailableBarcodes.length})</span>
               {isLoadingBarcodes && <span className="ml-2 text-sm text-gray-500">Loading...</span>}
+            </div>
+            {/* Search bar for available barcodes */}
+            <div className="relative mb-2">
+              <input
+                type="text"
+                placeholder="Search barcode..."
+                value={availableBarcodeSearchTerm}
+                onChange={(e) => setAvailableBarcodeSearchTerm(e.target.value)}
+                className="w-full p-2 pl-8 border border-yellow-500 rounded-lg bg-gray-900 text-yellow-200 text-sm focus:ring-2 focus:ring-yellow-500"
+              />
+              <Search className="absolute left-2 top-2.5 w-4 h-4 text-yellow-400" />
             </div>
             <select
               multiple
@@ -779,7 +803,7 @@ function AllocateBarcode() {
               value={selectedAvailable}
               disabled={isLoadingBarcodes}
             >
-              {availableBarcodes.map((b) => (
+              {filteredAvailableBarcodes.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.label}
                 </option>
@@ -839,17 +863,50 @@ function AllocateBarcode() {
   );
 
   // --- Table Filtering and Pagination ---
-  const filteredAllocatedData = useMemo(() => {
-    return allocatedData.filter(item => {
-      // Safely access nested array
+  // Transform allocated data to have one row per barcode
+  const expandedAllocatedData = useMemo(() => {
+    const expanded = [];
+    allocatedData.forEach(item => {
       const barcodeList = item.allocatedBarCode || [];
-      const primaryBarcode = barcodeList[0]?.barCodeNo || '';
-
-      return primaryBarcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.contact_Person_Name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.status?.toLowerCase().includes(searchTerm.toLowerCase());
+      if (barcodeList.length === 0) {
+        // If no barcodes, still show one row with empty barcode
+        expanded.push({
+          ...item,
+          singleBarcode: null,
+          status: null,
+          originalItem: item
+        });
+      } else {
+        barcodeList.forEach(barcode => {
+          expanded.push({
+            ...item,
+            singleBarcode: barcode.barCodeNo || "N/A",
+            status: barcode.status || "unknown",
+            originalItem: item
+          });
+        });
+      }
     });
-  }, [allocatedData, searchTerm]);
+    return expanded;
+  }, [allocatedData]);
+
+  const filteredAllocatedData = useMemo(() => {
+    return expandedAllocatedData.filter(item => {
+      const partnerName = item.allocatedDistributorId?.contact_Person_Name
+        ? `${item.allocatedDistributorId.contact_Person_Name} (Distributor)`
+        : item.allocatedOemId?.contact_Person_Name
+          ? `${item.allocatedOemId.contact_Person_Name} (OEM)`
+          : "NA";
+      
+      const dealerName = item.delerName || 'N/A';
+      const barcode = item.singleBarcode || '';
+
+      return partnerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        dealerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        barcode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (item.status && item.status.toLowerCase().includes(searchTerm.toLowerCase()));
+    });
+  }, [expandedAllocatedData, searchTerm]);
 
   const totalPages = Math.ceil(filteredAllocatedData.length / rowsPerPage);
   const currentTableData = useMemo(() => {
@@ -909,7 +966,7 @@ function AllocateBarcode() {
 
         {/* --- Allocated Barcodes Table --- */}
         <h2 className="text-2xl font-bold text-yellow-300 mb-4 mt-8">Allocated Barcodes History</h2>
-        <div className="bg-gray-800 p-4 rounded-xl shadow-2xl overflow-x-auto">
+        <div className="bg-gray-800 rounded-xl shadow-2xl overflow-x-auto border border-yellow-600">
           {isLoadingAllocatedData ? (
             <div className="flex justify-center items-center py-10 text-yellow-400">
               <Loader className="w-8 h-8 animate-spin mr-3" />
@@ -922,21 +979,19 @@ function AllocateBarcode() {
             </div>
           ) : (
             <>
-              <table className="min-w-full divide-y divide-yellow-600">
+              <table className="min-w-full divide-y divide-yellow-600 border-collapse">
                 <thead className="bg-gray-700 sticky top-0">
-                  <tr>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
+                  <tr className="border-b border-yellow-600">
+                    <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider border-r border-yellow-600">
                       <Briefcase size={14} className="inline mr-1" /> Distributor & OEM
                     </th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
-                      <User size={14} className="inline mr-1" />Dealer
+                    <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider border-r border-yellow-600">
+                      <User size={14} className="inline mr-1" /> Dealer
                     </th>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
+                    <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider border-r border-yellow-600">
                       <Barcode size={14} className="inline mr-1" /> Barcode(s)
                     </th>
-
-
-                    <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
+                    <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider border-r border-yellow-600">
                       <Calendar size={14} className="inline mr-1" /> Allocated Date
                     </th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-yellow-300 uppercase tracking-wider">
@@ -946,50 +1001,35 @@ function AllocateBarcode() {
                 </thead>
                 <tbody className="divide-y divide-yellow-700">
                   {currentTableData.map((item, index) => {
-                    const barcodeCount = item.allocatedBarCode?.length || 0;
-                    const primaryBarcode = item.allocatedBarCode?.[0]?.barCodeNo || "N/A";
                     const partnerName = item.allocatedDistributorId?.contact_Person_Name
                       ? `${item.allocatedDistributorId.contact_Person_Name} (Distributor)`
                       : item.allocatedOemId?.contact_Person_Name
                         ? `${item.allocatedOemId.contact_Person_Name} (OEM)`
                         : "NA";
-
-
-
-
-                    const partnerType = item.delerName || 'N/A'; // Using contact_Person_Name as requested
+                    
+                    const dealerName = item.delerName || 'N/A';
+                    const barcode = item.singleBarcode || "N/A";
+                    const barcodeStatus = item.status || "unknown";
 
                     return (
-                      <tr key={item._id} className="hover:bg-gray-700 transition duration-150">
-                        <td className="py-4 px-4 whitespace-nowrap text-sm font-medium text-yellow-200">
+                      <tr key={`${item._id}-${index}`} className="hover:bg-gray-700 transition duration-150 border-b border-yellow-700">
+                        <td className="py-4 px-4 whitespace-nowrap text-sm font-medium text-yellow-200 border-r border-yellow-600">
                           {partnerName}
                         </td>
-
-
-                        <td className="py-4 px-4 whitespace-nowrap text-xs text-yellow-200">
-                          <span className={`px-2 py-0.5 rounded-full text-black font-semibold text-xs ${partnerType === 'Distributor' ? 'bg-blue-400' : (partnerType === 'OEM' ? 'bg-green-400' : 'bg-red-400')}`}>
-                            {partnerType}
-                          </span>
+                        <td className="py-4 px-4 whitespace-nowrap text-sm text-yellow-200 border-r border-yellow-600">
+                          {dealerName}
                         </td>
-                       <td className="py-4 px-4 whitespace-nowrap text-sm text-yellow-100">
-  {item.allocatedBarCode?.map(b => b.barCodeNo).join(", ") || "N/A"}
-</td>
-
-                        <td className="py-4 px-4 whitespace-nowrap text-sm text-yellow-200">
+                        <td className="py-4 px-4 text-sm text-yellow-100 border-r border-yellow-600 font-mono break-all">
+                          {barcode}
+                        </td>
+                        <td className="py-4 px-4 whitespace-nowrap text-sm text-yellow-200 border-r border-yellow-600">
                           {formatDate(item.createdAt)}
                         </td>
                         <td className="py-4 px-4 whitespace-nowrap">
-                          {item.allocatedBarCode.map((i, index) => (
-                            <span
-                              key={index}
-                              className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${i.status === "used" ? "bg-red-500 text-white" : "bg-green-500 text-white"
-                                }`}
-                            >
-                              {i.status.toUpperCase()}
-                            </span>
-                          ))}
+                          <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${barcodeStatus === "used" ? "bg-red-500 text-white" : "bg-green-500 text-white"}`}>
+                            {barcodeStatus.toUpperCase()}
+                          </span>
                         </td>
-
                       </tr>
                     );
                   })}
@@ -997,7 +1037,7 @@ function AllocateBarcode() {
               </table>
 
               {/* Pagination */}
-              <div className="flex justify-between items-center mt-6 pt-4 border-t border-yellow-700">
+              <div className="flex justify-between items-center mt-6 pt-4 pb-4 px-4 border-t border-yellow-700">
                 <span className="text-sm text-yellow-300">
                   Showing {currentTableData.length} of {filteredAllocatedData.length} results
                 </span>
